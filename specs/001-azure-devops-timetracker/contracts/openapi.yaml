@@ -1,0 +1,253 @@
+openapi: 3.1.0
+info:
+  title: SMIT TimeTrack API
+  version: 0.1.0-draft
+  description: >-
+    Contrato inicial. O esquema de autenticação é provisório até conclusão da prova
+    técnica documentada em research.md. Não implementar este bearer como token
+    Azure DevOps sem validação de emissor, audiência e organização.
+servers:
+  - url: https://api.example.invalid/v1
+security:
+  - BackendSession: []
+components:
+  securitySchemes:
+    BackendSession:
+      type: http
+      scheme: bearer
+      description: Sessão curta emitida pelo backend após troca verificável de identidade; desenho pendente.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 16, maxLength: 128 }
+  schemas:
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string }
+    Timer:
+      type: object
+      required: [id, workItemId, startedAtUtc, status]
+      properties:
+        id: { type: string, format: uuid }
+        workItemId: { type: integer, minimum: 1 }
+        startedAtUtc: { type: string, format: date-time }
+        status: { type: string, enum: [active, stopped] }
+    Entry:
+      type: object
+      required: [id, workItemId, localDate, timezone, durationSeconds, source, billable]
+      properties:
+        id: { type: string, format: uuid }
+        workItemId: { type: integer, minimum: 1 }
+        localDate: { type: string, format: date }
+        timezone: { type: string, example: America/Sao_Paulo }
+        durationSeconds: { type: integer, minimum: 1 }
+        source: { type: string, enum: [timer, manual] }
+        billable: { type: boolean }
+        activityTypeId: { type: string, format: uuid }
+        note: { type: string, maxLength: 2000 }
+        revision: { type: integer, minimum: 1 }
+    Week:
+      type: object
+      required: [weekStartDate, status, totalSeconds, entries]
+      properties:
+        weekStartDate: { type: string, format: date }
+        status: { type: string, enum: [open, submitted, rejected, approved] }
+        totalSeconds: { type: integer, minimum: 0 }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/Entry' }
+paths:
+  /me/timer:
+    get:
+      operationId: getActiveTimer
+      responses:
+        '200':
+          description: Timer atual ou null.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/Timer' }
+                  - { type: 'null' }
+        '401': { description: Não autenticado }
+    post:
+      operationId: startTimer
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, workItemId]
+              properties:
+                projectId: { type: string, format: uuid }
+                workItemId: { type: integer, minimum: 1 }
+                activityTypeId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Timer iniciado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Timer' }
+        '403': { description: Projeto/item inacessível }
+        '409': { description: Já existe timer ativo para outro item }
+  /me/timer/stop:
+    post:
+      operationId: stopTimer
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [timerId]
+              properties:
+                timerId: { type: string, format: uuid }
+                note: { type: string, maxLength: 2000 }
+                billable: { type: boolean }
+      responses:
+        '200':
+          description: Timer fechado; uma ou mais fatias diárias geradas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Entry' }
+        '409': { description: Timer já fechado por outra operação ou semana bloqueada }
+  /entries:
+    post:
+      operationId: createManualEntry
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, workItemId, localDate, durationSeconds]
+              properties:
+                projectId: { type: string, format: uuid }
+                workItemId: { type: integer, minimum: 1 }
+                localDate: { type: string, format: date }
+                durationSeconds: { type: integer, minimum: 1 }
+                activityTypeId: { type: string, format: uuid }
+                billable: { type: boolean }
+                note: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Entrada criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Entry' }
+        '422': { description: Regra de duração/data/comentário violada }
+  /entries/{entryId}:
+    patch:
+      operationId: updateEntry
+      parameters:
+        - { name: entryId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: If-Match, in: header, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                durationSeconds: { type: integer, minimum: 1 }
+                note: { type: string, maxLength: 2000 }
+                billable: { type: boolean }
+      responses:
+        '200':
+          description: Entrada atualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Entry' }
+        '403': { description: Sem permissão }
+        '409': { description: Revisão divergente ou período bloqueado }
+    delete:
+      operationId: deleteEntry
+      parameters:
+        - { name: entryId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Exclusão lógica concluída }
+        '409': { description: Período bloqueado }
+  /me/weeks/{weekStartDate}:
+    get:
+      operationId: getWeek
+      parameters:
+        - { name: weekStartDate, in: path, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Semana do usuário.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Week' }
+  /me/weeks/{weekStartDate}/submit:
+    post:
+      operationId: submitWeek
+      parameters:
+        - { name: weekStartDate, in: path, required: true, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200': { description: Semana enviada }
+        '409': { description: Semana sem aprovador, já enviada ou aprovada }
+  /approvals/{submissionId}/decision:
+    post:
+      operationId: decideWeek
+      parameters:
+        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approve, reject] }
+                reason: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: Decisão registrada }
+        '403': { description: Usuário não é aprovador designado }
+        '409': { description: Semana já decidida ou revisão divergente }
+        '422': { description: Rejeição sem motivo }
+  /reports/time:
+    get:
+      operationId: getTimeReport
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: projectId, in: query, schema: { type: string, format: uuid } }
+        - { name: memberId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [open, submitted, rejected, approved] } }
+      responses:
+        '200': { description: Agregações e linhas paginadas, conforme permissão }
+        '403': { description: Escopo não autorizado }
+  /reports/time.csv:
+    get:
+      operationId: exportTimeCsv
+      description: Usa filtros e autorização equivalentes a /reports/time; registra evento de exportação.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: projectId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [open, submitted, rejected, approved] } }
+      responses:
+        '200':
+          description: CSV UTF-8.
+          content:
+            text/csv:
+              schema: { type: string }
+        '403': { description: Escopo não autorizado }
