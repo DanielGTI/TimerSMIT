@@ -1,0 +1,79 @@
+{
+  "manifestVersion": 1,
+  "id": "timersmit-timetracker-dev",
+  "publisher": "TrackerSMIT",
+  "version": "0.1.0",
+  "name": "Controle de horas (dev)",
+  "description": "Extensão de desenvolvimento — registro e aprovação de horas integrados ao Azure DevOps.",
+  "public": false,
+  "categories": ["Azure Boards"],
+  "targets": [{ "id": "Microsoft.VisualStudio.Services" }],
+  "icons": {
+    "default": "marketplace/icon.png"
+  },
+  "scopes": ["vso.work"],
+  "contributions": [
+    {
+      "id": "work-item-guide",
+      "type": "ms.vss-work-web.work-item-form-page",
+      "targets": ["ms.vss-work-web.work-item-form"],
+      "properties": {
+        "name": "Controle de horas",
+        "uri": "dist/src/pages/work-item/index.html"
+      }
+    },
+    {
+      "id": "hub-group",
+      "type": "ms.vss-web.hub-group",
+      "targets": ["ms.vss-web.project-hub-groups-collection"],
+      "properties": {
+        "name": "Controle de horas",
+        "order": 100
+      }
+    },
+    {
+      "id": "timesheet-hub",
+      "type": "ms.vss-web.hub",
+      "targets": ["TrackerSMIT.timersmit-timetracker-dev.hub-group"],
+      "properties": {
+        "name": "Folha semanal",
+        "uri": "dist/src/pages/timesheet/index.html",
+        "order": 10
+      }
+    },
+    {
+      "id": "approvals-hub",
+      "type": "ms.vss-web.hub",
+      "targets": ["TrackerSMIT.timersmit-timetracker-dev.hub-group"],
+      "properties": {
+        "name": "Aprovações",
+        "uri": "dist/src/pages/approvals/index.html",
+        "order": 20
+      }
+    },
+    {
+      "id": "reports-hub",
+      "type": "ms.vss-web.hub",
+      "targets": ["TrackerSMIT.timersmit-timetracker-dev.hub-group"],
+      "properties": {
+        "name": "Relatórios",
+        "uri": "dist/src/pages/reports/index.html",
+        "order": 30
+      }
+    },
+    {
+      "id": "settings-hub",
+      "type": "ms.vss-web.hub",
+      "targets": ["TrackerSMIT.timersmit-timetracker-dev.hub-group"],
+      "properties": {
+        "name": "Configuração",
+        "uri": "dist/src/pages/settings/index.html",
+        "order": 40
+      }
+    }
+  ],
+  "files": [
+    { "path": "dist", "addressable": true },
+    { "path": "marketplace/icon.png", "addressable": true }
+  ]
+}

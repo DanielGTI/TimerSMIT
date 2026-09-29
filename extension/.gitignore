@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-vsix/
+.env
+.env.local
+*.log

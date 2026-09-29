@@ -1,0 +1,6 @@
+# Agentes de codificação podem gravar credenciais/tokens na pasta do agente
+# (aviso do próprio `specify init` no passo 1 do quickstart).
+.claude/
+
+.DS_Store
+Thumbs.db

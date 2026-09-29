@@ -1,0 +1,51 @@
+# Pipeline privado de lint/build/test para extension/ e api/ (tasks.md T004).
+# Não publica nada — empacotamento e publicação do VSIX são passos manuais
+# (quickstart.md passo 6) até os gates de constituição serem cumpridos.
+trigger:
+  branches:
+    include:
+      - main
+      - "001-*"
+
+pr:
+  branches:
+    include:
+      - main
+
+jobs:
+  - job: Extension
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: "20.x"
+      - script: npm ci
+        workingDirectory: extension
+        displayName: "npm ci"
+      - script: npm run lint
+        workingDirectory: extension
+        displayName: "eslint"
+      - script: npm run build
+        workingDirectory: extension
+        displayName: "tsc + vite build"
+      - script: npm test
+        workingDirectory: extension
+        displayName: "vitest"
+
+  - job: Api
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - task: UsePhpVersion@0
+        inputs:
+          versionSpec: "8.4"
+      - script: composer install --prefer-dist --no-interaction --no-progress
+        workingDirectory: api
+        displayName: "composer install"
+      - script: vendor/bin/pint --test
+        workingDirectory: api
+        displayName: "pint (lint)"
+      - script: php artisan test
+        workingDirectory: api
+        displayName: "phpunit"

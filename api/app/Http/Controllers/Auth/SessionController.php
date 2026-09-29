@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Services\DevOpsIdentityVerifier;
+use App\Services\IdentityProvisioningService;
+use App\Services\InvalidDevOpsTokenException;
+use App\Services\SessionTokenService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Troca o token de app do Azure DevOps por uma sessão do backend (T006).
+ * Este é o único ponto de entrada onde uma identidade "não confiada" ainda
+ * circula — a partir daqui, tudo depende do JWT emitido aqui.
+ */
+class SessionController extends Controller
+{
+    public function __construct(
+        private readonly DevOpsIdentityVerifier $verifier,
+        private readonly IdentityProvisioningService $provisioning,
+        private readonly SessionTokenService $sessionTokens,
+    ) {}
+
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'appToken' => ['required', 'string'],
+            'claimedOrganization' => ['required', 'string'],
+        ]);
+
+        try {
+            $identity = $this->verifier->verify($data['appToken'], $data['claimedOrganization']);
+        } catch (InvalidDevOpsTokenException $exception) {
+            throw ValidationException::withMessages([
+                'appToken' => $exception->getMessage(),
+            ]);
+        }
+
+        $provisioned = $this->provisioning->resolve($identity);
+        $session = $this->sessionTokens->issue($provisioned->tenant->id, $provisioned->member->id);
+
+        return response()->json([
+            'sessionToken' => $session->token,
+            'expiresAt' => $session->expiresAt->toIso8601String(),
+            'tenantId' => (string) $provisioned->tenant->id,
+        ]);
+    }
+}

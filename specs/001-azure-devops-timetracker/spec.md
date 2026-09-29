@@ -131,7 +131,7 @@ Azure DevOps Services cloud no MVP; organização equivale a tenant; interface p
 
 ## Clarifications Required
 
-- **CL-001**: Produto interno ou SaaS multiempresa com venda pública? A arquitetura considera multiempresa, mas licenciamento não integra o MVP.
+- **CL-001**: Produto interno ou SaaS multiempresa com venda pública? A arquitetura considera deve considerar como um produto interno.
 - **CL-002**: Aprovador por projeto, gestor funcional ou configuração híbrida? Proposta inicial: um aprovador designado por usuário/projeto/semana, resolvido no envio.
 - **CL-003**: Região de hospedagem, retenção e residência de dados contratuais.
 - **CL-004**: Caminho exato de autenticação segura da extensão com API própria: validar em prova técnica antes de implementar dados reais.

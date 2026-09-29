@@ -5,21 +5,21 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Criar `extension/` e `api/` conforme `plan.md`; manter apenas placeholders de ambiente em `.env.example`, sem segredos.
-- [ ] T002 [P] Inicializar React/TypeScript e SDK em `extension/package.json`, `extension/src/lib/devops/`.
-- [ ] T003 [P] Inicializar Laravel e PostgreSQL em `api/composer.json`, `api/config/database.php`.
-- [ ] T004 [P] Configurar lint/build e pipeline privado em `extension/`, `api/` e `.azure-pipelines/`.
-- [ ] T005 Criar manifests distintos `extension/vss-extension.dev.json` e `extension/vss-extension.json`, somente com permissões justificadas.
+- [x] T001 Criar `extension/` e `api/` conforme `plan.md`; manter apenas placeholders de ambiente em `.env.example`, sem segredos.
+- [x] T002 [P] Inicializar React/TypeScript e SDK em `extension/package.json`, `extension/src/lib/devops/`.
+- [x] T003 [P] Inicializar Laravel e PostgreSQL em `api/composer.json`, `api/config/database.php`.
+- [x] T004 [P] Configurar lint/build e pipeline privado em `extension/`, `api/` e `.azure-pipelines/`.
+- [x] T005 Criar manifests distintos `extension/vss-extension.dev.json` e `extension/vss-extension.json`, somente com permissões justificadas. Publisher `TrackerSMIT` configurado nos dois manifests; empacotamento com `tfx-cli` confirmado.
 
 ## Phase 2: Foundational — blocks user stories
 
-- [ ] T006 Provar identidade verificável da extensão com backend em `extension/src/lib/auth/`, `api/app/Http/Middleware/`; documentar emissor, audiência, tenant, expiração e revogação em `specs/001-azure-devops-timetracker/research.md`. **Gate: não prosseguir com dados reais sem validação.**
-- [ ] T007 Implementar migrações `tenants`, `projects`, `members`, `role_assignments`, `policies` em `api/database/migrations/`.
-- [ ] T008 Implementar contexto tenant e políticas de projeto/papel em `api/app/Http/Middleware/` e `api/app/Policies/`.
-- [ ] T009 Implementar autenticação da API e respostas 401/403/409/422 em `api/routes/api.php` e `api/app/Http/`.
-- [ ] T010 Implementar eventos de auditoria append-only em `api/app/Services/AuditService.php` e migração correspondente.
-- [ ] T011 Testar que usuários de dois tenants e dois projetos não se cruzam em `api/tests/Feature/TenantIsolationTest.php`.
-- [ ] T012 Validar guia e hubs em `extension/vss-extension.dev.json` numa organização privada e documentar IDs confirmados em `research.md`.
+- [x] T006 Provar identidade verificável da extensão com backend em `extension/src/lib/auth/`, `api/app/Http/Middleware/`; documentar emissor, audiência, tenant, expiração e revogação em `specs/001-azure-devops-timetracker/research.md`. **Gate parcialmente aberto: fluxo implementado e testado com HTTP simulado; contrato exato de `connectionData` e revogação por desinstalação ainda dependem da organização de teste — não usar dados reais de usuários antes disso.**
+- [x] T007 Implementar migrações `tenants`, `projects`, `members`, `role_assignments`, `policies` em `api/database/migrations/`.
+- [x] T008 Implementar contexto tenant e políticas de projeto/papel em `api/app/Http/Middleware/` e `api/app/Policies/`.
+- [x] T009 Implementar autenticação da API e respostas 401/403/409/422 em `api/routes/api.php` e `api/app/Http/`.
+- [x] T010 Implementar eventos de auditoria append-only em `api/app/Services/AuditService.php` e migração correspondente.
+- [x] T011 Testar que usuários de dois tenants e dois projetos não se cruzam em `api/tests/Feature/TenantIsolationTest.php`.
+- [ ] T012 Validar guia e hubs em `extension/vss-extension.dev.json` numa organização privada e documentar IDs confirmados em `research.md`. **Bloqueado: aguardando organização de teste (passo 3 do quickstart); manifesto e IDs de contribution são rascunho não instalado.**
 
 **Checkpoint**: autenticação, RBAC, auditoria e contributions aptos ao piloto.
 
