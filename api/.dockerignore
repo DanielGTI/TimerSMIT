@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+vendor/
+node_modules/
+# Gerado localmente com dependências de dev instaladas; a imagem regenera
+# o seu próprio (ver Dockerfile: `php artisan package:discover`).
+bootstrap/cache/*.php
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+tests/
+.git/
+.azure-pipelines
