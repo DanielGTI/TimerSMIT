@@ -52,7 +52,7 @@
 
 **Correções feitas junto** (achadas pelos testes da US2): `PATCH/DELETE /entries/{id}` não verificavam o dono — qualquer membro do tenant editava lançamento de outro (agora só o dono, 404 para os demais); sessão inválida/expirada devolvia 500 em vez de 401 (a extensão só renova sessão em 401).
 
-**Checkpoint**: US2 demonstrável com registros da US1. Validação ao vivo em `smitbr` pendente.
+**Checkpoint**: US2 demonstrável com registros da US1. ✅ Validada ao vivo em `smitbr` em 2026-09-30.
 
 ## Phase 5: User Story 3 — Aprovação (P1)
 
