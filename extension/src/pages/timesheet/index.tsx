@@ -1,4 +1,4 @@
 import { mountPage } from "../../lib/devops/mountPage";
-import { PlaceholderHub } from "../PlaceholderHub";
+import { TimesheetPage } from "./TimesheetPage";
 
-void mountPage("root", <PlaceholderHub title="Folha semanal" plannedIn="US2 (tasks.md T021-T025)" />);
+void mountPage("root", <TimesheetPage />);

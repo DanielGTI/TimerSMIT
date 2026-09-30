@@ -39,18 +39,20 @@
 
 **Checkpoint**: US1 demonstrável sem folha/aprovação. ✅ Concluído em 2026-09-30 (29 testes backend, 7 testes frontend, todos passando).
 
-## Phase 4: User Story 2 — Folha semanal (P1)
+## Phase 4: User Story 2 — Consultar e enviar folha semanal (P1)
 
-**Goal**: consultar e enviar a própria semana.  
+**Goal**: consultar e enviar a própria semana.
 **Independent Test**: entradas em dias diferentes, soma e envio com bloqueio.
 
-- [ ] T021 [US2] Criar `weekly_submissions` e histórico de revisões em `api/database/migrations/` e `api/app/Models/`.
-- [ ] T022 [US2] Implementar soma por data local e transição `open → submitted` em `api/app/Services/TimesheetService.php`.
-- [ ] T023 [US2] Expor consulta/envio de semana em `api/app/Http/Controllers/TimesheetController.php`.
-- [ ] T024 [US2] Construir grade diária/semanal e resumo mensal em `extension/src/pages/timesheet/`.
-- [ ] T025 [US2] Testar totais, semana atravessando mês, concorrência e edição bloqueada em `api/tests/Feature/TimesheetTest.php`.
+- [x] T021 [US2] Criar `weekly_submissions` e histórico de revisões em `api/database/migrations/` e `api/app/Models/`. Uma linha por pessoa/semana/tenant (a linha só existe a partir do primeiro envio; sem linha = aberta) e `weekly_submission_revisions` append-only com a versão dos lançamentos (`entries_snapshot`) de cada envio. `approver_id` já existe, nulo até a designação de aprovadores (US3/US5).
+- [x] T022 [US2] Implementar soma por data local e transição `open → submitted` em `api/app/Services/TimesheetService.php`, mais `WeekLockGuard` (bloqueio de edição). Somas em segundos inteiros no servidor. Envio recusa semana vazia (422) e timer ativo (409), é idempotente por `Idempotency-Key` e auditado (`week.submitted`). **Decisão**: o bloqueio "sem aprovador" (edge case da spec, 409 no contrato) **não** é aplicado aqui — depende da designação de aprovadores (T026/T027/T035); entra com a US3.
+- [x] T023 [US2] Expor consulta/envio de semana em `api/app/Http/Controllers/TimesheetController.php`: `GET /me/weeks/{segunda}`, `POST /me/weeks/{segunda}/submit`, `GET /me/months/{yyyy-mm}`. Contrato atualizado.
+- [x] T024 [US2] Construir grade diária/semanal e resumo mensal em `extension/src/pages/timesheet/`: grade por work item e dia com totais, lançamentos com editar/excluir (FR-004), envio com confirmação, navegação de semanas e calendário mensal com o estado de cada semana.
+- [x] T025 [US2] Testar totais, semana atravessando mês, concorrência e edição bloqueada em `api/tests/Feature/TimesheetTest.php` (23 testes) e `extension/tests/timesheet-page.test.tsx`. Concorrência: edição e envio travam a mesma linha do membro, então um vence e o outro recebe 409; validado em PostgreSQL (`api/docker-compose.test.yml`). Não há teste com duas conexões simultâneas de verdade.
 
-**Checkpoint**: US2 demonstrável com registros da US1.
+**Correções feitas junto** (achadas pelos testes da US2): `PATCH/DELETE /entries/{id}` não verificavam o dono — qualquer membro do tenant editava lançamento de outro (agora só o dono, 404 para os demais); sessão inválida/expirada devolvia 500 em vez de 401 (a extensão só renova sessão em 401).
+
+**Checkpoint**: US2 demonstrável com registros da US1. Validação ao vivo em `smitbr` pendente.
 
 ## Phase 5: User Story 3 — Aprovação (P1)
 

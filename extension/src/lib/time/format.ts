@@ -11,6 +11,15 @@ export function formatDuration(totalMinutes: number): string {
   return `${pad(Math.floor(totalMinutes / 60))}:${pad(totalMinutes % 60)}`;
 }
 
+/**
+ * Segundos -> "HH:MM" para exibição. Arredonda só aqui, no fim (FR-005); um
+ * intervalo curto mas real nunca aparece como 00:00.
+ */
+export function formatHours(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "00:00";
+  return formatDuration(Math.max(1, Math.round(totalSeconds / 60)));
+}
+
 /** 4325 -> "01:12:05" (relógio do timer). */
 export function formatElapsed(totalSeconds: number): string {
   const seconds = Math.max(0, Math.floor(totalSeconds));

@@ -58,14 +58,68 @@ components:
         revision: { type: integer, minimum: 1 }
     Week:
       type: object
-      required: [weekStartDate, status, totalSeconds, entries]
+      description: >-
+        Semana de segunda a domingo, datas locais. Totais em segundos, calculados
+        no servidor a partir das mesmas linhas de `entries`. Sem linha de envio
+        a semana é `open`.
+      required: [weekStartDate, weekEndDate, status, revision, totalSeconds, days, entries]
       properties:
-        weekStartDate: { type: string, format: date }
+        weekStartDate: { type: string, format: date, description: Segunda-feira. }
+        weekEndDate: { type: string, format: date }
         status: { type: string, enum: [open, submitted, rejected, approved] }
+        revision: { type: integer, minimum: 0, description: Número do último envio (0 = nunca enviada). }
+        submittedAt: { type: [string, 'null'], format: date-time }
         totalSeconds: { type: integer, minimum: 0 }
+        days:
+          type: array
+          description: Os 7 dias da semana, com total (0 quando vazio).
+          items:
+            type: object
+            required: [date, totalSeconds]
+            properties:
+              date: { type: string, format: date }
+              totalSeconds: { type: integer, minimum: 0 }
         entries:
           type: array
-          items: { $ref: '#/components/schemas/Entry' }
+          items:
+            allOf:
+              - { $ref: '#/components/schemas/Entry' }
+              - type: object
+                description: Campos de exibição (título/tipo vêm do snapshot mais recente do work item).
+                properties:
+                  projectId: { type: string, description: GUID do projeto no Azure DevOps. }
+                  projectName: { type: string }
+                  workItemTitle: { type: [string, 'null'] }
+                  workItemType: { type: [string, 'null'] }
+                  activityTypeName: { type: [string, 'null'] }
+                  activityTypeColor: { type: [string, 'null'] }
+    Month:
+      type: object
+      description: >-
+        Horas por data local no mês. Uma semana que atravessa o mês aparece nos
+        dois, cada dia no seu mês; a unidade de aprovação segue sendo a semana.
+      required: [month, totalSeconds, days, weeks]
+      properties:
+        month: { type: string, example: '2026-09' }
+        totalSeconds: { type: integer, minimum: 0 }
+        days:
+          type: array
+          description: Só os dias com lançamento.
+          items:
+            type: object
+            required: [date, totalSeconds]
+            properties:
+              date: { type: string, format: date }
+              totalSeconds: { type: integer, minimum: 1 }
+        weeks:
+          type: array
+          description: Semanas que tocam o mês, com o estado de cada uma.
+          items:
+            type: object
+            required: [weekStartDate, status]
+            properties:
+              weekStartDate: { type: string, format: date }
+              status: { type: string, enum: [open, submitted, rejected, approved] }
 paths:
   /activity-types:
     get:
@@ -215,6 +269,7 @@ paths:
   /me/weeks/{weekStartDate}:
     get:
       operationId: getWeek
+      description: Semana do próprio usuário. `weekStartDate` precisa ser uma segunda-feira (422 caso contrário).
       parameters:
         - { name: weekStartDate, in: path, required: true, schema: { type: string, format: date } }
       responses:
@@ -223,15 +278,37 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Week' }
+        '422': { description: A data não é uma segunda-feira }
+  /me/months/{month}:
+    get:
+      operationId: getMonth
+      parameters:
+        - { name: month, in: path, required: true, schema: { type: string, example: '2026-09' } }
+      responses:
+        '200':
+          description: Horas por data local no mês.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Month' }
   /me/weeks/{weekStartDate}/submit:
     post:
       operationId: submitWeek
+      description: >-
+        open|rejected → submitted, registrando uma revisão com a versão dos
+        lançamentos. Repetir com a mesma Idempotency-Key devolve o mesmo
+        resultado. Enquanto enviada ou aprovada, a semana não aceita criar,
+        alterar ou excluir lançamentos nem parar timer (409).
       parameters:
         - { name: weekStartDate, in: path, required: true, schema: { type: string, format: date } }
         - { $ref: '#/components/parameters/IdempotencyKey' }
       responses:
-        '200': { description: Semana enviada }
-        '409': { description: Semana sem aprovador, já enviada ou aprovada }
+        '200':
+          description: Semana enviada (corpo igual ao de getWeek).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Week' }
+        '409': { description: 'Já enviada ou aprovada, ou há um timer ativo. O bloqueio por falta de aprovador entra com a designação de aprovadores (US3).' }
+        '422': { description: Semana sem lançamentos }
   /approvals/{submissionId}/decision:
     post:
       operationId: decideWeek
