@@ -7,8 +7,13 @@
 
 FROM composer:2 AS vendor
 WORKDIR /app
+ENV COMPOSER_CACHE_DIR=/tmp/composer-cache
 COPY composer.json composer.lock ./
-RUN composer install \
+# --mount=type=cache persiste os pacotes baixados entre builds (BuildKit),
+# independente do Coolify reaproveitar ou não as camadas da imagem — é o
+# que evita rebaixar tudo do Packagist a cada deploy.
+RUN --mount=type=cache,target=/tmp/composer-cache,sharing=locked \
+    composer install \
     --no-dev \
     --no-interaction \
     --no-progress \
@@ -18,13 +23,14 @@ RUN composer install \
 
 FROM php:8.4-fpm-alpine AS app
 
-RUN apk add --no-cache \
+RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
+    apk add \
         nginx \
         supervisor \
         postgresql-libs \
         libzip \
         icu-libs \
-    && apk add --no-cache --virtual .build-deps \
+    && apk add --virtual .build-deps \
         postgresql-dev \
         libzip-dev \
         icu-dev \
