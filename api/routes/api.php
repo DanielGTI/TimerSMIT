@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityTypeController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
@@ -10,6 +11,9 @@ use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\TimerController;
 use App\Http\Controllers\TimesheetController;
 use Illuminate\Support\Facades\Route;
+
+// Saúde para monitor externo: confere o banco, sem autenticação nem detalhes.
+Route::get('/health', [HealthController::class, 'show'])->middleware('throttle:60,1');
 
 // Único endpoint público: troca token de app do Azure DevOps por sessão
 // própria (T006). Toda rota abaixo dele exige a sessão (middleware `tenant`).

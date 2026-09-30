@@ -44,6 +44,7 @@ Configure na aba **Environment Variables** da aplicação (referência completa 
 | `TIMERSMIT_SESSION_SECRET` | valor aleatório forte, exclusivo deste ambiente (não reutilizar entre dev/piloto/produção) |
 | `TIMERSMIT_SESSION_TTL_MINUTES` | `60` (ou outro valor, opcional) |
 | `LOG_CHANNEL` | `stderr` (aparece direto nos logs do Coolify) |
+| `LOG_LEVEL` | `info` |
 
 Gerar `TIMERSMIT_SESSION_SECRET` rapidamente:
 
@@ -71,10 +72,12 @@ Clique em **Deploy**. Acompanhe os logs de build; ao final, teste:
 
 ```bash
 curl -i https://<seu-domínio>/up
+curl -i https://<seu-domínio>/api/health
 curl -i https://<seu-domínio>/api/me
 ```
 
 - `/up` deve responder `200`.
+- `/api/health` deve responder `200` com `{"status":"ok"}` (confere também o banco; é o endereço para o monitor externo).
 - `/api/me` sem sessão deve responder `401` com `{"message":"Não autenticado."}`.
 
 ## 7. Depois do primeiro deploy
@@ -109,3 +112,7 @@ O estágio `test` fica antes de `app` no `Dockerfile` de propósito: o Coolify b
 ## Atualizações futuras
 
 Cada novo deploy no Coolify reconstrói a imagem a partir do `Dockerfile` e roda o comando pós-deploy. Não há necessidade de passos manuais adicionais, exceto quando uma migração exigir atenção especial (ver `plan.md` → Deployment: "migrações reversíveis; backup antes de alterações").
+
+## Operação
+
+Backup, restauração, logs e alertas: ver [`OPERACAO.md`](OPERACAO.md).

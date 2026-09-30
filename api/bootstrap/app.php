@@ -2,6 +2,7 @@
 
 use App\Exceptions\ConflictException;
 use App\Http\Middleware\EnsureTenantAdmin;
+use App\Http\Middleware\LogSlowOrFailedRequests;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Services\TenantOwnershipMismatchException;
 use Illuminate\Auth\AuthenticationException;
@@ -24,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => ResolveTenantContext::class,
             'admin' => EnsureTenantAdmin::class,
         ]);
+
+        $middleware->appendToGroup('api', LogSlowOrFailedRequests::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // O fetch do navegador não manda Accept: application/json; sem isto
