@@ -5,6 +5,7 @@ export interface TimerDto {
   workItemId: number;
   startedAtUtc: string;
   status: "active" | "stopped";
+  activityTypeId: string | null;
 }
 
 export interface TimeEntryDto {
@@ -34,6 +35,7 @@ export interface StartTimerInput {
   projectId: string;
   projectName: string;
   workItemId: number;
+  activityTypeId?: number;
   title?: string;
   workItemType?: string;
 }

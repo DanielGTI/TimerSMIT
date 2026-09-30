@@ -41,6 +41,7 @@ components:
         workItemId: { type: integer, minimum: 1 }
         startedAtUtc: { type: string, format: date-time }
         status: { type: string, enum: [active, stopped] }
+        activityTypeId: { type: [string, 'null'] }
     Entry:
       type: object
       required: [id, workItemId, localDate, timezone, durationSeconds, source, billable]
@@ -66,6 +67,26 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Entry' }
 paths:
+  /activity-types:
+    get:
+      operationId: listActivityTypes
+      description: Tipos de atividade habilitados do tenant (cria o conjunto padrão na primeira chamada).
+      responses:
+        '200':
+          description: Lista ordenada por nome.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, defaultBillable]
+                  properties:
+                    id: { type: string }
+                    name: { type: string }
+                    color: { type: [string, 'null'], description: '#RRGGBB para o seletor.' }
+                    defaultBillable: { type: boolean }
+        '401': { description: Não autenticado }
   /me/timer:
     get:
       operationId: getActiveTimer

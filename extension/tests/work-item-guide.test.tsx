@@ -36,6 +36,12 @@ vi.mock("../src/lib/api/entries", () => ({
   createManualEntry: vi.fn(),
 }));
 
+vi.mock("../src/lib/api/activityTypes", () => ({
+  fetchActivityTypes: vi.fn(async () => [
+    { id: "3", name: "Desenvolvimento", color: "#A6D8F5", defaultBillable: false },
+  ]),
+}));
+
 import { WorkItemGuide } from "../src/pages/work-item/WorkItemGuide";
 
 describe("WorkItemGuide", () => {
@@ -64,6 +70,7 @@ describe("WorkItemGuide", () => {
       workItemId: 42,
       startedAtUtc: new Date().toISOString(),
       status: "active",
+      activityTypeId: null,
     });
 
     render(<WorkItemGuide />);
@@ -78,12 +85,50 @@ describe("WorkItemGuide", () => {
     );
   });
 
+  it("inicia o timer com a atividade escolhida", async () => {
+    fetchActiveTimer.mockResolvedValue(null);
+    startTimer.mockResolvedValue({
+      id: "10",
+      workItemId: 42,
+      startedAtUtc: new Date().toISOString(),
+      status: "active",
+      activityTypeId: "3",
+    });
+
+    render(<WorkItemGuide />);
+
+    fireEvent.click(await screen.findByRole("combobox", { name: "Atividade do timer" }));
+    fireEvent.click(screen.getByRole("option", { name: "Desenvolvimento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar timer" }));
+
+    expect(await screen.findByText("Atividade: Desenvolvimento")).toBeInTheDocument();
+    expect(startTimer).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ activityTypeId: 3 }));
+  });
+
+  it("mostra o total registrado ao parar o timer", async () => {
+    fetchActiveTimer.mockResolvedValue({
+      id: "10",
+      workItemId: 42,
+      startedAtUtc: new Date().toISOString(),
+      status: "active",
+      activityTypeId: null,
+    });
+    stopTimer.mockResolvedValue([{ durationSeconds: 3600 }, { durationSeconds: 125 }]);
+
+    render(<WorkItemGuide />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Parar timer" }));
+
+    expect(await screen.findByText("Timer parado: 01:02:05 registrados.")).toBeInTheDocument();
+  });
+
   it("avisa quando o timer ativo é de outro work item", async () => {
     fetchActiveTimer.mockResolvedValue({
       id: "99",
       workItemId: 7,
       startedAtUtc: new Date().toISOString(),
       status: "active",
+      activityTypeId: null,
     });
 
     render(<WorkItemGuide />);
@@ -100,6 +145,7 @@ describe("WorkItemGuide", () => {
       workItemId: 42,
       startedAtUtc: new Date().toISOString(),
       status: "active",
+      activityTypeId: null,
     });
     stopTimer.mockResolvedValue([]);
 

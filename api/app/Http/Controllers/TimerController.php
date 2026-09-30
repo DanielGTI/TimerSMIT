@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TimerSession;
+use App\Services\ActivityTypeService;
 use App\Services\TimerService;
 use App\Services\WorkItemAccessService;
 use App\Support\TenantContext;
@@ -30,24 +31,30 @@ class TimerController extends Controller
             ->where('status', TimerSession::STATUS_ACTIVE)
             ->first();
 
-        return response()->json($timer ? $this->toArray($timer) : null);
+        if (! $timer) {
+            // response()->json(null) viraria `{}` (JsonResponse troca null por
+            // objeto vazio) — truthy no cliente, que trataria como timer ativo.
+            return new JsonResponse('null', 200, [], 0, true);
+        }
+
+        return response()->json($this->toArray($timer));
     }
 
     public function store(Request $request, TenantContext $tenantContext): JsonResponse
     {
         $idempotencyKey = $this->requireIdempotencyKey($request);
 
+        $tenant = $tenantContext->tenant();
+        $member = $tenantContext->member();
+
         $data = $request->validate([
             'projectId' => ['required', 'string'],
             'projectName' => ['required', 'string'],
             'workItemId' => ['required', 'integer', 'min:1'],
-            'activityTypeId' => ['nullable', 'integer'],
+            'activityTypeId' => ['nullable', 'integer', ActivityTypeService::validIdRule($tenant)],
             'title' => ['nullable', 'string'],
             'workItemType' => ['nullable', 'string'],
         ]);
-
-        $tenant = $tenantContext->tenant();
-        $member = $tenantContext->member();
 
         $project = $this->access->authorize(
             tenant: $tenant,
@@ -123,6 +130,7 @@ class TimerController extends Controller
             'workItemId' => $timer->devops_work_item_id,
             'startedAtUtc' => $timer->started_at_utc->toIso8601String(),
             'status' => $timer->status,
+            'activityTypeId' => $timer->activity_type_id !== null ? (string) $timer->activity_type_id : null,
         ];
     }
 }

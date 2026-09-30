@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TimeEntry;
+use App\Services\ActivityTypeService;
 use App\Services\TimeEntryService;
 use App\Services\WorkItemAccessService;
 use App\Support\TenantContext;
@@ -25,21 +26,21 @@ class TimeEntryController extends Controller
     {
         $this->requireIdempotencyKey($request);
 
+        $tenant = $tenantContext->tenant();
+        $member = $tenantContext->member();
+
         $data = $request->validate([
             'projectId' => ['required', 'string'],
             'projectName' => ['required', 'string'],
             'workItemId' => ['required', 'integer', 'min:1'],
             'localDate' => ['required', 'date_format:Y-m-d'],
             'durationSeconds' => ['required', 'integer', 'min:1'],
-            'activityTypeId' => ['nullable', 'integer'],
+            'activityTypeId' => ['nullable', 'integer', ActivityTypeService::validIdRule($tenant)],
             'billable' => ['nullable', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
             'title' => ['nullable', 'string'],
             'workItemType' => ['nullable', 'string'],
         ]);
-
-        $tenant = $tenantContext->tenant();
-        $member = $tenantContext->member();
 
         $project = $this->access->authorize(
             tenant: $tenant,

@@ -7,6 +7,7 @@ export interface CreateManualEntryInput {
   workItemId: number;
   localDate: string;
   durationSeconds: number;
+  activityTypeId?: number;
   note?: string;
   billable?: boolean;
   title?: string;

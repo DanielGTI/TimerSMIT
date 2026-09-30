@@ -13,6 +13,7 @@ class ActivityType extends Model
     protected $fillable = [
         'tenant_id',
         'name',
+        'color',
         'is_enabled',
         'is_default_billable',
     ];

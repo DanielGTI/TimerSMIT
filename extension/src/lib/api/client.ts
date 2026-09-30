@@ -4,6 +4,37 @@ export interface ApiClientOptions {
   apiBaseUrl: string;
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/**
+ * Erros 4xx trazem a mensagem do backend (regra violada, conflito, acesso
+ * negado) — é o que a pessoa precisa ler. 5xx fica genérico: o detalhe é do
+ * servidor, não da tela.
+ */
+async function toApiError(path: string, response: Response): Promise<ApiError> {
+  const generic = `Falha na chamada à API (${path}): HTTP ${response.status}`;
+
+  if (response.status >= 500) {
+    return new ApiError(generic, response.status);
+  }
+
+  try {
+    const body = (await response.json()) as { message?: string; errors?: Record<string, string[]> };
+    const firstFieldError = Object.values(body.errors ?? {}).flat()[0];
+    return new ApiError(firstFieldError ?? body.message ?? generic, response.status);
+  } catch {
+    return new ApiError(generic, response.status);
+  }
+}
+
 /**
  * Fetch autenticado com a sessão do backend (não o token do Azure DevOps).
  * Em um 401 tenta renovar a sessão uma única vez antes de desistir, já que
@@ -28,7 +59,11 @@ export function createApiClient({ apiBaseUrl }: ApiClientOptions) {
     }
 
     if (!response.ok) {
-      throw new Error(`Falha na chamada à API (${path}): HTTP ${response.status}`);
+      throw await toApiError(path, response);
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
     }
 
     return (await response.json()) as T;

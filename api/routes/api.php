@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityTypeController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\TimeEntryController;
@@ -13,6 +14,8 @@ Route::post('/auth/session', [SessionController::class, 'store'])
 
 Route::middleware('tenant')->group(function () {
     Route::get('/me', [MeController::class, 'show']);
+
+    Route::get('/activity-types', [ActivityTypeController::class, 'index']);
 
     Route::get('/me/timer', [TimerController::class, 'show']);
     Route::post('/me/timer', [TimerController::class, 'store']);

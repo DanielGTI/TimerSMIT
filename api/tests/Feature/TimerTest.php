@@ -42,6 +42,33 @@ class TimerTest extends TestCase
         return [$tenant, $project, $member];
     }
 
+    public function test_get_timer_returns_literal_null_when_none_is_active(): void
+    {
+        [$tenant, , $member] = $this->setUpAuthorizedMember();
+
+        $response = $this->getJson('/api/me/timer', $this->authHeader($tenant, $member));
+
+        // `{}` seria truthy no cliente e apareceria como "timer ativo".
+        $response->assertOk();
+        $this->assertSame('null', $response->getContent());
+    }
+
+    public function test_get_timer_returns_the_active_timer(): void
+    {
+        [$tenant, $project, $member] = $this->setUpAuthorizedMember();
+
+        $this->postJson('/api/me/timer', [
+            'projectId' => $project->devops_project_id,
+            'projectName' => $project->devops_project_name,
+            'workItemId' => 42,
+        ], array_merge($this->authHeader($tenant, $member), ['Idempotency-Key' => str_repeat('z', 20)]))
+            ->assertCreated();
+
+        $this->getJson('/api/me/timer', $this->authHeader($tenant, $member))
+            ->assertOk()
+            ->assertJson(['workItemId' => 42, 'status' => TimerSession::STATUS_ACTIVE]);
+    }
+
     public function test_starts_a_timer_for_an_authorized_member(): void
     {
         [$tenant, $project, $member] = $this->setUpAuthorizedMember();

@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
+import "../../styles/theme.css";
 import { ensureSdkReady, notifyLoadFailed, notifyLoadSucceeded } from "./sdk";
 
 /**
