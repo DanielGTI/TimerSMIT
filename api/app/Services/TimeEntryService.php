@@ -60,6 +60,13 @@ class TimeEntryService
             $tenant, $member, $project, $devopsWorkItemId, $localDate, $durationSeconds,
             $activityTypeId, $billable, $note, $timezone, $dailyLimitSeconds,
         ) {
+            // Serializa lançamentos do mesmo membro: sem isso, duas requisições
+            // simultâneas leem o mesmo total do dia e as duas passam do
+            // limite. Trava a linha do membro porque o PostgreSQL não permite
+            // FOR UPDATE junto de sum(), e travar só as linhas existentes
+            // não impediria dois INSERTs concorrentes.
+            Member::query()->whereKey($member->id)->lockForUpdate()->first();
+
             // whereDate (não where): o cast `date` do Eloquent grava
             // local_date como datetime completo ("2026-09-30 00:00:00"),
             // então uma comparação exata de string com "2026-09-30" nunca
@@ -68,7 +75,6 @@ class TimeEntryService
                 ->where('tenant_id', $tenant->id)
                 ->where('member_id', $member->id)
                 ->whereDate('local_date', $localDate)
-                ->lockForUpdate()
                 ->sum('duration_seconds');
 
             if ($existingSeconds + $durationSeconds > $dailyLimitSeconds) {

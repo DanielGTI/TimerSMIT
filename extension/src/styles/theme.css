@@ -1,18 +1,28 @@
 /*
- * Estilos base das páginas da extensão. As variáveis --background-color,
- * --text-primary-color etc. são injetadas pelo SDK com o tema do Azure DevOps
- * (claro/escuro); os valores depois da vírgula só valem fora do host.
+ * Estilos base das páginas da extensão. --background-color,
+ * --text-primary-color etc. vêm do SDK com o tema do Azure DevOps (claro/
+ * escuro); o valor depois da vírgula só vale fora do host.
+ *
+ * Bordas, sombras e realces usam cinza médio com transparência (funciona
+ * nos dois temas). Não usar --palette-*: no Azure DevOps são trios RGB
+ * ("0, 0, 0"), feitos para rgba(var(--palette-x), 1); usados direto em
+ * `border`/`background`, a declaração inteira é descartada.
  */
 :root {
   --ts-bg: var(--background-color, #ffffff);
   --ts-text: var(--text-primary-color, rgba(0, 0, 0, 0.9));
   --ts-muted: var(--text-secondary-color, rgba(0, 0, 0, 0.55));
-  --ts-border: var(--palette-neutral-20, rgba(0, 0, 0, 0.2));
-  --ts-hover: var(--palette-neutral-8, rgba(0, 0, 0, 0.06));
   --ts-primary: var(--communication-background, #0078d4);
   --ts-danger: var(--status-error-foreground, #a4262c);
   --ts-success: var(--status-success-foreground, #107c10);
   --ts-popup: var(--callout-background-color, var(--background-color, #ffffff));
+
+  --ts-border: rgba(128, 128, 128, 0.6);
+  --ts-border-strong: rgba(128, 128, 128, 0.9);
+  --ts-border-soft: rgba(128, 128, 128, 0.3);
+  --ts-hover: rgba(128, 128, 128, 0.16);
+  --ts-surface: rgba(128, 128, 128, 0.07);
+  --ts-radius: 4px;
 }
 
 *,
@@ -23,50 +33,61 @@
 
 body {
   margin: 0;
-  padding: 16px;
-  min-height: 460px;
+  padding: 20px;
+  min-height: 520px;
   background: var(--ts-bg);
+  color: var(--ts-text);
   font-family: "Segoe UI", "SegoeUI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
   font-size: 14px;
   line-height: 20px;
 }
 
 h2 {
-  margin: 0 0 12px;
+  margin: 0 0 16px;
   font-size: 16px;
   font-weight: 600;
 }
 
 .page {
-  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
 }
 
 .muted {
   color: var(--ts-muted);
 }
 
+/* ---------- cartões ---------- */
+
 .card {
-  margin-bottom: 20px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--ts-border-soft);
+  border-radius: 8px;
+  background: var(--ts-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* ---------- campos ---------- */
 
 .field {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .field > label,
 .field__label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--ts-muted);
 }
 
 .field-row {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
 .field-row > .field {
@@ -77,33 +98,42 @@ h2 {
 .select__trigger,
 textarea.input {
   width: 100%;
-  min-height: 32px;
-  padding: 5px 8px;
+  min-height: 34px;
+  padding: 6px 10px;
   border: 1px solid var(--ts-border);
-  border-radius: 2px;
-  background: transparent;
+  border-radius: var(--ts-radius);
+  background: var(--ts-bg);
   color: var(--ts-text);
   font: inherit;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .input--short {
-  width: 130px;
+  width: 140px;
 }
 
 .input:hover,
-.select__trigger:hover {
-  background: var(--ts-hover);
+.select__trigger:hover:not(:disabled) {
+  border-color: var(--ts-border-strong);
 }
 
 .input:focus,
-.select__trigger:focus-visible,
+.select__trigger:focus-visible {
+  outline: none;
+  border-color: var(--ts-primary);
+  box-shadow: 0 0 0 1px var(--ts-primary);
+}
+
 .btn:focus-visible,
 .switch:focus-visible {
   outline: 2px solid var(--ts-primary);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
-.input--invalid {
+.input--invalid,
+.input--invalid:hover {
   border-color: var(--ts-danger);
 }
 
@@ -113,7 +143,7 @@ textarea.input {
 }
 
 .field__error {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 12px;
   color: var(--ts-danger);
 }
@@ -123,19 +153,20 @@ textarea.input {
 .user-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding: 5px 8px;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 6px 10px;
   border: 1px solid var(--ts-border);
-  border-radius: 2px;
+  border-radius: var(--ts-radius);
+  background: var(--ts-bg);
 }
 
 .avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #c8501c;
   color: #fff;
@@ -149,7 +180,7 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px 14px;
 }
 
 .quick {
@@ -160,19 +191,22 @@ textarea.input {
 /* ---------- botões ---------- */
 
 .btn {
-  min-height: 32px;
-  padding: 5px 14px;
+  min-height: 34px;
+  padding: 6px 16px;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: var(--ts-radius);
   background: var(--ts-hover);
   color: var(--ts-text);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    filter 0.12s ease,
+    background 0.12s ease;
 }
 
 .btn:hover:not(:disabled) {
-  filter: brightness(0.95);
+  filter: brightness(0.94);
 }
 
 .btn:disabled {
@@ -183,23 +217,31 @@ textarea.input {
 .btn--primary {
   background: var(--ts-primary);
   color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .btn--danger {
   background: var(--ts-danger);
   color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .btn--chip {
-  padding: 5px 8px;
+  padding: 6px 10px;
   border-color: var(--ts-border);
+  background: var(--ts-bg);
   font-size: 13px;
+}
+
+.btn--chip:hover:not(:disabled) {
+  border-color: var(--ts-primary);
+  filter: none;
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 /* ---------- seletor de atividade ---------- */
@@ -211,7 +253,7 @@ textarea.input {
 .select__trigger {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-align: left;
   cursor: pointer;
 }
@@ -221,14 +263,18 @@ textarea.input {
 }
 
 .select__chevron {
-  color: var(--ts-muted);
-  font-size: 10px;
+  width: 7px;
+  height: 7px;
+  margin: -3px 2px 0 0;
+  border-right: 2px solid var(--ts-muted);
+  border-bottom: 2px solid var(--ts-muted);
+  transform: rotate(45deg);
 }
 
 .select__list {
   position: absolute;
   z-index: 10;
-  top: calc(100% + 2px);
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
   margin: 0;
@@ -237,16 +283,16 @@ textarea.input {
   overflow-y: auto;
   list-style: none;
   border: 1px solid var(--ts-border);
-  border-radius: 2px;
+  border-radius: 6px;
   background: var(--ts-popup);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
 .select__option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 10px;
+  padding: 7px 12px;
   cursor: pointer;
 }
 
@@ -263,6 +309,7 @@ textarea.input {
   width: 14px;
   height: 14px;
   border: 1px solid var(--ts-border);
+  border-radius: 3px;
   background: transparent;
 }
 
@@ -280,10 +327,11 @@ textarea.input {
   width: 40px;
   height: 20px;
   padding: 0;
-  border: 1px solid var(--ts-muted);
+  border: 1px solid var(--ts-border-strong);
   border-radius: 10px;
-  background: transparent;
+  background: var(--ts-bg);
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 
 .switch__thumb {
@@ -310,9 +358,10 @@ textarea.input {
 /* ---------- timer ---------- */
 
 .timer-clock {
-  margin: 4px 0 8px;
-  font-size: 32px;
+  margin: 0 0 4px;
+  font-size: 36px;
   font-weight: 300;
+  line-height: 44px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -330,11 +379,11 @@ textarea.input {
 /* ---------- mensagens ---------- */
 
 .notice {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   color: var(--ts-success);
 }
 
 .alert {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   color: var(--ts-danger);
 }

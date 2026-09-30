@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/tmp/composer-cache,sharing=locked \
     --prefer-dist \
     --optimize-autoloader
 
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.4-fpm-alpine AS base
 
 RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
     apk add \
@@ -42,6 +42,15 @@ RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
         zip \
         intl \
     && apk del .build-deps
+
+# Imagem só para os testes locais (docker-compose.test.yml): o mesmo PHP e as
+# mesmas extensões da produção, mais o Composer para as dependências de dev.
+# Fica antes de `app` porque o Coolify builda o ÚLTIMO estágio do arquivo.
+FROM base AS test
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+WORKDIR /var/www/html
+
+FROM base AS app
 
 WORKDIR /var/www/html
 

@@ -1,0 +1,48 @@
+# Testes do backend com o mesmo PHP/extensões da produção (estágio `test` do
+# Dockerfile) e PostgreSQL de verdade — no SQLite (phpunit.xml) o
+# `lockForUpdate` não faz nada e o SQL é mais permissivo que o do Postgres.
+#
+#   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from tests
+#   docker compose -f docker-compose.test.yml down -v      # limpa ao terminar
+#
+# Um teste só:  ... run --rm tests php artisan test --filter=NomeDoTeste
+# (as variáveis DB_* abaixo têm precedência sobre o sqlite do phpunit.xml)
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: timersmit
+      POSTGRES_PASSWORD: timersmit
+      POSTGRES_DB: timersmit_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timersmit -d timersmit_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  tests:
+    build:
+      context: .
+      target: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - composer-cache:/tmp/composer-cache
+    environment:
+      COMPOSER_CACHE_DIR: /tmp/composer-cache
+      APP_KEY: base64:dGVzdC1vbmx5LWtleS1kby1ub3QtdXNlLWluLXByb2Q=
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: timersmit_test
+      DB_USERNAME: timersmit
+      DB_PASSWORD: timersmit
+    command: sh -c "composer install --no-interaction --no-progress --prefer-dist && php artisan test"
+
+volumes:
+  composer-cache:

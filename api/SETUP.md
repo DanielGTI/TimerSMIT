@@ -92,6 +92,20 @@ curl -i https://<seu-domínio>/api/me
 3. Reenvie o `.vsix` gerado em `extension/dist-vsix/` no [portal do Marketplace](https://marketplace.visualstudio.com/manage/publishers/TrackerSMIT) (publisher `TrackerSMIT`, já compartilhado com a organização `smitbr`).
 4. Teste o fluxo completo de autenticação (T006/T012) abrindo um work item em `https://dev.azure.com/smitbr/` — a aba "Controle de horas" deve conseguir estabelecer sessão de verdade com o backend, em vez do erro de conexão esperado ao testar contra `localhost`.
 
+## Testes locais (mesmo PHP e banco da produção)
+
+O `phpunit.xml` usa SQLite em memória, que é mais permissivo que o PostgreSQL e ignora `lockForUpdate`. Para testar como no servidor — PHP 8.4 com as mesmas extensões do `Dockerfile` (estágio `test`) e PostgreSQL de verdade:
+
+```bash
+cd api
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from tests
+docker compose -f docker-compose.test.yml down -v
+```
+
+Um teste só: `docker compose -f docker-compose.test.yml run --rm tests php artisan test --filter=NomeDoTeste`.
+
+O estágio `test` fica antes de `app` no `Dockerfile` de propósito: o Coolify builda o **último** estágio, então `app` precisa continuar sendo o último.
+
 ## Atualizações futuras
 
 Cada novo deploy no Coolify reconstrói a imagem a partir do `Dockerfile` e roda o comando pós-deploy. Não há necessidade de passos manuais adicionais, exceto quando uma migração exigir atenção especial (ver `plan.md` → Deployment: "migrações reversíveis; backup antes de alterações").

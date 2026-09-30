@@ -79,9 +79,7 @@ export function ActivitySelect({ options, value, onChange, label, disabled }: Ac
       >
         <span className="swatch" style={{ background: selected?.color ?? "transparent" }} />
         <span>{selected?.name ?? NOT_SET}</span>
-        <span className="select__chevron" aria-hidden="true">
-          ▾
-        </span>
+        <span className="select__chevron" aria-hidden="true" />
       </button>
 
       {open && (

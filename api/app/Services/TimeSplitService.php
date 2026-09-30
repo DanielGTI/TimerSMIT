@@ -34,7 +34,9 @@ class TimeSplitService
                 $nextBoundaryUtc = $end;
             }
 
-            $durationSeconds = $cursor->diffInSeconds($nextBoundaryUtc);
+            // Timestamps inteiros: diffInSeconds() devolve float (com
+            // microssegundos) e a coluna duration_seconds é inteira.
+            $durationSeconds = $nextBoundaryUtc->getTimestamp() - $cursor->getTimestamp();
 
             if ($durationSeconds > 0) {
                 $slices[] = [

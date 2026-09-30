@@ -119,7 +119,9 @@ class TimerService
                 throw new ConflictException('Timer já fechado por outra operação ou semana bloqueada.');
             }
 
-            $endedAt = Date::now();
+            // Sem microssegundos: o que é gravado em ended_at_utc e a soma
+            // das fatias precisam concordar ao segundo.
+            $endedAt = Date::now()->startOfSecond();
 
             $timer->update([
                 'status' => TimerSession::STATUS_STOPPED,
