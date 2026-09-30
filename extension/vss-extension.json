@@ -7,6 +7,16 @@
   "description": "Registro e aprovação de horas integrados ao Azure DevOps, com folha semanal, aprovações e relatórios.",
   "public": false,
   "categories": ["Azure Boards"],
+  "tags": ["time tracking", "timesheet", "approvals", "reports", "horas", "apontamento"],
+  "branding": {
+    "color": "#0f6cbd",
+    "theme": "dark"
+  },
+  "content": {
+    "details": {
+      "path": "marketplace/overview.md"
+    }
+  },
   "targets": [{ "id": "Microsoft.VisualStudio.Services" }],
   "icons": {
     "default": "marketplace/icon.png"
