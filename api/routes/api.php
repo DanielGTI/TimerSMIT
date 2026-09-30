@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityTypeController;
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\TimeEntryController;
@@ -28,6 +29,11 @@ Route::middleware('tenant')->group(function () {
         ->where('weekStartDate', '\d{4}-\d{2}-\d{2}');
     Route::get('/me/months/{month}', [TimesheetController::class, 'month'])
         ->where('month', '\d{4}-(?:0[1-9]|1[0-2])');
+
+    Route::get('/approvals', [ApprovalController::class, 'index']);
+    Route::get('/approvals/{submissionId}', [ApprovalController::class, 'show'])->whereNumber('submissionId');
+    Route::post('/approvals/{submissionId}/decision', [ApprovalController::class, 'decide'])->whereNumber('submissionId');
+    Route::post('/approvals/{submissionId}/reopen', [ApprovalController::class, 'reopen'])->whereNumber('submissionId');
 
     Route::post('/entries', [TimeEntryController::class, 'store']);
     Route::patch('/entries/{entryId}', [TimeEntryController::class, 'update']);

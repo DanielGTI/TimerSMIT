@@ -48,6 +48,15 @@ class TimesheetTest extends TestCase
             'role' => RoleAssignment::ROLE_MEMBER,
         ]);
 
+        // O envio exige alguém que possa decidir; na prática o primeiro membro da
+        // organização vira admin (IdentityProvisioningService).
+        RoleAssignment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'member_id' => Member::factory()->for($this->tenant)->create()->id,
+            'project_id' => null,
+            'role' => RoleAssignment::ROLE_ADMIN,
+        ]);
+
         // As datas dos testes são fixas; congelar o "agora" evita que a janela
         // retroativa (relativa ao dia real) faça os testes quebrarem com o tempo.
         $this->travelTo('2026-09-30 15:00:00');

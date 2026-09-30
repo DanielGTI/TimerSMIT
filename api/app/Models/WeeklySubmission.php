@@ -65,4 +65,14 @@ class WeeklySubmission extends Model
     {
         return $this->hasMany(WeeklySubmissionRevision::class);
     }
+
+    public function approverRows(): HasMany
+    {
+        return $this->hasMany(WeeklySubmissionApprover::class);
+    }
+
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(ApprovalDecision::class);
+    }
 }

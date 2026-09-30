@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\ConflictException;
+use App\Models\ApprovalDecision;
 use App\Models\Member;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
@@ -27,6 +28,7 @@ class TimesheetService
     public function __construct(
         private readonly WeekLockGuard $weeks,
         private readonly AuditService $audit,
+        private readonly ApproverResolver $approvers,
     ) {}
 
     /**
@@ -56,6 +58,16 @@ class TimesheetService
             'revision' => $submission?->revision ?? 0,
             'submittedAt' => $submission?->submitted_at?->toIso8601String(),
             'totalSeconds' => (int) $entries->sum('duration_seconds'),
+            'decisions' => $submission
+                ? $submission->decisions()->with('approver')->orderBy('id')->get()->map(fn (ApprovalDecision $decision) => [
+                    'revision' => $decision->revision,
+                    'decision' => $decision->decision,
+                    'reason' => $decision->reason,
+                    'approverName' => $decision->approver?->display_name,
+                    'selfDecision' => $decision->self_decision,
+                    'decidedAt' => $decision->decided_at->toIso8601String(),
+                ])->all()
+                : [],
             'days' => array_map(
                 fn (string $date) => ['date' => $date, 'totalSeconds' => $totals->get($date, 0)],
                 WeekCalendar::days($weekStart),
@@ -165,6 +177,18 @@ class TimesheetService
                 throw ValidationException::withMessages(['week' => 'Não há lançamentos nesta semana para enviar.']);
             }
 
+            // Quem vai poder decidir é resolvido agora (CL-002). Sem ninguém —
+            // nem designado, nem administrador — o envio não faz sentido.
+            $designated = $this->approvers->designatedFor(
+                $tenant,
+                $member,
+                $entries->pluck('project_id')->unique()->values()->all(),
+            );
+
+            if ($designated === [] && ! $this->approvers->tenantHasAdmin($tenant)) {
+                throw new ConflictException('Nenhum aprovador configurado para esta semana. Peça a um administrador para designar um aprovador.');
+            }
+
             $submission ??= WeeklySubmission::query()->create([
                 'tenant_id' => $tenant->id,
                 'member_id' => $member->id,
@@ -181,7 +205,13 @@ class TimesheetService
                 'status' => WeeklySubmission::STATUS_SUBMITTED,
                 'revision' => $revision,
                 'submitted_at' => $now,
+                'approved_at' => null,
+                'approver_id' => null,
             ]);
+
+            foreach ($designated as $approverId) {
+                $submission->approverRows()->create(['revision' => $revision, 'approver_id' => $approverId]);
+            }
 
             $submission->revisions()->create([
                 'revision' => $revision,
@@ -209,6 +239,7 @@ class TimesheetService
                     'revision' => $revision,
                     'totalSeconds' => $totalSeconds,
                     'entryCount' => $entries->count(),
+                    'designatedApproverIds' => $designated,
                 ],
             );
 
