@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\WeekCalendar;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,7 @@ class TimeEntry extends Model
         'timer_session_id',
         'activity_type_id',
         'local_date',
+        'week_start_date',
         'timezone',
         'duration_seconds',
         'source',
@@ -31,6 +33,15 @@ class TimeEntry extends Model
         'note',
         'revision',
     ];
+
+    protected static function booted(): void
+    {
+        // Única fonte de week_start_date: qualquer criação (timer, manual,
+        // factory) passa por aqui, então nunca fica nula nem divergente.
+        static::creating(function (TimeEntry $entry) {
+            $entry->week_start_date ??= WeekCalendar::startOf(substr((string) $entry->local_date, 0, 10));
+        });
+    }
 
     /**
      * local_date fica como texto 'Y-m-d' (sem cast `date`): o cast grava

@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityTypeController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\MeController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\TimerController;
 use App\Http\Controllers\TimesheetController;
@@ -34,6 +35,10 @@ Route::middleware('tenant')->group(function () {
     Route::get('/approvals/{submissionId}', [ApprovalController::class, 'show'])->whereNumber('submissionId');
     Route::post('/approvals/{submissionId}/decision', [ApprovalController::class, 'decide'])->whereNumber('submissionId');
     Route::post('/approvals/{submissionId}/reopen', [ApprovalController::class, 'reopen'])->whereNumber('submissionId');
+
+    Route::get('/reports/options', [ReportController::class, 'options']);
+    Route::get('/reports/time', [ReportController::class, 'show']);
+    Route::get('/reports/time.csv', [ReportController::class, 'csv']);
 
     Route::post('/entries', [TimeEntryController::class, 'store']);
     Route::patch('/entries/{entryId}', [TimeEntryController::class, 'update']);
