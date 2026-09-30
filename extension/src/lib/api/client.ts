@@ -41,7 +41,7 @@ async function toApiError(path: string, response: Response): Promise<ApiError> {
  * o token de app pode ter expirado entre a abertura da página e a chamada.
  */
 export function createApiClient({ apiBaseUrl }: ApiClientOptions) {
-  async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+  async function send(path: string, init: RequestInit, retry = true): Promise<Response> {
     const session = await getBackendSession(apiBaseUrl);
 
     const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -55,12 +55,18 @@ export function createApiClient({ apiBaseUrl }: ApiClientOptions) {
 
     if (response.status === 401 && retry) {
       clearBackendSession();
-      return request<T>(path, init, false);
+      return send(path, init, false);
     }
 
     if (!response.ok) {
       throw await toApiError(path, response);
     }
+
+    return response;
+  }
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await send(path, init);
 
     if (response.status === 204) {
       return undefined as T;
@@ -69,7 +75,12 @@ export function createApiClient({ apiBaseUrl }: ApiClientOptions) {
     return (await response.json()) as T;
   }
 
-  return { request };
+  /** Arquivo (ex.: CSV) com a mesma autenticação e tratamento de erro do `request`. */
+  async function download(path: string): Promise<Blob> {
+    return (await send(path, {})).blob();
+  }
+
+  return { request, download };
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;

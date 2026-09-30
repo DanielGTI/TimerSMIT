@@ -73,13 +73,17 @@
 
 ## Phase 6: User Story 4 — Relatórios (P2)
 
-**Goal**: consulta e CSV com o mesmo escopo de acesso.  
+**Goal**: consulta e CSV com o mesmo escopo de acesso.
 **Independent Test**: aplicar filtro, comparar CSV e tela, tentar acesso cruzado.
 
-- [ ] T031 [US4] Implementar consulta filtrada/agregada em `api/app/Services/TimeReportService.php` e índices necessários.
-- [ ] T032 [US4] Implementar CSV UTF-8 e evento de auditoria em `api/app/Http/Controllers/ReportController.php`.
-- [ ] T033 [US4] Construir filtros e relatório em `extension/src/pages/reports/`.
-- [ ] T034 [US4] Testar igualdade CSV/tela, status aprovado e autorização por projeto em `api/tests/Feature/ReportTest.php`.
+**Escopo de acesso (FR-009)**: cada pessoa vê as próprias horas; **gestor** (papel `manager`) vê todas as pessoas nos projetos que gerencia; **administrador** (ou gestor da organização inteira) vê tudo do tenant. Papel `approver` e designação de aprovador **não** dão acesso a relatórios. Filtro de pessoa/projeto fora do escopo responde 403.
+
+- [x] T031 [US4] Implementar consulta filtrada/agregada em `api/app/Services/TimeReportService.php` e índices necessários. Filtros: período, projeto, pessoa, work item, atividade, faturável e estado da semana. `time_entries.week_start_date` (preenchida pelo model; migração com backfill) liga o lançamento ao envio por JOIN; índices `(tenant_id, local_date)` e `(tenant_id, member_id, week_start_date)`.
+- [x] T032 [US4] Implementar CSV UTF-8 e evento de auditoria em `api/app/Http/Controllers/ReportController.php`: `GET /reports/time`, `/reports/time.csv`, `/reports/options`. CSV em streaming, UTF-8 com BOM e `;`, textos livres protegidos contra injeção de fórmula; exportação auditada (`report.exported`). **Decisão**: exportação síncrona, sem a tabela `export_jobs` do modelo de dados (só se justifica para arquivos muito grandes); período limitado a 366 dias.
+- [x] T033 [US4] Construir filtros e relatório em `extension/src/pages/reports/`: períodos prontos, filtros, cartões de totais, quebras por pessoa/projeto/atividade, tabela paginada e "Exportar CSV" (usa os filtros aplicados na tela).
+- [x] T034 [US4] Testar igualdade CSV/tela, status aprovado e autorização por projeto em `api/tests/Feature/ReportTest.php` (22 testes) e `extension/tests/reports-page.test.tsx`: mesmas linhas, ordem e totais em tela e CSV para vários filtros; gestor limitado a um projeto não alcança outros mudando a URL; 403 fora do escopo sem auditar; isolamento entre organizações.
+
+**Checkpoint**: relatórios e CSV com o mesmo escopo. Validação ao vivo em `smitbr` pendente (inclui o download do CSV dentro do iframe do Azure DevOps).
 
 ## Phase 7: User Story 5 — Configuração (P2)
 

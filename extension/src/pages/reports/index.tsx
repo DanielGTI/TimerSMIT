@@ -1,4 +1,4 @@
 import { mountPage } from "../../lib/devops/mountPage";
-import { PlaceholderHub } from "../PlaceholderHub";
+import { ReportsPage } from "./ReportsPage";
 
-void mountPage("root", <PlaceholderHub title="Relatórios" plannedIn="US4 (tasks.md T031-T034)" />);
+void mountPage("root", <ReportsPage />);

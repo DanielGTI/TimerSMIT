@@ -395,31 +395,60 @@ paths:
         '403': { description: Só administrador }
         '409': { description: A semana não está aprovada }
         '422': { description: Sem justificativa }
+  /reports/options:
+    get:
+      operationId: getReportOptions
+      description: Opções dos filtros (pessoas, projetos, atividades) limitadas ao escopo de quem pergunta.
+      responses:
+        '200': { description: 'Opções + `scope` ({ level: all|projects|self, canFilterByMember })' }
   /reports/time:
     get:
       operationId: getTimeReport
+      description: >-
+        Escopo aplicado no servidor: cada pessoa vê as próprias horas; gestor
+        vê todas nos projetos que gerencia; administrador vê a organização.
+        `projectId`/`memberId` fora do escopo respondem 403; o restante é
+        interseção com o escopo. Totais e quebras cobrem todos os filtros; só
+        `rows` é paginada. Ids (`projectId`, `memberId`, `activityTypeId`) são
+        os opacos devolvidos por /reports/options.
       parameters:
         - { name: from, in: query, required: true, schema: { type: string, format: date } }
-        - { name: to, in: query, required: true, schema: { type: string, format: date } }
-        - { name: projectId, in: query, schema: { type: string, format: uuid } }
-        - { name: memberId, in: query, schema: { type: string, format: uuid } }
-        - { name: status, in: query, schema: { type: string, enum: [open, submitted, rejected, approved] } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date }, description: 'Máximo de 366 dias a partir de `from`.' }
+        - { name: projectId, in: query, schema: { type: string } }
+        - { name: memberId, in: query, schema: { type: string } }
+        - { name: workItemId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: activityTypeId, in: query, schema: { type: string } }
+        - { name: billable, in: query, schema: { type: string, enum: ['true', 'false'] } }
+        - { name: status, in: query, description: Estado da semana do lançamento., schema: { type: string, enum: [open, submitted, rejected, approved] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: perPage, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
       responses:
-        '200': { description: Agregações e linhas paginadas, conforme permissão }
+        '200':
+          description: 'Totais (total/faturável/não faturável/contagem), `byMember`/`byProject`/`byActivity`, `rows` paginadas e `pagination`.'
         '403': { description: Escopo não autorizado }
+        '422': { description: Filtro inválido ou período maior que 366 dias }
   /reports/time.csv:
     get:
       operationId: exportTimeCsv
-      description: Usa filtros e autorização equivalentes a /reports/time; registra evento de exportação.
+      description: >-
+        Mesmos filtros, escopo e consulta de /reports/time (sem paginação):
+        as linhas e a soma de segundos são as da tela. UTF-8 com BOM, separador
+        `;`, textos livres protegidos contra injeção de fórmula. Registra o
+        evento `report.exported` (filtros, escopo, linhas e total).
       parameters:
         - { name: from, in: query, required: true, schema: { type: string, format: date } }
         - { name: to, in: query, required: true, schema: { type: string, format: date } }
-        - { name: projectId, in: query, schema: { type: string, format: uuid } }
+        - { name: projectId, in: query, schema: { type: string } }
+        - { name: memberId, in: query, schema: { type: string } }
+        - { name: workItemId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: activityTypeId, in: query, schema: { type: string } }
+        - { name: billable, in: query, schema: { type: string, enum: ['true', 'false'] } }
         - { name: status, in: query, schema: { type: string, enum: [open, submitted, rejected, approved] } }
       responses:
         '200':
-          description: CSV UTF-8.
+          description: CSV UTF-8 (arquivo `horas_{from}_a_{to}.csv`).
           content:
             text/csv:
               schema: { type: string }
         '403': { description: Escopo não autorizado }
+        '422': { description: Filtro inválido }
