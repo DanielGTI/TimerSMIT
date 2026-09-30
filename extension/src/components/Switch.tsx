@@ -1,14 +1,17 @@
 interface SwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
+  /** Nome acessível do interruptor. */
   label: string;
+  /** Texto visível ao lado (padrão: o próprio `label`). */
+  text?: string;
   disabled?: boolean;
 }
 
-export function Switch({ checked, onChange, label, disabled }: SwitchProps): JSX.Element {
+export function Switch({ checked, onChange, label, text, disabled }: SwitchProps): JSX.Element {
   return (
     <div className="switch-row">
-      <span aria-hidden="true">{label}</span>
+      <span aria-hidden="true">{text ?? label}</span>
       <button
         type="button"
         role="switch"

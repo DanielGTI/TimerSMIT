@@ -395,6 +395,168 @@ paths:
         '403': { description: Só administrador }
         '409': { description: A semana não está aprovada }
         '422': { description: Sem justificativa }
+  /settings:
+    get:
+      operationId: getSettings
+      description: >-
+        Configuração completa da organização (fuso, regras em vigor, projetos,
+        atividades, pessoas com papéis e designações de aprovador). Toda a
+        família `/settings/*` exige administrador (papel `admin` valendo para a
+        organização inteira); os demais recebem 403. Cada alteração devolve
+        esta mesma visão já atualizada.
+      responses:
+        '200': { description: Visão completa }
+        '403': { description: Não é administrador }
+  /settings/organization:
+    put:
+      operationId: updateTimezone
+      description: Fuso IANA da organização. Vale só para lançamentos novos; os antigos guardam data local e fuso próprios.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [timezone], properties: { timezone: { type: string, example: America/Sao_Paulo } } }
+      responses:
+        '200': { description: Visão atualizada }
+        '422': { description: Fuso inválido }
+  /settings/policy:
+    put:
+      operationId: updatePolicy
+      description: >-
+        Nova versão das regras de lançamento, válida a partir de agora (as
+        versões anteriores ficam guardadas). Incremento e comentário obrigatório
+        valem para lançamento manual; limite diário e janela retroativa para
+        qualquer lançamento/edição. Timer guarda segundos exatos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [durationIncrementMinutes, dailyLimitHours, retroactiveWindowDays, commentRequired]
+              properties:
+                durationIncrementMinutes: { type: integer, enum: [1, 5, 10, 15, 30, 60] }
+                dailyLimitHours: { type: integer, minimum: 1, maximum: 24 }
+                retroactiveWindowDays: { type: integer, minimum: 0, maximum: 365 }
+                commentRequired: { type: boolean }
+      responses:
+        '200': { description: Visão atualizada }
+        '422': { description: Valor inválido }
+  /settings/projects/{projectId}:
+    patch:
+      operationId: setProjectEnabled
+      description: Projeto desabilitado recusa novos lançamentos e timers; o histórico permanece.
+      parameters:
+        - { name: projectId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } }
+      responses:
+        '200': { description: Visão atualizada }
+        '404': { description: Projeto de outra organização ou inexistente }
+  /settings/activity-types:
+    post:
+      operationId: createActivityType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 100 }
+                color: { type: [string, 'null'], pattern: '^#[0-9A-Fa-f]{6}$' }
+                defaultBillable: { type: boolean }
+      responses:
+        '200': { description: Visão atualizada }
+        '422': { description: Nome repetido ou cor inválida }
+  /settings/activity-types/{typeId}:
+    patch:
+      operationId: updateActivityType
+      description: Renomear, recolorir, faturável padrão e habilitar/desabilitar (não há exclusão; o histórico mantém o tipo).
+      parameters:
+        - { name: typeId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 100 }
+                color: { type: [string, 'null'] }
+                enabled: { type: boolean }
+                defaultBillable: { type: boolean }
+      responses:
+        '200': { description: Visão atualizada }
+        '404': { description: Tipo de outra organização ou inexistente }
+        '422': { description: Nome repetido ou cor inválida }
+  /settings/role-assignments:
+    post:
+      operationId: grantRole
+      description: Concede papel (member, approver, manager, admin) na organização inteira ou num projeto. Idempotente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [memberId, role]
+              properties:
+                memberId: { type: string }
+                role: { type: string, enum: [member, approver, manager, admin] }
+                projectId: { type: [string, 'null'] }
+      responses:
+        '200': { description: Visão atualizada }
+        '404': { description: Pessoa ou projeto de outra organização }
+        '422': { description: Papel inválido }
+  /settings/role-assignments/{assignmentId}:
+    delete:
+      operationId: revokeRole
+      parameters:
+        - { name: assignmentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Visão atualizada }
+        '404': { description: Atribuição de outra organização }
+        '409': { description: Seria removido o último administrador }
+  /settings/approver-assignments:
+    post:
+      operationId: designateApprover
+      description: >-
+        `approverId` aprova as semanas de `memberId` (em todos os projetos ou num
+        só). Resolvido no envio; `applyToPending` também reatribui as semanas
+        já enviadas e pendentes dessa pessoa (decididas nunca mudam).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [memberId, approverId]
+              properties:
+                memberId: { type: string }
+                approverId: { type: string }
+                projectId: { type: [string, 'null'] }
+                applyToPending: { type: boolean }
+      responses:
+        '200': { description: Visão atualizada }
+        '404': { description: Pessoa ou projeto de outra organização }
+        '422': { description: Aprovador igual à própria pessoa }
+  /settings/approver-assignments/{assignmentId}:
+    delete:
+      operationId: removeDesignation
+      parameters:
+        - { name: assignmentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { applyToPending: { type: boolean } } }
+      responses:
+        '200': { description: Visão atualizada }
+        '404': { description: Designação de outra organização }
   /reports/options:
     get:
       operationId: getReportOptions

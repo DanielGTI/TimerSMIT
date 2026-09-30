@@ -87,13 +87,19 @@
 
 ## Phase 7: User Story 5 — Configuração (P2)
 
-**Goal**: administrador configura políticas e responsáveis para períodos futuros.  
+**Goal**: administrador configura políticas e responsáveis para períodos futuros.
 **Independent Test**: alterar regra e verificar lançamento novo, sem reclassificar entrada histórica.
 
-- [ ] T035 [US5] Implementar configurações, versões e atribuição de aprovadores em `api/app/Services/OrganizationSettingsService.php`.
-- [ ] T036 [US5] Expor configurações em `api/app/Http/Controllers/SettingsController.php` com papel administrador.
-- [ ] T037 [US5] Construir tela de configuração em `extension/src/pages/settings/`.
-- [ ] T038 [US5] Testar comentário obrigatório, projeto desabilitado, limites e imutabilidade da data histórica em `api/tests/Feature/SettingsTest.php`.
+- [x] T035 [US5] Implementar configurações, versões e atribuição de aprovadores em `api/app/Services/OrganizationSettingsService.php`: fuso; regras de lançamento **versionadas** (cada alteração cria uma versão nova em `policies`, válida daqui para a frente); habilitar/desabilitar projeto; atividades (criar, renomear, cor, faturável padrão, habilitar/desabilitar — sem exclusão); **papéis por pessoa e projeto** (necessários para liberar quem abre a extensão; não remove o último administrador); designação de aprovadores com opção de reatribuir semanas já enviadas e pendentes (fecha o edge case "mudança de aprovador durante semana enviada"). Tudo auditado.
+- [x] T036 [US5] Expor configurações em `api/app/Http/Controllers/SettingsController.php` com papel administrador (middleware `admin`; papel `admin` restrito a um projeto não basta). `GET /settings` devolve a visão completa e cada alteração a devolve atualizada. Contrato atualizado.
+- [x] T037 [US5] Construir tela de configuração em `extension/src/pages/settings/`: abas Regras, Projetos, Atividades, Pessoas e papéis e Aprovadores; quem não é administrador vê só o motivo da recusa.
+- [x] T038 [US5] Testar comentário obrigatório, projeto desabilitado, limites e imutabilidade da data histórica em `api/tests/Feature/SettingsTest.php` (22 testes) e `extension/tests/settings-page.test.tsx`.
+
+**Fechado junto (lacunas da US1)**: o incremento de duração passou a ser aplicado aos lançamentos manuais, e editar um lançamento não contorna mais o limite diário nem o comentário obrigatório. O comentário obrigatório vale para lançamento **manual**; o parar-timer continua aceitando comentário opcional (a tela de timer não pede comentário).
+
+**Fora do escopo desta etapa**: política por projeto (o modelo e a leitura já suportam, mas não há como desfazer uma sobreposição, então não é exposta); criar projetos manualmente (eles aparecem quando alguém abre um work item).
+
+**Checkpoint**: configuração aplicada a novas operações sem reclassificar horas históricas. Validação ao vivo em `smitbr` pendente.
 
 ## Phase 8: Polish & Release
 

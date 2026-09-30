@@ -866,3 +866,105 @@ textarea.input {
   gap: 14px;
   margin-top: 16px;
 }
+
+/* ---------- configuração ---------- */
+
+.input--medium {
+  max-width: 340px;
+}
+
+.settings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ts-border-soft);
+}
+
+.settings-list > li:last-child {
+  border-bottom: 0;
+}
+
+.settings-list--people > li {
+  align-items: flex-start;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--ts-border);
+  border-radius: 12px;
+  background: var(--ts-bg);
+  font-size: 13px;
+}
+
+.chip__remove {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ts-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip__remove:hover:not(:disabled) {
+  background: var(--ts-hover);
+  color: var(--ts-danger);
+}
+
+.activity-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.activity-row > .input {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.color-input {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--ts-border);
+  border-radius: var(--ts-radius);
+  background: var(--ts-bg);
+  cursor: pointer;
+}
+
+.settings-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 24px;
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
