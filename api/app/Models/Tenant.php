@@ -12,6 +12,7 @@ class Tenant extends Model
 
     protected $fillable = [
         'devops_organization_id',
+        'aad_tenant_id',
         'devops_organization_name',
         'default_timezone',
         'is_active',

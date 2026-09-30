@@ -2,79 +2,69 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Support\Facades\Http;
+use Firebase\JWT\ExpiredException;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Firebase\JWT\SignatureInvalidException;
 use RuntimeException;
+use UnexpectedValueException;
 
 /**
- * Prova técnica de identidade (research.md CL-004 / tasks.md T006).
+ * Prova técnica de identidade (research.md CL-004 / tasks.md T006) — v2,
+ * corrigida após teste real contra a organização smitbr.
  *
- * O cliente (extensão) nunca é aceito como fonte de verdade sobre quem é ou
- * a qual organização pertence. O único fato aceito é a resposta que o
- * próprio Azure DevOps devolve ao ser chamado com o token que a extensão
- * recebeu do host: se o token não for válido para a organização informada,
- * a chamada abaixo falha (401/403) e nenhuma sessão é emitida.
+ * A primeira versão desta classe chamava `_apis/connectionData` da Azure
+ * DevOps com o `appToken`, seguindo uma suposição errada. A documentação
+ * oficial (Authenticate and secure web extensions) e o teste real mostraram
+ * que `SDK.getAppToken()` NÃO é um token para chamar APIs da Azure DevOps —
+ * é um JWT HS256 assinado com um segredo simétrico exclusivo da extensão
+ * publicada (obtido no Marketplace: extensão → "Certificate"), para ser
+ * validado *localmente*, sem nenhuma chamada de rede.
  *
- * `$claimedOrganization` é apenas uma dica de roteamento (monta a URL);
- * a organização/identidade reais usadas pelo backend vêm de `instanceId`
- * e `authenticatedUser` na resposta do Azure DevOps, nunca do que o
- * cliente afirmou.
+ * Claims confirmados decodificando um token real emitido para smitbr:
+ *   nameid = GUID do usuário (confirmado batendo com webContext.user.id)
+ *   tid    = GUID do tenant do Azure AD/Entra (confirmado batendo com a URL
+ *            de login exibida quando o token é usado incorretamente)
+ *   iss    = "app.vstoken.visualstudio.com"
+ *   aud    = GUID da própria extensão (estável entre instalações)
  *
- * Pendência conhecida: os nomes exatos de campo abaixo devem ser
- * reconfirmados contra uma resposta real assim que a organização de teste
- * (passo 3 do quickstart) estiver disponível — ver research.md.
+ * Importante: o token NÃO carrega o ID da organização do Azure DevOps —
+ * apenas o tenant do Entra. Por isso a organização em si continua sendo
+ * uma afirmação do cliente (`claimedOrganizationId`/`claimedOrganizationName`),
+ * mas agora subordinada a um tenant Entra criptograficamente verificado:
+ * um invasor de outro diretório Entra não consegue forjar dados dentro
+ * deste, mesmo que minta sobre o nome da organização (ver
+ * IdentityProvisioningService, que trava a associação org↔tenant Entra na
+ * primeira vez que aparece).
  */
 class DevOpsIdentityVerifier
 {
-    public function verify(string $appToken, string $claimedOrganization): VerifiedDevOpsIdentity
+    public function verify(string $appToken): VerifiedDevOpsIdentity
     {
-        $organization = $this->sanitizeOrganization($claimedOrganization);
+        $secret = config('timersmit.extension_secret');
+
+        if (! $secret) {
+            throw new RuntimeException('AZURE_DEVOPS_EXTENSION_SECRET não configurado.');
+        }
 
         try {
-            $response = Http::withToken($appToken)
-                ->acceptJson()
-                ->get("https://dev.azure.com/{$organization}/_apis/connectionData", [
-                    'connectOptions' => 'includeServices',
-                    'api-version' => '7.1',
-                ]);
-        } catch (ConnectionException $exception) {
-            throw new RuntimeException('Não foi possível contatar o Azure DevOps para validar a identidade.', previous: $exception);
+            $claims = JWT::decode($appToken, new Key($secret, 'HS256'));
+        } catch (ExpiredException $exception) {
+            throw new InvalidDevOpsTokenException('Token de app expirado.', previous: $exception);
+        } catch (SignatureInvalidException|UnexpectedValueException $exception) {
+            throw new InvalidDevOpsTokenException('Token de app inválido.', previous: $exception);
         }
 
-        if ($response->unauthorized() || $response->forbidden()) {
-            throw new InvalidDevOpsTokenException('Token de app inválido ou sem acesso à organização informada.');
-        }
+        $identityId = $claims->nameid ?? null;
+        $aadTenantId = $claims->tid ?? null;
 
-        if (! $response->successful()) {
-            throw new RuntimeException("Azure DevOps retornou status inesperado ({$response->status()}) ao validar identidade.");
-        }
-
-        $body = $response->json();
-
-        $organizationId = $body['instanceId'] ?? null;
-        $identityId = $body['authenticatedUser']['id'] ?? null;
-        $displayName = $body['authenticatedUser']['providerDisplayName']
-            ?? $body['authenticatedUser']['customDisplayName']
-            ?? null;
-
-        if (! $organizationId || ! $identityId) {
-            throw new RuntimeException('Resposta de connectionData sem instanceId/authenticatedUser.id — confirmar contrato na prova técnica.');
+        if (! $identityId || ! $aadTenantId) {
+            throw new InvalidDevOpsTokenException('Token de app sem claims nameid/tid esperados.');
         }
 
         return new VerifiedDevOpsIdentity(
-            organizationId: $organizationId,
-            organizationName: $organization,
             identityId: $identityId,
-            displayName: $displayName ?? $identityId,
+            aadTenantId: $aadTenantId,
         );
-    }
-
-    private function sanitizeOrganization(string $claimedOrganization): string
-    {
-        // Aceita tanto "https://dev.azure.com/{org}/" quanto o nome puro.
-        $trimmed = trim($claimedOrganization, "/ \t\n\r\0\x0B");
-        $segments = array_values(array_filter(explode('/', $trimmed)));
-
-        return $segments[count($segments) - 1] ?? $trimmed;
     }
 }

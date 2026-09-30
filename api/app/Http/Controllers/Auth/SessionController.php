@@ -28,18 +28,29 @@ class SessionController extends Controller
     {
         $data = $request->validate([
             'appToken' => ['required', 'string'],
-            'claimedOrganization' => ['required', 'string'],
+            'claimedOrganizationId' => ['required', 'string'],
+            'claimedOrganizationName' => ['required', 'string'],
+            'displayName' => ['nullable', 'string'],
         ]);
 
         try {
-            $identity = $this->verifier->verify($data['appToken'], $data['claimedOrganization']);
+            $identity = $this->verifier->verify($data['appToken']);
         } catch (InvalidDevOpsTokenException $exception) {
             throw ValidationException::withMessages([
                 'appToken' => $exception->getMessage(),
             ]);
         }
 
-        $provisioned = $this->provisioning->resolve($identity);
+        $provisioned = $this->provisioning->resolve(
+            $identity,
+            $data['claimedOrganizationId'],
+            $data['claimedOrganizationName'],
+        );
+
+        if (! empty($data['displayName']) && $provisioned->member->display_name !== $data['displayName']) {
+            $provisioned->member->update(['display_name' => $data['displayName']]);
+        }
+
         $session = $this->sessionTokens->issue($provisioned->tenant->id, $provisioned->member->id);
 
         return response()->json([

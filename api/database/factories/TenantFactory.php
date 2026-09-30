@@ -14,6 +14,7 @@ class TenantFactory extends Factory
     {
         return [
             'devops_organization_id' => (string) $this->faker->uuid(),
+            'aad_tenant_id' => (string) $this->faker->uuid(),
             'devops_organization_name' => $this->faker->unique()->domainWord(),
             'default_timezone' => 'UTC',
             'is_active' => true,

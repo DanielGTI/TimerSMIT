@@ -2,6 +2,7 @@
 
 use App\Exceptions\ConflictException;
 use App\Http\Middleware\ResolveTenantContext;
+use App\Services\TenantOwnershipMismatchException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -38,6 +39,12 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (ConflictException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
+        });
+
+        $exceptions->render(function (TenantOwnershipMismatchException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => $e->getMessage()], 409);
             }

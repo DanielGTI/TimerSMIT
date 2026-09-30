@@ -1,4 +1,4 @@
-import { getAppToken, getHostContext } from "../devops/sdk";
+import { getAppToken, getHostContext, getUserContext } from "../devops/sdk";
 
 export interface BackendSession {
   sessionToken: string;
@@ -17,9 +17,10 @@ let inFlight: Promise<BackendSession> | null = null;
 
 /**
  * Troca o token de app do Azure DevOps (prova de identidade) por uma sessão
- * própria do backend. O backend é quem valida o token junto ao Azure DevOps
- * (ver api/app/Services/DevOpsIdentityVerifier.php) — o cliente nunca afirma
- * quem é; ele apenas repassa o token que o host emitiu.
+ * própria do backend. O backend valida a assinatura do token localmente
+ * (ver api/app/Services/DevOpsIdentityVerifier.php); organização e nome de
+ * exibição enviados aqui são afirmações do cliente, usadas só para
+ * provisionamento/exibição, nunca como prova de identidade.
  */
 export async function getBackendSession(apiBaseUrl: string): Promise<BackendSession> {
   if (cachedSession && new Date(cachedSession.expiresAt).getTime() > Date.now() + 5_000) {
@@ -40,17 +41,20 @@ export function clearBackendSession(): void {
 }
 
 async function exchangeSession(apiBaseUrl: string): Promise<BackendSession> {
-  const [appToken, hostContext] = await Promise.all([getAppToken(), getHostContext()]);
+  const [appToken, hostContext, userContext] = await Promise.all([
+    getAppToken(),
+    getHostContext(),
+    getUserContext(),
+  ]);
 
   const response = await fetch(`${apiBaseUrl}/api/auth/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       appToken,
-      // Usado só para montar a URL de verificação no backend; o backend
-      // resolve o tenant real a partir da resposta do Azure DevOps, não
-      // confia neste campo (ver DevOpsIdentityVerifier).
-      claimedOrganization: hostContext.name,
+      claimedOrganizationId: hostContext.id,
+      claimedOrganizationName: hostContext.name,
+      displayName: userContext.displayName,
     }),
   });
 

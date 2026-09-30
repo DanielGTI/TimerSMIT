@@ -17,9 +17,13 @@ Guia para publicar o backend Laravel numa VPS administrada pelo Coolify (testado
 ## 2. Criar a aplicação
 
 1. **New Resource → Application** → conecte o repositório Git.
-2. **Base Directory**: `api`
-3. **Build Pack**: Dockerfile (o Coolify detecta [`api/Dockerfile`](Dockerfile) automaticamente).
+2. **Build Pack**: Dockerfile.
+3. Configure os dois campos de caminho (são independentes — setar só um não basta):
+   - **Base Directory**: `/api` — raiz do build context; sem isso, o Coolify builda a partir da raiz do repositório e não encontra o Dockerfile.
+   - **Dockerfile Location**: `Dockerfile` — relativo ao Base Directory acima (não `api/Dockerfile`, que duplicaria o caminho).
 4. **Port**: 80 (exposta pela imagem via nginx).
+
+> Se o build falhar com `open Dockerfile: no such file or directory`, é sinal de que o Base Directory não foi aplicado — confira os dois campos acima e refaça o deploy.
 
 ## 3. Variáveis de ambiente
 

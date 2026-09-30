@@ -3,15 +3,15 @@
 namespace App\Services;
 
 /**
- * Fatos confirmados diretamente pelo Azure DevOps sobre quem está chamando,
- * nunca derivados de campos enviados pelo cliente.
+ * Fatos confirmados criptograficamente pela assinatura do token da
+ * extensão — nunca derivados de campos enviados soltos pelo cliente.
+ * Não inclui organização: o token não carrega essa informação (ver
+ * DevOpsIdentityVerifier).
  */
 final class VerifiedDevOpsIdentity
 {
     public function __construct(
-        public readonly string $organizationId,
-        public readonly string $organizationName,
         public readonly string $identityId,
-        public readonly string $displayName,
+        public readonly string $aadTenantId,
     ) {}
 }

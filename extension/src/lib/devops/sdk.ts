@@ -20,12 +20,25 @@ export async function getWebContext() {
 }
 
 /**
- * Organização (host) atual — `IHostContext.name` é o nome da organização do
- * Azure DevOps, usado apenas para rotear a verificação no backend.
+ * Organização (host) atual — `id`/`name` são afirmações do cliente sobre
+ * qual organização é esta; o backend não verifica isso criptograficamente
+ * (o token da extensão não carrega o ID da organização, só o tenant do
+ * Entra — ver DevOpsIdentityVerifier no backend). Servem para rotear e
+ * exibir, não como prova de identidade.
  */
 export async function getHostContext() {
   await ensureSdkReady();
   return SDK.getHost();
+}
+
+/**
+ * Nome de exibição do usuário — puramente cosmético (aparece em telas e
+ * auditoria legível). Nunca usado para autorização; quem decide acesso é o
+ * `nameid` verificado dentro do token da extensão.
+ */
+export async function getUserContext() {
+  await ensureSdkReady();
+  return SDK.getUser();
 }
 
 export async function getExtensionContext() {
@@ -34,9 +47,11 @@ export async function getExtensionContext() {
 }
 
 /**
- * Token de acesso emitido pelo Azure DevOps para o usuário/organização atuais.
- * É a única prova de identidade repassada ao backend — nunca enviar
- * organização/usuário como campos soltos vindos do contexto do cliente.
+ * JWT assinado pelo Azure DevOps com o segredo da própria extensão
+ * (não confundir com token de acesso à API do Azure DevOps — para isso
+ * seria `getAccessToken()`, que não usamos). É a única prova
+ * criptográfica de identidade repassada ao backend; organização e nome de
+ * exibição enviados à parte são afirmações do cliente, não prova.
  */
 export async function getAppToken(): Promise<string> {
   await ensureSdkReady();
@@ -45,4 +60,8 @@ export async function getAppToken(): Promise<string> {
 
 export function notifyLoadSucceeded(): void {
   SDK.notifyLoadSucceeded();
+}
+
+export function notifyLoadFailed(error: unknown): void {
+  SDK.notifyLoadFailed(error instanceof Error ? error : String(error));
 }

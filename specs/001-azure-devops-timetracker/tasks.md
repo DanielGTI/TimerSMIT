@@ -13,13 +13,13 @@
 
 ## Phase 2: Foundational — blocks user stories
 
-- [x] T006 Provar identidade verificável da extensão com backend em `extension/src/lib/auth/`, `api/app/Http/Middleware/`; documentar emissor, audiência, tenant, expiração e revogação em `specs/001-azure-devops-timetracker/research.md`. **Gate parcialmente aberto: fluxo implementado e testado com HTTP simulado; contrato exato de `connectionData` e revogação por desinstalação ainda dependem da organização de teste — não usar dados reais de usuários antes disso.**
+- [x] T006 Provar identidade verificável da extensão com backend em `extension/src/lib/auth/`, `api/app/Http/Middleware/`; documentar emissor, audiência, tenant, expiração e revogação em `specs/001-azure-devops-timetracker/research.md`. **Gate fechado**: validado ponta a ponta contra a organização real `smitbr` em 2026-09-29 — token real decodificado, arquitetura corrigida (verificação local do JWT HS256 da extensão, não chamada a `connectionData`), sessão emitida e aceita. Só revogação por desinstalação segue pendente.
 - [x] T007 Implementar migrações `tenants`, `projects`, `members`, `role_assignments`, `policies` em `api/database/migrations/`.
 - [x] T008 Implementar contexto tenant e políticas de projeto/papel em `api/app/Http/Middleware/` e `api/app/Policies/`.
 - [x] T009 Implementar autenticação da API e respostas 401/403/409/422 em `api/routes/api.php` e `api/app/Http/`.
 - [x] T010 Implementar eventos de auditoria append-only em `api/app/Services/AuditService.php` e migração correspondente.
 - [x] T011 Testar que usuários de dois tenants e dois projetos não se cruzam em `api/tests/Feature/TenantIsolationTest.php`.
-- [ ] T012 Validar guia e hubs em `extension/vss-extension.dev.json` numa organização privada e documentar IDs confirmados em `research.md`. **Bloqueado: aguardando organização de teste (passo 3 do quickstart); manifesto e IDs de contribution são rascunho não instalado.**
+- [ ] T012 Validar guia e hubs em `extension/vss-extension.dev.json` numa organização privada e documentar IDs confirmados em `research.md`. **Parcial**: guia do work item (`work-item-guide` / `ms.vss-work-web.work-item-form-page`) confirmado funcionando em `smitbr` — aba aparece no lugar certo e a sessão real é estabelecida. Ainda falta abrir e validar os 4 hubs (folha, aprovações, relatórios, configuração).
 
 **Checkpoint**: autenticação, RBAC, auditoria e contributions aptos ao piloto.
 

@@ -7,13 +7,13 @@ return [
     | Verificação de identidade do Azure DevOps
     |--------------------------------------------------------------------------
     |
-    | O token de app enviado pela extensão nunca é aceito como prova de
-    | identidade por si só. Ele é validado chamando este endpoint do Azure
-    | DevOps com o próprio token; a organização/usuário retornados é que
-    | definem o tenant, não qualquer campo enviado pelo cliente.
+    | Segredo simétrico (HS256) exclusivo da extensão publicada, usado para
+    | validar localmente o JWT de `SDK.getAppToken()` — sem nenhuma chamada
+    | de rede ao Azure DevOps. Obtido no Marketplace: extensão → "Certificate".
+    | Muda se os `scopes` do manifesto mudarem; buscar um novo nesse caso.
     |
     */
-    'devops_connection_data_url' => env('DEVOPS_CONNECTION_DATA_URL', 'https://app.vssps.visualstudio.com/_apis/connectionData'),
+    'extension_secret' => env('AZURE_DEVOPS_EXTENSION_SECRET'),
 
     /*
     |--------------------------------------------------------------------------

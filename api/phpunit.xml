@@ -30,6 +30,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TIMERSMIT_SESSION_SECRET" value="test-only-secret-do-not-use-in-prod"/>
+        <env name="AZURE_DEVOPS_EXTENSION_SECRET" value="test-only-extension-secret-do-not-use-in-prod"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
