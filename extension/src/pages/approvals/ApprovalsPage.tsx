@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DecisionHistory } from "../../components/DecisionHistory";
 import { StatusBadge } from "../../components/StatusBadge";
+import { TabList } from "../../components/TabList";
 import {
   decideApproval,
   fetchApproval,
@@ -146,26 +147,15 @@ export function ApprovalsPage(): JSX.Element {
       <section className="card">
         <div className="toolbar">
           <h2>Aprovações</h2>
-          <div className="tabs" role="tablist" aria-label="Filtro">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === "pending"}
-              className="tabs__tab"
-              onClick={() => setView("pending")}
-            >
-              Pendentes{pending ? ` (${pending.length})` : ""}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === "decided"}
-              className="tabs__tab"
-              onClick={() => setView("decided")}
-            >
-              Decididas por mim
-            </button>
-          </div>
+          <TabList
+            label="Filtro"
+            tabs={[
+              { id: "pending", label: `Pendentes${pending ? ` (${pending.length})` : ""}` },
+              { id: "decided", label: "Decididas por mim" },
+            ]}
+            value={view}
+            onChange={setView}
+          />
         </div>
 
         {error && !detail && (

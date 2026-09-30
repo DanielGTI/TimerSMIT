@@ -44,8 +44,13 @@ export function ActivitySelect({ options, value, onChange, label, disabled }: Ac
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key === "Escape") {
+    if (event.key === "Escape" || event.key === "Tab") {
       setOpen(false);
+      return;
+    }
+    if (open && (event.key === "Home" || event.key === "End")) {
+      event.preventDefault();
+      setActive(event.key === "Home" ? 0 : items.length - 1);
       return;
     }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {

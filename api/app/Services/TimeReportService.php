@@ -117,8 +117,41 @@ class TimeReportService
         return [
             'count' => (int) $totals->entry_count,
             'totalSeconds' => (int) $totals->total_seconds,
-            'rows' => $this->rowsQuery($base)->lazy(500)->map(fn ($row) => $this->presentRow($row)),
+            'rows' => $this->keysetRows($base),
         ];
+    }
+
+    /**
+     * Lê na mesma ordem da tela, em blocos, sempre a partir da última linha
+     * entregue. OFFSET (`lazy()`/`chunk()`) refaz a ordenação do período
+     * inteiro a cada bloco — custo quadrático: 50 mil linhas levaram mais de
+     * 20 s; por chave, o custo é linear.
+     *
+     * @param  Builder<TimeEntry>  $base
+     * @return LazyCollection<int, array<string, mixed>>
+     */
+    private function keysetRows(Builder $base): LazyCollection
+    {
+        $blockSize = 1000;
+
+        return LazyCollection::make(function () use ($base, $blockSize) {
+            $after = null;
+
+            do {
+                $query = $this->rowsQuery($base)->limit($blockSize);
+                if ($after !== null) {
+                    $query->whereRaw('(time_entries.local_date, members.display_name, time_entries.id) > (?, ?, ?)', $after);
+                }
+
+                $block = $query->get();
+                foreach ($block as $row) {
+                    yield $this->presentRow($row);
+                }
+
+                $tail = $block->last();
+                $after = $tail === null ? null : [substr((string) $tail->local_date, 0, 10), $tail->member_name, $tail->id];
+            } while ($block->count() === $blockSize);
+        });
     }
 
     /**

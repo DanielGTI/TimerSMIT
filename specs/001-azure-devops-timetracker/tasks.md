@@ -103,8 +103,11 @@
 
 ## Phase 8: Polish & Release
 
-- [ ] T039 Revisar tradução, teclado, contraste e temas em `extension/src/`.
-- [ ] T040 Executar carga para metas SC-004 e índices em `api/tests/Performance/`; registrar ambiente e resultados.
+- [ ] T039 Revisar tradução, teclado, contraste e temas em `extension/src/`. **Parcial**: feito teclado/foco (abas com setas/Home/End e tabindex móvel em `TabList`; seletor de atividade fecha com Tab e ganha Home/End; contorno de foco em abas, itens, dias do calendário, chips, cor e caixas de seleção), `prefers-reduced-motion` e alvo de 24 px no botão de remover chip. Pendente: conferir contraste dos botões primários/badges no tema escuro do Azure DevOps e revisão de textos com quem usa.
+      Achado de texto/i18n: toda a interface está em pt-BR fixo (sem catálogo); se houver público em inglês, extrair textos antes da publicação pública (CL a decidir).
+- [x] T040 Executar carga para metas SC-004 e índices em `api/tests/Performance/`; registrar ambiente e resultados.
+      `ReferenceScenarioTest` (só com `PERF_RUN=1`): PostgreSQL 17 em contêiner, 50.540 lançamentos (500 da pessoa medida + 100 pessoas × 500), 40 rodadas. Resultado (p50/p95): abrir semana 16/19 ms; abrir mês 12/16 ms; iniciar timer 15/29 ms; parar timer 20/30 ms; relatório de 90 dias do admin 202/336 ms — SC-004 (3 s e 2 s) atendido com folga; os índices existentes bastam. Primeira chamada a frio: até ~1,1 s.
+      Achado: a exportação CSV usava `lazy()` (OFFSET) e levou ~22 s para 50 mil linhas; trocada por leitura em blocos por chave (keyset) → ~4,7 s, com teste de fronteira de bloco em `ReportTest`. Medida em contêiner local, não no VPS: repetir em produção antes de tratar como garantia.
 - [ ] T041 Validar restauração de backup, logs sem tokens e métricas/alertas em `api/` e infraestrutura.
 - [ ] T042 Preparar descrição, ícone, screenshots, suporte e política de privacidade em `extension/marketplace/`.
 - [ ] T043 Empacotar VSIX de desenvolvimento, instalar privadamente e executar `quickstart.md` na organização de teste.

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TabList } from "../../components/TabList";
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
 import { fetchSettings, type SettingsDto } from "../../lib/api/settings";
@@ -74,24 +75,16 @@ export function SettingsPage(): JSX.Element {
       <section className="card">
         <div className="toolbar">
           <h2>Configuração · {settings.organization.name}</h2>
-          <div className="tabs" role="tablist" aria-label="Seções">
-            {TABS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={tab === item.id}
-                className="tabs__tab"
-                onClick={() => {
-                  setTab(item.id);
-                  setError(null);
-                  setNotice(null);
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <TabList
+            label="Seções"
+            tabs={TABS}
+            value={tab}
+            onChange={(id) => {
+              setTab(id);
+              setError(null);
+              setNotice(null);
+            }}
+          />
         </div>
 
         {notice && (

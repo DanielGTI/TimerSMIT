@@ -391,6 +391,38 @@ class ReportTest extends TestCase
         }
     }
 
+    public function test_csv_spanning_several_read_blocks_loses_and_repeats_no_row(): void
+    {
+        // Mais que um bloco de leitura, com muitos empates de data e pessoa:
+        // a paginação por chave não pode pular nem repetir linhas na fronteira.
+        $now = now()->toDateTimeString();
+        $rows = [];
+        for ($i = 1; $i <= 2300; $i++) {
+            $who = [$this->alice, $this->bob, $this->carol][$i % 3];
+            $rows[] = [
+                'tenant_id' => $this->tenant->id, 'project_id' => $this->a->id, 'member_id' => $who->id,
+                'devops_work_item_id' => 1, 'local_date' => '2026-09-'.(28 + $i % 2), 'week_start_date' => '2026-09-28',
+                'timezone' => 'America/Sao_Paulo', 'duration_seconds' => 100000 + $i, 'source' => 'manual',
+                'billable' => false, 'revision' => 1, 'created_at' => $now, 'updated_at' => $now,
+            ];
+        }
+        foreach (array_chunk($rows, 500) as $chunk) {
+            \Illuminate\Support\Facades\DB::table('time_entries')->insert($chunk);
+        }
+
+        $csv = $this->csvRows($this->csv($this->admin)->assertOk()->streamedContent());
+        $total = $this->report($this->admin)->json('totals.entryCount');
+
+        $this->assertCount($total, $csv);
+        $big = array_values(array_filter(array_map(fn ($row) => (int) $row[8], $csv), fn ($seconds) => $seconds > 100000));
+        $this->assertCount(2300, array_unique($big));
+
+        $keys = array_map(fn ($row) => $row[0].'|'.$row[1], $csv);
+        $sorted = $keys;
+        usort($sorted, fn ($a, $b) => strcmp($a, $b));
+        $this->assertSame($sorted, $keys, 'a ordem data → pessoa deve ser a da tela');
+    }
+
     public function test_csv_format_headers_and_content(): void
     {
         $response = $this->csv($this->admin, ['workItemId' => 10])->assertOk();
