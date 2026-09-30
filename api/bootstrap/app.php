@@ -3,13 +3,13 @@
 use App\Exceptions\ConflictException;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Services\TenantOwnershipMismatchException;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,6 +24,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // O fetch do navegador não manda Accept: application/json; sem isto
+        // erros como 403/404 voltariam como página HTML e a extensão não
+        // conseguiria mostrar o motivo.
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request, Throwable $e) => $request->is('api/*') || $request->expectsJson(),
+        );
+
         // Respostas de erro consistentes para toda a API (T009): nunca
         // vazar detalhes de existência de recursos em 401/403 (FR-015).
         $exceptions->render(function (AuthenticationException $e, Request $request) {
@@ -32,9 +39,14 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        $exceptions->render(function (AuthorizationException $e, Request $request) {
+        // O Laravel converte AuthorizationException em AccessDeniedHttpException
+        // antes dos callbacks de render — por isso é esta a classe que casa.
+        // Mensagem fixa: não revela por que o acesso foi negado (FR-015).
+        $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
             if ($request->is('api/*')) {
-                return response()->json(['message' => 'Acesso negado.'], 403);
+                return response()->json([
+                    'message' => 'Você não tem permissão para esta ação. Se acha que deveria ter, peça a um administrador para liberar seu acesso.',
+                ], 403);
             }
         });
 
