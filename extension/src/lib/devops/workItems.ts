@@ -1,5 +1,5 @@
 import * as SDK from "azure-devops-extension-sdk";
-import { IWorkItemFormService, WorkItemTrackingServiceIds } from "azure-devops-extension-api/WorkItemTracking";
+import type { IWorkItemFormService } from "azure-devops-extension-api/WorkItemTracking";
 import { ensureSdkReady } from "./sdk";
 
 export interface CurrentWorkItem {
@@ -8,11 +8,18 @@ export interface CurrentWorkItem {
   workItemType: string;
 }
 
+// Valor literal (igual a WorkItemTrackingServiceIds.WorkItemFormService) em
+// vez de importar o enum do pacote: seu módulo é um UMD/AMD que o Vite não
+// consegue empacotar como ESM puro (referência a `define` vira `(void 0)` no
+// bundle final, quebrando a extensão inteira ao carregar). Só o tipo
+// (`import type`, sempre apagado na compilação) é seguro de importar dali.
+const WORK_ITEM_FORM_SERVICE_ID = "ms.vss-work-web.work-item-form";
+
 let formServicePromise: Promise<IWorkItemFormService> | null = null;
 
 function getFormService(): Promise<IWorkItemFormService> {
   if (!formServicePromise) {
-    formServicePromise = SDK.getService<IWorkItemFormService>(WorkItemTrackingServiceIds.WorkItemFormService);
+    formServicePromise = SDK.getService<IWorkItemFormService>(WORK_ITEM_FORM_SERVICE_ID);
   }
   return formServicePromise;
 }
