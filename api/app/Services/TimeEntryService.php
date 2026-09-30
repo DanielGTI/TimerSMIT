@@ -48,6 +48,8 @@ class TimeEntryService
             throw ValidationException::withMessages(['durationSeconds' => 'Duração deve ser maior que zero.']);
         }
 
+        $this->assertIncrement($policy, $durationSeconds);
+
         if ($commentRequired && trim((string) $note) === '') {
             throw ValidationException::withMessages(['note' => 'Comentário obrigatório para lançamentos manuais nesta organização.']);
         }
@@ -126,6 +128,37 @@ class TimeEntryService
                 throw ValidationException::withMessages(['durationSeconds' => 'Duração deve ser maior que zero.']);
             }
 
+            // Editar não pode ser um atalho para burlar as regras vigentes.
+            // Incremento e comentário valem para lançamento manual (o do timer
+            // tem duração exata em segundos e comentário opcional); o limite
+            // diário vale para qualquer origem.
+            $policy = $this->effectivePolicy($tenant, $entry->project);
+            $newDuration = $changes['durationSeconds'] ?? $entry->duration_seconds;
+            $newNote = $changes['note'] ?? $entry->note;
+
+            if ($entry->source === TimeEntry::SOURCE_MANUAL) {
+                if (isset($changes['durationSeconds'])) {
+                    $this->assertIncrement($policy, $newDuration);
+                }
+
+                if (($policy->comment_required ?? false) && trim((string) $newNote) === '') {
+                    throw ValidationException::withMessages(['note' => 'Comentário obrigatório para lançamentos manuais nesta organização.']);
+                }
+            }
+
+            if (isset($changes['durationSeconds'])) {
+                $others = (int) TimeEntry::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->where('member_id', $member->id)
+                    ->where('local_date', $entry->local_date)
+                    ->where('id', '!=', $entry->id)
+                    ->sum('duration_seconds');
+
+                if ($others + $newDuration > ($policy->daily_limit_hours ?? 24) * 3600) {
+                    throw ValidationException::withMessages(['durationSeconds' => 'Limite diário de horas excedido para esta data.']);
+                }
+            }
+
             $entry->update([
                 'duration_seconds' => $changes['durationSeconds'] ?? $entry->duration_seconds,
                 'note' => $changes['note'] ?? $entry->note,
@@ -188,6 +221,16 @@ class TimeEntryService
         return $own()->lockForUpdate()->firstOrFail();
     }
 
+    /** Lançamento manual precisa ser múltiplo do incremento da política (padrão: 1 minuto). */
+    private function assertIncrement(?Policy $policy, int $durationSeconds): void
+    {
+        $minutes = $policy->duration_increment_minutes ?? 1;
+
+        if ($minutes > 1 && $durationSeconds % ($minutes * 60) !== 0) {
+            throw ValidationException::withMessages(['durationSeconds' => "A duração deve ser múltipla de {$minutes} minutos."]);
+        }
+    }
+
     private function effectivePolicy(Tenant $tenant, Project $project): ?Policy
     {
         return Policy::query()
@@ -198,6 +241,7 @@ class TimeEntryService
             ->where('effective_from', '<=', Date::now())
             ->orderByRaw('project_id is null')
             ->orderByDesc('version')
+            ->orderByDesc('id')
             ->first();
     }
 }

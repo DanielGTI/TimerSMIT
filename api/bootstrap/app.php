@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\ConflictException;
+use App\Http\Middleware\EnsureTenantAdmin;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Services\TenantOwnershipMismatchException;
 use Illuminate\Auth\AuthenticationException;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'tenant' => ResolveTenantContext::class,
+            'admin' => EnsureTenantAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

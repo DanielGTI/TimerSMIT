@@ -55,7 +55,7 @@ class ActivityTypeService
             ->where('is_enabled', true);
     }
 
-    private function ensureDefaults(Tenant $tenant): void
+    public function ensureDefaults(Tenant $tenant): void
     {
         if (ActivityType::query()->where('tenant_id', $tenant->id)->exists()) {
             return;

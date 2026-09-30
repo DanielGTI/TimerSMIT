@@ -5,6 +5,7 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\TimerController;
 use App\Http\Controllers\TimesheetController;
@@ -39,6 +40,19 @@ Route::middleware('tenant')->group(function () {
     Route::get('/reports/options', [ReportController::class, 'options']);
     Route::get('/reports/time', [ReportController::class, 'show']);
     Route::get('/reports/time.csv', [ReportController::class, 'csv']);
+
+    Route::middleware('admin')->prefix('settings')->group(function () {
+        Route::get('/', [SettingsController::class, 'show']);
+        Route::put('/organization', [SettingsController::class, 'updateOrganization']);
+        Route::put('/policy', [SettingsController::class, 'updatePolicy']);
+        Route::patch('/projects/{projectId}', [SettingsController::class, 'updateProject'])->whereNumber('projectId');
+        Route::post('/activity-types', [SettingsController::class, 'storeActivityType']);
+        Route::patch('/activity-types/{typeId}', [SettingsController::class, 'updateActivityType'])->whereNumber('typeId');
+        Route::post('/role-assignments', [SettingsController::class, 'grantRole']);
+        Route::delete('/role-assignments/{assignmentId}', [SettingsController::class, 'revokeRole'])->whereNumber('assignmentId');
+        Route::post('/approver-assignments', [SettingsController::class, 'designateApprover']);
+        Route::delete('/approver-assignments/{assignmentId}', [SettingsController::class, 'removeDesignation'])->whereNumber('assignmentId');
+    });
 
     Route::post('/entries', [TimeEntryController::class, 'store']);
     Route::patch('/entries/{entryId}', [TimeEntryController::class, 'update']);
