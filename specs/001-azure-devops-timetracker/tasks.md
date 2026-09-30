@@ -19,9 +19,9 @@
 - [x] T009 Implementar autenticação da API e respostas 401/403/409/422 em `api/routes/api.php` e `api/app/Http/`.
 - [x] T010 Implementar eventos de auditoria append-only em `api/app/Services/AuditService.php` e migração correspondente.
 - [x] T011 Testar que usuários de dois tenants e dois projetos não se cruzam em `api/tests/Feature/TenantIsolationTest.php`.
-- [ ] T012 Validar guia e hubs em `extension/vss-extension.dev.json` numa organização privada e documentar IDs confirmados em `research.md`. **Parcial**: guia do work item (`work-item-guide` / `ms.vss-work-web.work-item-form-page`) confirmado funcionando em `smitbr` — aba aparece no lugar certo e a sessão real é estabelecida. Ainda falta abrir e validar os 4 hubs (folha, aprovações, relatórios, configuração).
+- [x] T012 Validar guia e hubs em `extension/vss-extension.dev.json` numa organização privada e documentar IDs confirmados em `research.md`. Guia do work item (`work-item-guide` / `ms.vss-work-web.work-item-form-page`) e os 4 hubs (`timesheet-hub`, `approvals-hub`, `reports-hub`, `settings-hub`, agrupados em `hub-group`) confirmados funcionando em `smitbr` — todos aparecem no menu do projeto sob "Controle de horas", carregam sem erro e estabelecem sessão real com o backend.
 
-**Checkpoint**: autenticação, RBAC, auditoria e contributions aptos ao piloto.
+**Checkpoint**: autenticação, RBAC, auditoria e contributions aptos ao piloto. ✅ Fase Foundational concluída em 2026-09-30.
 
 ## Phase 3: User Story 1 — Registro de horas (P1)
 
