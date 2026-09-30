@@ -65,6 +65,7 @@ function week(overrides: Partial<WeekDto> = {}): WeekDto {
     status: "open",
     revision: 0,
     submittedAt: null,
+    decisions: [],
     totalSeconds: entries.reduce((sum, item) => sum + item.durationSeconds, 0),
     days,
     entries,
@@ -187,6 +188,68 @@ describe("TimesheetPage", () => {
     await screen.findByText("28 set – 04 out 2026");
 
     expect(screen.getByRole("button", { name: "Enviar semana" })).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: "Editar" })).toHaveLength(3);
+  });
+
+  it("semana rejeitada mostra quem rejeitou, o motivo e o histórico", async () => {
+    fetchWeek.mockResolvedValue(
+      week({
+        status: "rejected",
+        revision: 1,
+        decisions: [
+          {
+            revision: 1,
+            decision: "rejected",
+            reason: "Faltou o dia 29",
+            approverName: "Ana Aprovadora",
+            selfDecision: false,
+            decidedAt: "2026-10-01T12:00:00Z",
+          },
+        ],
+      }),
+    );
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    const banner = screen.getByText(/Semana rejeitada por Ana Aprovadora/);
+    expect(banner).toHaveTextContent("Faltou o dia 29");
+    expect(banner).toHaveTextContent("Corrija os lançamentos e envie novamente");
+    const history = screen.getByRole("list", { name: "Histórico de decisões" });
+    expect(within(history).getByText("Rejeitada")).toBeInTheDocument();
+  });
+
+  it("semana aprovada mostra o aviso de aprovação", async () => {
+    fetchWeek.mockResolvedValue(
+      week({
+        status: "approved",
+        revision: 1,
+        decisions: [
+          { revision: 1, decision: "approved", reason: null, approverName: "Ana Aprovadora", selfDecision: false, decidedAt: "2026-10-01T12:00:00Z" },
+        ],
+      }),
+    );
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    expect(screen.getByText(/Semana aprovada por Ana Aprovadora/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
+  });
+
+  it("semana reaberta explica o motivo e volta a ser editável", async () => {
+    fetchWeek.mockResolvedValue(
+      week({
+        status: "open",
+        revision: 1,
+        decisions: [
+          { revision: 1, decision: "approved", reason: null, approverName: "Ana", selfDecision: false, decidedAt: "2026-10-01T12:00:00Z" },
+          { revision: 1, decision: "reopened", reason: "Faltou o deploy", approverName: "Admin", selfDecision: false, decidedAt: "2026-10-02T12:00:00Z" },
+        ],
+      }),
+    );
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    expect(screen.getByText(/Semana reaberta por Admin/)).toHaveTextContent("Faltou o deploy");
     expect(screen.getAllByRole("button", { name: "Editar" })).toHaveLength(3);
   });
 

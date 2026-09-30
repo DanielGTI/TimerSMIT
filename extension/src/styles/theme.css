@@ -637,3 +637,139 @@ textarea.input {
 .calendar__total {
   margin: 12px 0 0;
 }
+
+/* ---------- aprovações ---------- */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs__tab {
+  padding: 6px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ts-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs__tab[aria-selected="true"] {
+  border-bottom-color: var(--ts-primary);
+  color: var(--ts-text);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.split__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--ts-border);
+  border-radius: var(--ts-radius);
+  background: var(--ts-bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-item:hover {
+  border-color: var(--ts-border-strong);
+}
+
+.list-item--active {
+  border-color: var(--ts-primary);
+  box-shadow: 0 0 0 1px var(--ts-primary);
+}
+
+.split__detail h2,
+.split__detail h3 {
+  margin: 0;
+}
+
+.split__detail h3 {
+  margin: 18px 0 8px;
+  font-size: 14px;
+}
+
+.actions--start {
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.confirm-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--ts-border);
+  border-radius: var(--ts-radius);
+  background: var(--ts-bg);
+}
+
+.confirm-box p {
+  margin: 0;
+}
+
+.confirm-box textarea {
+  width: 100%;
+}
+
+.confirm-box .actions {
+  margin-top: 4px;
+}
+
+.history {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.history li {
+  margin-bottom: 6px;
+}
+
+.history__reason {
+  display: block;
+  color: var(--ts-muted);
+}
+
+.banner {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--ts-border);
+  border-left-width: 4px;
+  border-radius: var(--ts-radius);
+  background: var(--ts-bg);
+}
+
+.banner--rejected {
+  border-left-color: var(--ts-danger);
+}
+
+.banner--approved {
+  border-left-color: var(--ts-success);
+}

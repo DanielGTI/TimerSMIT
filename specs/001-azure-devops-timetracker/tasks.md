@@ -56,16 +56,20 @@
 
 ## Phase 5: User Story 3 — Aprovação (P1)
 
-**Goal**: aprovador decide semana com histórico e controle de acesso.  
+**Goal**: aprovador decide semana com histórico e controle de acesso.
 **Independent Test**: rejeitar, corrigir, reenviar e aprovar.
 
-- [ ] T026 [US3] Criar `approval_decisions` e designações em `api/database/migrations/` e `api/app/Models/`.
-- [ ] T027 [US3] Implementar regras de atribuição, rejeição com motivo, aprovação atômica e reabertura administrativa em `api/app/Services/ApprovalService.php`.
-- [ ] T028 [US3] Expor lista/decisão de semanas em `api/app/Http/Controllers/ApprovalController.php`.
-- [ ] T029 [US3] Construir caixa de aprovações em `extension/src/pages/approvals/`.
-- [ ] T030 [US3] Testar rejeição, reenvio, concorrência, gestor sem acesso e reabertura auditada em `api/tests/Feature/ApprovalTest.php`.
+**Decisões de produto (CL-002)**: aprovador por **designação explícita** (por pessoa, opcionalmente por projeto), resolvida no envio, com **administradores como reserva** (sempre podem decidir). **Autoaprovação: só administrador**, marcada na decisão e na auditoria.
 
-**Checkpoint**: ciclo registro → folha → aprovação completo.
+- [x] T026 [US3] Criar `approval_decisions` e designações em `api/database/migrations/` e `api/app/Models/`: `approver_assignments` (designação), `weekly_submission_approvers` (aprovadores resolvidos em cada envio) e `approval_decisions` (append-only: aprovada/rejeitada/reaberta, com revisão, motivo e `self_decision`).
+- [x] T027 [US3] Implementar regras de atribuição, rejeição com motivo, aprovação atômica e reabertura administrativa em `api/app/Services/ApprovalService.php` e `ApproverResolver.php`. A linha da submissão é travada: a primeira transição válida vence (as demais recebem 409); decisão idempotente por `Idempotency-Key`, com revisão esperada; rejeição e reabertura exigem motivo; reabrir só aprovada e só admin. O envio passa a exigir alguém que possa decidir (409 com instrução ao administrador) — o bloqueio "sem aprovador" adiado da US2.
+- [x] T028 [US3] Expor lista/decisão de semanas em `api/app/Http/Controllers/ApprovalController.php`: `GET /approvals` (pendentes | decididas), `GET /approvals/{id}`, `POST /approvals/{id}/decision`, `POST /approvals/{id}/reopen`. Contrato atualizado; a folha do colaborador passa a trazer o histórico de decisões.
+- [x] T029 [US3] Construir caixa de aprovações em `extension/src/pages/approvals/`: lista de pendentes e decididas, detalhe com grade/lançamentos/histórico (somente leitura), aprovar e rejeitar (motivo obrigatório) e reabrir (admin), sempre com confirmação. A folha do colaborador mostra quem rejeitou/aprovou/reabriu, o motivo e o histórico.
+- [x] T030 [US3] Testar rejeição, reenvio, concorrência, gestor sem acesso e reabertura auditada em `api/tests/Feature/ApprovalTest.php` (24 testes) e `extension/tests/approvals-page.test.tsx`. Concorrência: duas decisões sobre a mesma semana — a segunda recebe 409 (sem teste com duas conexões simultâneas de verdade).
+
+**Pendente para a US5 (configuração)**: não existe tela nem endpoint para **designar aprovadores** (`approver_assignments` só é preenchida por banco/teste). Enquanto isso, os administradores decidem todas as semanas. Também falta a **reatribuição de semanas pendentes** quando um aprovador muda (edge case da spec).
+
+**Checkpoint**: ciclo registro → folha → aprovação completo. Validação ao vivo em `smitbr` pendente.
 
 ## Phase 6: User Story 4 — Relatórios (P2)
 

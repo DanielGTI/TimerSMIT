@@ -70,6 +70,19 @@ components:
         revision: { type: integer, minimum: 0, description: Número do último envio (0 = nunca enviada). }
         submittedAt: { type: [string, 'null'], format: date-time }
         totalSeconds: { type: integer, minimum: 0 }
+        decisions:
+          type: array
+          description: Histórico de decisões da semana (nada é apagado ao reenviar).
+          items:
+            type: object
+            required: [revision, decision, decidedAt]
+            properties:
+              revision: { type: integer, minimum: 1 }
+              decision: { type: string, enum: [approved, rejected, reopened] }
+              reason: { type: [string, 'null'] }
+              approverName: { type: [string, 'null'] }
+              selfDecision: { type: boolean, description: Administrador decidindo a própria semana. }
+              decidedAt: { type: string, format: date-time }
         days:
           type: array
           description: Os 7 dias da semana, com total (0 quando vazio).
@@ -307,13 +320,42 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Week' }
-        '409': { description: 'Já enviada ou aprovada, ou há um timer ativo. O bloqueio por falta de aprovador entra com a designação de aprovadores (US3).' }
+        '409': { description: 'Já enviada ou aprovada, há um timer ativo, ou não há ninguém que possa decidir (nem aprovador designado nem administrador).' }
         '422': { description: Semana sem lançamentos }
+  /approvals:
+    get:
+      operationId: listApprovals
+      description: >-
+        `view=pending` (padrão): semanas enviadas que o usuário pode decidir —
+        aprovadores designados no envio e administradores. `view=decided`: as
+        últimas decisões tomadas por ele.
+      parameters:
+        - { name: view, in: query, schema: { type: string, enum: [pending, decided] } }
+      responses:
+        '200':
+          description: Lista (pendentes: mais antigas primeiro).
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /approvals/{submissionId}:
+    get:
+      operationId: getApproval
+      description: Semana do colaborador (mesmo formato de `Week`), quem enviou e o que o usuário pode fazer (`permissions`).
+      parameters:
+        - { name: submissionId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Detalhe para revisão }
+        '403': { description: Não pode decidir nem decidiu esta semana }
+        '404': { description: Não existe nesta organização }
   /approvals/{submissionId}/decision:
     post:
       operationId: decideWeek
+      description: >-
+        Decide a semana inteira. A primeira transição válida vence; repetir com
+        a mesma Idempotency-Key devolve o mesmo resultado. Só administrador
+        decide a própria semana (registrado como `selfDecision`).
       parameters:
-        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: submissionId, in: path, required: true, schema: { type: string } }
         - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
@@ -324,12 +366,35 @@ paths:
               required: [decision]
               properties:
                 decision: { type: string, enum: [approve, reject] }
+                reason: { type: string, maxLength: 2000, description: Obrigatório na rejeição. }
+                revision: { type: integer, minimum: 1, description: Revisão que o aprovador viu; divergente = 409. }
+      responses:
+        '200': { description: Decisão registrada (corpo igual ao de getApproval) }
+        '403': { description: Usuário não é aprovador designado nem administrador }
+        '404': { description: Não existe nesta organização }
+        '409': { description: Semana já decidida, fora de "enviada" ou reenviada desde que foi aberta }
+        '422': { description: Rejeição sem motivo }
+  /approvals/{submissionId}/reopen:
+    post:
+      operationId: reopenWeek
+      description: Administrador reabre uma semana aprovada (volta a `open`), com justificativa auditada.
+      parameters:
+        - { name: submissionId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
                 reason: { type: string, maxLength: 2000 }
       responses:
-        '200': { description: Decisão registrada }
-        '403': { description: Usuário não é aprovador designado }
-        '409': { description: Semana já decidida ou revisão divergente }
-        '422': { description: Rejeição sem motivo }
+        '200': { description: Semana reaberta }
+        '403': { description: Só administrador }
+        '409': { description: A semana não está aprovada }
+        '422': { description: Sem justificativa }
   /reports/time:
     get:
       operationId: getTimeReport

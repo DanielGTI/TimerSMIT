@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DecisionHistory } from "../../components/DecisionHistory";
 import { StatusBadge } from "../../components/StatusBadge";
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
@@ -10,6 +11,31 @@ import { MonthCalendar } from "./MonthCalendar";
 import { WeekGrid } from "./WeekGrid";
 
 const errorText = (failure: unknown): string => (failure instanceof Error ? failure.message : String(failure));
+
+/** O que a pessoa precisa saber sobre a última decisão, conforme o estado atual da semana. */
+function decisionBanner(week: WeekDto): { className: string; text: string } | null {
+  const last = week.decisions[week.decisions.length - 1];
+  if (!last) return null;
+
+  const who = `${last.approverName ?? "—"} em ${new Date(last.decidedAt).toLocaleString("pt-BR")}`;
+
+  if (week.status === "rejected" && last.decision === "rejected") {
+    return {
+      className: "banner banner--rejected",
+      text: `Semana rejeitada por ${who}: “${last.reason ?? ""}”. Corrija os lançamentos e envie novamente.`,
+    };
+  }
+  if (week.status === "approved" && last.decision === "approved") {
+    return { className: "banner banner--approved", text: `Semana aprovada por ${who}.` };
+  }
+  if (week.status === "open" && last.decision === "reopened") {
+    return {
+      className: "banner",
+      text: `Semana reaberta por ${who}: “${last.reason ?? ""}”. Você pode editar e enviar de novo.`,
+    };
+  }
+  return null;
+}
 
 /**
  * Folha semanal (US2, T024): grade por work item e dia, lançamentos com
@@ -137,6 +163,12 @@ export function TimesheetPage(): JSX.Element {
           </div>
         )}
 
+        {week && decisionBanner(week) && (
+          <p className={decisionBanner(week)!.className} role="status">
+            {decisionBanner(week)!.text}
+          </p>
+        )}
+
         {notice && (
           <p className="notice" role="status">
             {notice}
@@ -155,6 +187,13 @@ export function TimesheetPage(): JSX.Element {
         <section className="card">
           <h2>Lançamentos</h2>
           <EntryList client={client} entries={week.entries} editable={editable} onChanged={reload} />
+        </section>
+      )}
+
+      {week && week.decisions.length > 0 && (
+        <section className="card">
+          <h2>Histórico de decisões</h2>
+          <DecisionHistory decisions={week.decisions} />
         </section>
       )}
 

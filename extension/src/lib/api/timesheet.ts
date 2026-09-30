@@ -17,6 +17,15 @@ export interface DayTotal {
   totalSeconds: number;
 }
 
+export interface DecisionDto {
+  revision: number;
+  decision: "approved" | "rejected" | "reopened";
+  reason: string | null;
+  approverName: string | null;
+  selfDecision: boolean;
+  decidedAt: string;
+}
+
 export interface WeekDto {
   weekStartDate: string;
   weekEndDate: string;
@@ -24,6 +33,7 @@ export interface WeekDto {
   revision: number;
   submittedAt: string | null;
   totalSeconds: number;
+  decisions: DecisionDto[];
   days: DayTotal[];
   entries: WeekEntryDto[];
 }
