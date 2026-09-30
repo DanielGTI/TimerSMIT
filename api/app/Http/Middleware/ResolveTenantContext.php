@@ -37,7 +37,9 @@ class ResolveTenantContext
         try {
             $claims = $this->sessionTokens->parse($token);
         } catch (InvalidSessionTokenException $exception) {
-            throw new AuthenticationException($exception->getMessage(), previous: $exception);
+            // AuthenticationException não aceita `previous`; a mensagem basta
+            // (a resposta é sempre o 401 genérico de bootstrap/app.php).
+            throw new AuthenticationException($exception->getMessage());
         }
 
         $tenant = Tenant::query()->find($claims->tenantId);

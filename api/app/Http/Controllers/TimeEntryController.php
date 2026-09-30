@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TimeEntry;
 use App\Services\ActivityTypeService;
 use App\Services\TimeEntryService;
 use App\Services\WorkItemAccessService;
 use App\Support\TenantContext;
+use App\Support\TimeEntryPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -64,7 +64,7 @@ class TimeEntryController extends Controller
             note: $data['note'] ?? null,
         );
 
-        return response()->json($this->toArray($entry), 201);
+        return response()->json(TimeEntryPresenter::present($entry), 201);
     }
 
     public function update(Request $request, TenantContext $tenantContext, int $entryId): JsonResponse
@@ -91,7 +91,7 @@ class TimeEntryController extends Controller
             changes: $changes,
         );
 
-        return response()->json($this->toArray($entry));
+        return response()->json(TimeEntryPresenter::present($entry));
     }
 
     public function destroy(TenantContext $tenantContext, int $entryId): Response
@@ -112,21 +112,5 @@ class TimeEntryController extends Controller
         }
 
         return $key;
-    }
-
-    private function toArray(TimeEntry $entry): array
-    {
-        return [
-            'id' => (string) $entry->id,
-            'workItemId' => $entry->devops_work_item_id,
-            'localDate' => $entry->local_date->toDateString(),
-            'timezone' => $entry->timezone,
-            'durationSeconds' => $entry->duration_seconds,
-            'source' => $entry->source,
-            'billable' => $entry->billable,
-            'activityTypeId' => $entry->activity_type_id !== null ? (string) $entry->activity_type_id : null,
-            'note' => $entry->note,
-            'revision' => $entry->revision,
-        ];
     }
 }

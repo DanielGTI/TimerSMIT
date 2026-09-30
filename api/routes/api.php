@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\TimerController;
+use App\Http\Controllers\TimesheetController;
 use Illuminate\Support\Facades\Route;
 
 // Único endpoint público: troca token de app do Azure DevOps por sessão
@@ -20,6 +21,13 @@ Route::middleware('tenant')->group(function () {
     Route::get('/me/timer', [TimerController::class, 'show']);
     Route::post('/me/timer', [TimerController::class, 'store']);
     Route::post('/me/timer/stop', [TimerController::class, 'stop']);
+
+    Route::get('/me/weeks/{weekStartDate}', [TimesheetController::class, 'week'])
+        ->where('weekStartDate', '\d{4}-\d{2}-\d{2}');
+    Route::post('/me/weeks/{weekStartDate}/submit', [TimesheetController::class, 'submit'])
+        ->where('weekStartDate', '\d{4}-\d{2}-\d{2}');
+    Route::get('/me/months/{month}', [TimesheetController::class, 'month'])
+        ->where('month', '\d{4}-(?:0[1-9]|1[0-2])');
 
     Route::post('/entries', [TimeEntryController::class, 'store']);
     Route::patch('/entries/{entryId}', [TimeEntryController::class, 'update']);

@@ -39,12 +39,20 @@ class SessionTokenService
 
     public function parse(string $token): SessionTokenClaims
     {
+        // Valida contra o relógio da aplicação (o mesmo usado em issue()), não
+        // o do PHP: em produção são iguais; em teste, o Carbon pode estar
+        // congelado/avançado. Restaurado logo depois — o estático é global e
+        // também é lido pelo DevOpsIdentityVerifier.
+        JWT::$timestamp = Carbon::now()->timestamp;
+
         try {
             $decoded = JWT::decode($token, new Key($this->secret(), self::ALGO));
         } catch (ExpiredException $exception) {
             throw new InvalidSessionTokenException('Sessão expirada.', previous: $exception);
         } catch (SignatureInvalidException|UnexpectedValueException $exception) {
             throw new InvalidSessionTokenException('Sessão inválida.', previous: $exception);
+        } finally {
+            JWT::$timestamp = null;
         }
 
         return new SessionTokenClaims(

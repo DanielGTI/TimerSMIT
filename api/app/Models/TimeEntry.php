@@ -32,10 +32,13 @@ class TimeEntry extends Model
         'revision',
     ];
 
+    /**
+     * local_date fica como texto 'Y-m-d' (sem cast `date`): o cast grava
+     * datetime completo e quebra comparações exatas no SQLite.
+     */
     protected function casts(): array
     {
         return [
-            'local_date' => 'date',
             'billable' => 'boolean',
         ];
     }

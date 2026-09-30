@@ -22,7 +22,10 @@ use Illuminate\Validation\ValidationException;
  */
 class TimeEntryService
 {
-    public function __construct(private readonly AuditService $audit) {}
+    public function __construct(
+        private readonly AuditService $audit,
+        private readonly WeekLockGuard $weeks,
+    ) {}
 
     public function createManual(
         Tenant $tenant,
@@ -60,21 +63,17 @@ class TimeEntryService
             $tenant, $member, $project, $devopsWorkItemId, $localDate, $durationSeconds,
             $activityTypeId, $billable, $note, $timezone, $dailyLimitSeconds,
         ) {
-            // Serializa lançamentos do mesmo membro: sem isso, duas requisições
-            // simultâneas leem o mesmo total do dia e as duas passam do
-            // limite. Trava a linha do membro porque o PostgreSQL não permite
+            // Trava a linha do membro (e confere se a semana aceita edição).
+            // Sem isso, duas requisições simultâneas leem o mesmo total do
+            // dia e as duas passam do limite; o PostgreSQL não permite
             // FOR UPDATE junto de sum(), e travar só as linhas existentes
             // não impediria dois INSERTs concorrentes.
-            Member::query()->whereKey($member->id)->lockForUpdate()->first();
+            $this->weeks->assertEditable($tenant, $member, [$localDate]);
 
-            // whereDate (não where): o cast `date` do Eloquent grava
-            // local_date como datetime completo ("2026-09-30 00:00:00"),
-            // então uma comparação exata de string com "2026-09-30" nunca
-            // bateria.
             $existingSeconds = (int) TimeEntry::query()
                 ->where('tenant_id', $tenant->id)
                 ->where('member_id', $member->id)
-                ->whereDate('local_date', $localDate)
+                ->where('local_date', $localDate)
                 ->sum('duration_seconds');
 
             if ($existingSeconds + $durationSeconds > $dailyLimitSeconds) {
@@ -117,15 +116,7 @@ class TimeEntryService
     public function update(Tenant $tenant, Member $member, int $entryId, int $expectedRevision, array $changes): TimeEntry
     {
         return DB::transaction(function () use ($tenant, $member, $entryId, $expectedRevision, $changes) {
-            $entry = TimeEntry::query()
-                ->where('tenant_id', $tenant->id)
-                ->where('id', $entryId)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $entry) {
-                abort(404);
-            }
+            $entry = $this->lockOwnEditableEntry($tenant, $member, $entryId);
 
             if ($entry->revision !== $expectedRevision) {
                 throw new ConflictException('Revisão divergente — recarregue o lançamento antes de editar.');
@@ -159,15 +150,7 @@ class TimeEntryService
     public function delete(Tenant $tenant, Member $member, int $entryId): void
     {
         DB::transaction(function () use ($tenant, $member, $entryId) {
-            $entry = TimeEntry::query()
-                ->where('tenant_id', $tenant->id)
-                ->where('id', $entryId)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $entry) {
-                abort(404);
-            }
+            $entry = $this->lockOwnEditableEntry($tenant, $member, $entryId);
 
             $entry->delete();
 
@@ -180,6 +163,29 @@ class TimeEntryService
                 project: $entry->project,
             );
         });
+    }
+
+    /**
+     * Só o dono edita/exclui o próprio lançamento (FR-004): o de outra pessoa
+     * responde 404, igual a um id inexistente. Confere o bloqueio da semana
+     * antes de travar o lançamento (mesma ordem do envio: membro primeiro).
+     */
+    private function lockOwnEditableEntry(Tenant $tenant, Member $member, int $entryId): TimeEntry
+    {
+        $own = fn () => TimeEntry::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('member_id', $member->id)
+            ->where('id', $entryId);
+
+        $entry = $own()->first();
+
+        if (! $entry) {
+            abort(404);
+        }
+
+        $this->weeks->assertEditable($tenant, $member, [$entry->local_date]);
+
+        return $own()->lockForUpdate()->firstOrFail();
     }
 
     private function effectivePolicy(Tenant $tenant, Project $project): ?Policy

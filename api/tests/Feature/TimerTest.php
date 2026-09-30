@@ -156,9 +156,10 @@ class TimerTest extends TestCase
         // Congela o "agora" do fechamento para tornar o teste determinístico.
         $this->travelTo(Carbon::parse('2026-10-01 04:00:00', 'UTC'));
 
+        // Sessão nova: a anterior expirou no salto de ~1 dia do relógio.
         $stop = $this->postJson('/api/me/timer/stop', [
             'timerId' => $timer->id,
-        ], array_merge($headers, ['Idempotency-Key' => str_repeat('f', 20)]));
+        ], array_merge($this->authHeader($tenant, $member), ['Idempotency-Key' => str_repeat('f', 20)]));
 
         $stop->assertOk();
         $entries = $stop->json();

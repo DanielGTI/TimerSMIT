@@ -7,6 +7,7 @@ use App\Services\ActivityTypeService;
 use App\Services\TimerService;
 use App\Services\WorkItemAccessService;
 use App\Support\TenantContext;
+use App\Support\TimeEntryPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -96,18 +97,7 @@ class TimerController extends Controller
             billable: $data['billable'] ?? null,
         );
 
-        return response()->json($entries->map(fn ($entry) => [
-            'id' => (string) $entry->id,
-            'workItemId' => $entry->devops_work_item_id,
-            'localDate' => $entry->local_date->toDateString(),
-            'timezone' => $entry->timezone,
-            'durationSeconds' => $entry->duration_seconds,
-            'source' => $entry->source,
-            'billable' => $entry->billable,
-            'activityTypeId' => $entry->activity_type_id !== null ? (string) $entry->activity_type_id : null,
-            'note' => $entry->note,
-            'revision' => $entry->revision,
-        ])->values());
+        return response()->json($entries->map(fn ($entry) => TimeEntryPresenter::present($entry))->values());
     }
 
     private function requireIdempotencyKey(Request $request): string

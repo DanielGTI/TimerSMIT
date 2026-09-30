@@ -28,6 +28,7 @@ class TimerService
     public function __construct(
         private readonly TimeSplitService $splitter,
         private readonly AuditService $audit,
+        private readonly WeekLockGuard $weeks,
     ) {}
 
     public function start(
@@ -123,15 +124,20 @@ class TimerService
             // das fatias precisam concordar ao segundo.
             $endedAt = Date::now()->startOfSecond();
 
+            $timezone = $tenant->default_timezone ?: 'UTC';
+            $slices = $this->splitter->split($timer->started_at_utc, $endedAt, $timezone);
+
+            // Antes de gravar qualquer coisa: se alguma das datas cai numa
+            // semana já enviada/aprovada, o timer continua ativo e a resposta
+            // é 409 (contracts/openapi.yaml).
+            $this->weeks->assertEditable($tenant, $member, array_column($slices, 'localDate'));
+
             $timer->update([
                 'status' => TimerSession::STATUS_STOPPED,
                 'ended_at_utc' => $endedAt,
                 'note' => $note ?? $timer->note,
                 'billable' => $billable ?? $timer->billable,
             ]);
-
-            $timezone = $tenant->default_timezone ?: 'UTC';
-            $slices = $this->splitter->split($timer->started_at_utc, $endedAt, $timezone);
 
             $entries = collect($slices)->map(function (array $slice) use ($tenant, $timer, $timezone) {
                 $entry = TimeEntry::query()->create([
