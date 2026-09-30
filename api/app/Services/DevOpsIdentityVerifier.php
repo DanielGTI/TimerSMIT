@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Firebase\JWT\BeforeValidException;
 use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -47,10 +48,15 @@ class DevOpsIdentityVerifier
             throw new RuntimeException('AZURE_DEVOPS_EXTENSION_SECRET não configurado.');
         }
 
+        // Tolerância a pequeno desvio de relógio entre o emissor (Microsoft)
+        // e este servidor — sem isso, um token recém-emitido pode ser
+        // rejeitado como "ainda não válido" por poucos segundos de diferença.
+        JWT::$leeway = 5;
+
         try {
             $claims = JWT::decode($appToken, new Key($secret, 'HS256'));
-        } catch (ExpiredException $exception) {
-            throw new InvalidDevOpsTokenException('Token de app expirado.', previous: $exception);
+        } catch (ExpiredException|BeforeValidException $exception) {
+            throw new InvalidDevOpsTokenException('Token de app fora da janela de validade.', previous: $exception);
         } catch (SignatureInvalidException|UnexpectedValueException $exception) {
             throw new InvalidDevOpsTokenException('Token de app inválido.', previous: $exception);
         }
