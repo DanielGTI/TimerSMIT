@@ -15,7 +15,7 @@ describe("getBackendSession", () => {
   });
 
   it("troca o token de app do host por uma sessão do backend", async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       new Response(
         JSON.stringify({ sessionToken: "session-123", expiresAt: "2030-01-01T00:00:00Z", tenantId: "1" }),
         { status: 200 },

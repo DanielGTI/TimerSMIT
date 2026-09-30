@@ -1,0 +1,131 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\TimeEntry;
+use App\Services\TimeEntryService;
+use App\Services\WorkItemAccessService;
+use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * Lançamentos manuais (US1, T018) conforme contracts/openapi.yaml (`/entries`).
+ */
+class TimeEntryController extends Controller
+{
+    public function __construct(
+        private readonly TimeEntryService $entries,
+        private readonly WorkItemAccessService $access,
+    ) {}
+
+    public function store(Request $request, TenantContext $tenantContext): JsonResponse
+    {
+        $this->requireIdempotencyKey($request);
+
+        $data = $request->validate([
+            'projectId' => ['required', 'string'],
+            'projectName' => ['required', 'string'],
+            'workItemId' => ['required', 'integer', 'min:1'],
+            'localDate' => ['required', 'date_format:Y-m-d'],
+            'durationSeconds' => ['required', 'integer', 'min:1'],
+            'activityTypeId' => ['nullable', 'integer'],
+            'billable' => ['nullable', 'boolean'],
+            'note' => ['nullable', 'string', 'max:2000'],
+            'title' => ['nullable', 'string'],
+            'workItemType' => ['nullable', 'string'],
+        ]);
+
+        $tenant = $tenantContext->tenant();
+        $member = $tenantContext->member();
+
+        $project = $this->access->authorize(
+            tenant: $tenant,
+            member: $member,
+            devopsProjectId: $data['projectId'],
+            devopsProjectName: $data['projectName'],
+            devopsWorkItemId: $data['workItemId'],
+            title: $data['title'] ?? null,
+            workItemType: $data['workItemType'] ?? null,
+        );
+
+        $entry = $this->entries->createManual(
+            tenant: $tenant,
+            member: $member,
+            project: $project,
+            devopsWorkItemId: $data['workItemId'],
+            localDate: $data['localDate'],
+            durationSeconds: $data['durationSeconds'],
+            activityTypeId: $data['activityTypeId'] ?? null,
+            billable: $data['billable'] ?? null,
+            note: $data['note'] ?? null,
+        );
+
+        return response()->json($this->toArray($entry), 201);
+    }
+
+    public function update(Request $request, TenantContext $tenantContext, int $entryId): JsonResponse
+    {
+        $expectedRevision = (int) $request->header('If-Match');
+
+        if ($expectedRevision < 1) {
+            throw ValidationException::withMessages([
+                'If-Match' => 'Cabeçalho If-Match ausente ou inválido.',
+            ]);
+        }
+
+        $changes = $request->validate([
+            'durationSeconds' => ['sometimes', 'integer', 'min:1'],
+            'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'billable' => ['sometimes', 'boolean'],
+        ]);
+
+        $entry = $this->entries->update(
+            tenant: $tenantContext->tenant(),
+            member: $tenantContext->member(),
+            entryId: $entryId,
+            expectedRevision: $expectedRevision,
+            changes: $changes,
+        );
+
+        return response()->json($this->toArray($entry));
+    }
+
+    public function destroy(TenantContext $tenantContext, int $entryId): Response
+    {
+        $this->entries->delete($tenantContext->tenant(), $tenantContext->member(), $entryId);
+
+        return response()->noContent();
+    }
+
+    private function requireIdempotencyKey(Request $request): string
+    {
+        $key = $request->header('Idempotency-Key');
+
+        if (! is_string($key) || strlen($key) < 16 || strlen($key) > 128) {
+            throw ValidationException::withMessages([
+                'Idempotency-Key' => 'Cabeçalho Idempotency-Key ausente ou fora do tamanho esperado (16-128).',
+            ]);
+        }
+
+        return $key;
+    }
+
+    private function toArray(TimeEntry $entry): array
+    {
+        return [
+            'id' => (string) $entry->id,
+            'workItemId' => $entry->devops_work_item_id,
+            'localDate' => $entry->local_date->toDateString(),
+            'timezone' => $entry->timezone,
+            'durationSeconds' => $entry->duration_seconds,
+            'source' => $entry->source,
+            'billable' => $entry->billable,
+            'activityTypeId' => $entry->activity_type_id !== null ? (string) $entry->activity_type_id : null,
+            'note' => $entry->note,
+            'revision' => $entry->revision,
+        ];
+    }
+}

@@ -32,9 +32,12 @@ components:
         requestId: { type: string }
     Timer:
       type: object
+      description: >-
+        `id` é opaco (identificador interno do backend), não um GUID do
+        Azure DevOps — só `projectId`/`workItemId` vêm do Azure DevOps.
       required: [id, workItemId, startedAtUtc, status]
       properties:
-        id: { type: string, format: uuid }
+        id: { type: string }
         workItemId: { type: integer, minimum: 1 }
         startedAtUtc: { type: string, format: date-time }
         status: { type: string, enum: [active, stopped] }
@@ -42,14 +45,14 @@ components:
       type: object
       required: [id, workItemId, localDate, timezone, durationSeconds, source, billable]
       properties:
-        id: { type: string, format: uuid }
+        id: { type: string }
         workItemId: { type: integer, minimum: 1 }
         localDate: { type: string, format: date }
         timezone: { type: string, example: America/Sao_Paulo }
         durationSeconds: { type: integer, minimum: 1 }
         source: { type: string, enum: [timer, manual] }
         billable: { type: boolean }
-        activityTypeId: { type: string, format: uuid }
+        activityTypeId: { type: string }
         note: { type: string, maxLength: 2000 }
         revision: { type: integer, minimum: 1 }
     Week:
@@ -86,11 +89,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [projectId, workItemId]
+              required: [projectId, projectName, workItemId]
               properties:
-                projectId: { type: string, format: uuid }
+                projectId: { type: string, format: uuid, description: GUID do projeto no Azure DevOps. }
+                projectName: { type: string, description: Nome do projeto no momento da chamada (afirmação do cliente; ver WorkItemAccessService). }
                 workItemId: { type: integer, minimum: 1 }
-                activityTypeId: { type: string, format: uuid }
+                activityTypeId: { type: string, description: ID interno de um tipo de atividade do tenant. }
+                title: { type: string, description: 'Título do work item, lido do form já aberto — cosmético.' }
+                workItemType: { type: string, description: 'Tipo do work item, lido do form já aberto — cosmético.' }
       responses:
         '201':
           description: Timer iniciado.
@@ -112,7 +118,7 @@ paths:
               type: object
               required: [timerId]
               properties:
-                timerId: { type: string, format: uuid }
+                timerId: { type: string }
                 note: { type: string, maxLength: 2000 }
                 billable: { type: boolean }
       responses:
@@ -135,15 +141,18 @@ paths:
           application/json:
             schema:
               type: object
-              required: [projectId, workItemId, localDate, durationSeconds]
+              required: [projectId, projectName, workItemId, localDate, durationSeconds]
               properties:
-                projectId: { type: string, format: uuid }
+                projectId: { type: string, format: uuid, description: GUID do projeto no Azure DevOps. }
+                projectName: { type: string }
                 workItemId: { type: integer, minimum: 1 }
                 localDate: { type: string, format: date }
                 durationSeconds: { type: integer, minimum: 1 }
-                activityTypeId: { type: string, format: uuid }
+                activityTypeId: { type: string }
                 billable: { type: boolean }
                 note: { type: string, maxLength: 2000 }
+                title: { type: string }
+                workItemType: { type: string }
       responses:
         '201':
           description: Entrada criada.
@@ -155,7 +164,7 @@ paths:
     patch:
       operationId: updateEntry
       parameters:
-        - { name: entryId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: entryId, in: path, required: true, schema: { type: string } }
         - { name: If-Match, in: header, required: true, schema: { type: integer, minimum: 1 } }
       requestBody:
         required: true
@@ -178,7 +187,7 @@ paths:
     delete:
       operationId: deleteEntry
       parameters:
-        - { name: entryId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: entryId, in: path, required: true, schema: { type: string } }
       responses:
         '204': { description: Exclusão lógica concluída }
         '409': { description: Período bloqueado }

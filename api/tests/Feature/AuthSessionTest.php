@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Member;
+use App\Models\RoleAssignment;
 use App\Models\Tenant;
 use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,6 +63,15 @@ class AuthSessionTest extends TestCase
         $this->getJson('/api/me', ['Authorization' => "Bearer {$sessionToken}"])
             ->assertOk()
             ->assertJson(['displayName' => 'Ada Lovelace']);
+
+        // Bootstrap: primeira pessoa a conectar uma organização nova vira
+        // admin dela (sem isso, ninguém teria papel para conceder acesso).
+        $member = Member::query()->where('devops_identity_id', $userId)->firstOrFail();
+        $this->assertDatabaseHas('role_assignments', [
+            'member_id' => $member->id,
+            'project_id' => null,
+            'role' => RoleAssignment::ROLE_ADMIN,
+        ]);
     }
 
     public function test_token_signed_with_wrong_secret_never_creates_tenant_or_session(): void
@@ -124,5 +134,26 @@ class AuthSessionTest extends TestCase
 
         $spoofResponse->assertStatus(409);
         $this->assertSame(1, Tenant::query()->count());
+    }
+
+    public function test_second_member_joining_an_existing_tenant_does_not_get_auto_admin(): void
+    {
+        $this->postJson('/api/auth/session', [
+            'appToken' => $this->signAppToken((string) Str::uuid(), 'tenant-a'),
+            'claimedOrganizationId' => 'org-guid-456',
+            'claimedOrganizationName' => 'contoso',
+        ])->assertOk();
+
+        $secondUserId = (string) Str::uuid();
+        $this->postJson('/api/auth/session', [
+            'appToken' => $this->signAppToken($secondUserId, 'tenant-a'),
+            'claimedOrganizationId' => 'org-guid-456',
+            'claimedOrganizationName' => 'contoso',
+        ])->assertOk();
+
+        $secondMember = Member::query()->where('devops_identity_id', $secondUserId)->firstOrFail();
+        $this->assertDatabaseMissing('role_assignments', [
+            'member_id' => $secondMember->id,
+        ]);
     }
 }

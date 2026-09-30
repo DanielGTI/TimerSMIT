@@ -28,16 +28,16 @@
 **Goal**: registrar timer e entrada manual em work item.  
 **Independent Test**: abrir item, iniciar/parar timer e lançar 90 minutos manuais; conferir histórico e negação fora de escopo.
 
-- [ ] T013 [US1] Criar migrações/modelos `timer_sessions`, `time_entries`, `work_item_snapshots`, `activity_types` em `api/database/migrations/` e `api/app/Models/`.
-- [ ] T014 [US1] Implementar leitura/autorização de work item em `extension/src/lib/devops/workItems.ts` e `api/app/Services/WorkItemAccessService.php`.
-- [ ] T015 [US1] Implementar transações, índice de um timer ativo, idempotência e fechamento em `api/app/Services/TimerService.php`.
-- [ ] T016 [US1] Implementar fatias diárias UTC/fuso local em `api/app/Services/TimeSplitService.php`.
-- [ ] T017 [US1] Implementar validações e mutações manuais em `api/app/Services/TimeEntryService.php`.
-- [ ] T018 [US1] Expor endpoints de timer/entries em `api/routes/api.php` e `api/app/Http/Controllers/` conforme contrato.
-- [ ] T019 [US1] Construir guia do item em `extension/src/pages/work-item/`, com estado recuperável do timer e erros claros.
-- [ ] T020 [US1] Testar repetição, corrida de timer, meia-noite e revogação de acesso em `api/tests/Feature/TimerTest.php` e `api/tests/Feature/EntryAuthorizationTest.php`.
+- [x] T013 [US1] Criar migrações/modelos `timer_sessions`, `time_entries`, `work_item_snapshots`, `activity_types` em `api/database/migrations/` e `api/app/Models/`.
+- [x] T014 [US1] Implementar leitura/autorização de work item em `extension/src/lib/devops/workItems.ts` e `api/app/Services/WorkItemAccessService.php`. Projeto é resolvido/conhecido na primeira chamada (por `devops_project_id`), mas só concede acesso com `RoleAssignment` existente — bootstrap: primeira pessoa a conectar uma organização nova vira admin (`IdentityProvisioningService`), senão ninguém teria papel para conceder acesso a mais ninguém antes de US5/configuração existir.
+- [x] T015 [US1] Implementar transações, índice de um timer ativo, idempotência e fechamento em `api/app/Services/TimerService.php`. Índice parcial (`WHERE status = 'active'`) garante um timer ativo por membro mesmo sob corrida; idempotência cobre `start` via `Idempotency-Key`.
+- [x] T016 [US1] Implementar fatias diárias UTC/fuso local em `api/app/Services/TimeSplitService.php`. Fuso vem de `tenants.default_timezone` (não há campo de fuso em `policies` na migração real, diferente do resumo de `data-model.md`).
+- [x] T017 [US1] Implementar validações e mutações manuais em `api/app/Services/TimeEntryService.php` — comentário obrigatório, limite diário e janela retroativa a partir da política vigente (projeto > tenant > padrões da migração se nenhuma política existir ainda).
+- [x] T018 [US1] Expor endpoints de timer/entries em `api/routes/api.php`, `api/app/Http/Controllers/TimerController.php` e `TimeEntryController.php`. `contracts/openapi.yaml` atualizado (IDs internos não são UUID; `projectId` no corpo é o GUID do Azure DevOps, resolvido para o `Project` interno).
+- [x] T019 [US1] Construir guia do item em `extension/src/pages/work-item/WorkItemGuide.tsx`: timer com estado ativo/parado (elapsed ao vivo), aviso de timer ativo em outro item, e formulário de lançamento manual.
+- [x] T020 [US1] Testar repetição, corrida de timer, meia-noite e revogação de acesso em `api/tests/Feature/TimerTest.php` (7 testes) e `api/tests/Feature/EntryAuthorizationTest.php` (10 testes); UI coberta em `extension/tests/work-item-guide.test.tsx` (4 testes).
 
-**Checkpoint**: US1 demonstrável sem folha/aprovação.
+**Checkpoint**: US1 demonstrável sem folha/aprovação. ✅ Concluído em 2026-09-30 (29 testes backend, 7 testes frontend, todos passando).
 
 ## Phase 4: User Story 2 — Folha semanal (P1)
 

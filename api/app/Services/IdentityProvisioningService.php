@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Member;
+use App\Models\RoleAssignment;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 
@@ -35,6 +36,8 @@ class IdentityProvisioningService
                 );
             }
 
+            $tenantIsNew = ! $tenant;
+
             if (! $tenant) {
                 $tenant = Tenant::query()->create([
                     'devops_organization_id' => $claimedOrganizationId,
@@ -52,6 +55,18 @@ class IdentityProvisioningService
                 ],
                 ['display_name' => $identity->identityId],
             );
+
+            // Primeira pessoa a conectar uma organização nova vira admin dela
+            // (bootstrap — sem isso, ninguém teria papel algum para conceder
+            // acesso a mais ninguém, já que US5/configuração ainda não existe).
+            if ($tenantIsNew) {
+                RoleAssignment::query()->create([
+                    'tenant_id' => $tenant->id,
+                    'member_id' => $member->id,
+                    'project_id' => null,
+                    'role' => RoleAssignment::ROLE_ADMIN,
+                ]);
+            }
 
             return new ProvisionedIdentity($tenant, $member);
         });
