@@ -23,6 +23,7 @@ class WorkItemSnapshot extends Model
         'devops_work_item_id',
         'title',
         'work_item_type',
+        'iteration_path',
         'captured_at',
     ];
 

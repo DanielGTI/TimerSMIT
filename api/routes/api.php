@@ -43,6 +43,7 @@ Route::middleware('tenant')->group(function () {
 
     Route::get('/reports/options', [ReportController::class, 'options']);
     Route::get('/reports/time', [ReportController::class, 'show']);
+    Route::get('/reports/time/detail', [ReportController::class, 'detail']);
     Route::get('/reports/time.csv', [ReportController::class, 'csv']);
 
     Route::middleware('admin')->prefix('settings')->group(function () {

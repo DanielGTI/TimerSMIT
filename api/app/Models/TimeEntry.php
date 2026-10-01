@@ -28,6 +28,8 @@ class TimeEntry extends Model
         'week_start_date',
         'timezone',
         'duration_seconds',
+        'started_at_utc',
+        'ended_at_utc',
         'source',
         'billable',
         'note',
@@ -51,6 +53,8 @@ class TimeEntry extends Model
     {
         return [
             'billable' => 'boolean',
+            'started_at_utc' => 'datetime',
+            'ended_at_utc' => 'datetime',
         ];
     }
 

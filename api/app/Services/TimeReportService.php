@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
 use App\Models\WorkItemSnapshot;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -73,7 +74,7 @@ class TimeReportService
 
         $total = (int) $totals->entry_count;
 
-        $rows = $this->rowsQuery($base)->forPage($page, $perPage)->get()
+        $rows = $this->rowsQuery($base, $tenant)->forPage($page, $perPage)->get()
             ->map(fn ($row) => $this->presentRow($row))
             ->all();
 
@@ -117,7 +118,41 @@ class TimeReportService
         return [
             'count' => (int) $totals->entry_count,
             'totalSeconds' => (int) $totals->total_seconds,
-            'rows' => $this->keysetRows($base),
+            'rows' => $this->keysetRows($base, $tenant),
+        ];
+    }
+
+    /**
+     * Todas as linhas do filtro de uma vez (até `$limit`), para a grade
+     * detalhada: mesma consulta, escopo e ordem da tela paginada e do CSV.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{scope: array<string, mixed>, totals: array<string, int>, rows: list<array<string, mixed>>, truncated: bool}
+     */
+    public function detail(Tenant $tenant, ReportScope $scope, array $filters, int $limit): array
+    {
+        $base = $this->baseQuery($tenant, $scope, $filters);
+
+        $totals = (clone $base)->toBase()->selectRaw(
+            'coalesce(sum(time_entries.duration_seconds), 0) as total_seconds, '.
+            'coalesce(sum(case when time_entries.billable then time_entries.duration_seconds else 0 end), 0) as billable_seconds, '.
+            'count(*) as entry_count'
+        )->first();
+
+        $rows = $this->keysetRows($base, $tenant)->take($limit + 1)->values()->all();
+        $truncated = count($rows) > $limit;
+
+        return [
+            'filters' => $filters,
+            'scope' => ['level' => $scope->level(), 'canFilterByMember' => $scope->canSeeOthers()],
+            'totals' => [
+                'totalSeconds' => (int) $totals->total_seconds,
+                'billableSeconds' => (int) $totals->billable_seconds,
+                'nonBillableSeconds' => (int) $totals->total_seconds - (int) $totals->billable_seconds,
+                'entryCount' => (int) $totals->entry_count,
+            ],
+            'rows' => $truncated ? array_slice($rows, 0, $limit) : $rows,
+            'truncated' => $truncated,
         ];
     }
 
@@ -130,15 +165,15 @@ class TimeReportService
      * @param  Builder<TimeEntry>  $base
      * @return LazyCollection<int, array<string, mixed>>
      */
-    private function keysetRows(Builder $base): LazyCollection
+    private function keysetRows(Builder $base, Tenant $tenant): LazyCollection
     {
         $blockSize = 1000;
 
-        return LazyCollection::make(function () use ($base, $blockSize) {
+        return LazyCollection::make(function () use ($base, $tenant, $blockSize) {
             $after = null;
 
             do {
-                $query = $this->rowsQuery($base)->limit($blockSize);
+                $query = $this->rowsQuery($base, $tenant)->limit($blockSize);
                 if ($after !== null) {
                     $query->whereRaw('(time_entries.local_date, members.display_name, time_entries.id) > (?, ?, ?)', $after);
                 }
@@ -240,18 +275,21 @@ class TimeReportService
      * @param  Builder<TimeEntry>  $base
      * @return Builder<TimeEntry>
      */
-    private function rowsQuery(Builder $base): Builder
+    private function rowsQuery(Builder $base, Tenant $tenant): Builder
     {
-        $latestTitle = WorkItemSnapshot::query()
-            ->select('title')
-            ->whereColumn('work_item_snapshots.tenant_id', 'time_entries.tenant_id')
-            ->whereColumn('work_item_snapshots.project_id', 'time_entries.project_id')
-            ->whereColumn('work_item_snapshots.devops_work_item_id', 'time_entries.devops_work_item_id')
-            ->orderByDesc('captured_at')
-            ->orderByDesc('id')
-            ->limit(1);
+        // Retrato mais recente de cada work item (título, tipo, iteração): uma
+        // junção única em vez de uma subconsulta por coluna e por linha.
+        $ranked = DB::table('work_item_snapshots')
+            ->where('tenant_id', $tenant->id)
+            ->selectRaw('id, project_id, devops_work_item_id, row_number() over (partition by project_id, devops_work_item_id order by captured_at desc, id desc) as rn');
+        $latest = DB::query()->fromSub($ranked, 'ranked')->where('rn', 1)->select('id', 'project_id', 'devops_work_item_id');
 
         return (clone $base)
+            ->leftJoinSub($latest, 'latest_snapshot', function ($join) {
+                $join->on('latest_snapshot.project_id', '=', 'time_entries.project_id')
+                    ->on('latest_snapshot.devops_work_item_id', '=', 'time_entries.devops_work_item_id');
+            })
+            ->leftJoin('work_item_snapshots as snapshot', 'snapshot.id', '=', 'latest_snapshot.id')
             ->select([
                 'time_entries.id',
                 'time_entries.local_date',
@@ -263,13 +301,18 @@ class TimeReportService
                 'time_entries.project_id',
                 'time_entries.member_id',
                 'time_entries.activity_type_id',
+                'time_entries.timezone',
+                'time_entries.started_at_utc',
+                'time_entries.ended_at_utc',
+                'snapshot.title as work_item_title',
+                'snapshot.work_item_type',
+                'snapshot.iteration_path',
                 'members.display_name as member_name',
                 'projects.devops_project_name as project_name',
                 'activity_types.name as activity_name',
                 'activity_types.color as activity_color',
                 DB::raw("coalesce(weekly_submissions.status, 'open') as week_status"),
             ])
-            ->selectSub($latestTitle, 'work_item_title')
             ->orderBy('time_entries.local_date')
             ->orderBy('members.display_name')
             ->orderBy('time_entries.id');
@@ -310,6 +353,10 @@ class TimeReportService
             'projectName' => $row->project_name,
             'workItemId' => (int) $row->devops_work_item_id,
             'workItemTitle' => $row->work_item_title,
+            'workItemType' => $row->work_item_type,
+            'iterationPath' => $row->iteration_path,
+            'startTime' => $this->localTime($row->started_at_utc, $row->timezone),
+            'endTime' => $this->localTime($row->ended_at_utc, $row->timezone),
             'activityTypeId' => $row->activity_type_id === null ? null : (string) $row->activity_type_id,
             'activityTypeName' => $row->activity_name,
             'activityTypeColor' => $row->activity_color,
@@ -319,6 +366,16 @@ class TimeReportService
             'note' => $row->note,
             'weekStatus' => $row->week_status ?? WeeklySubmission::STATUS_OPEN,
         ];
+    }
+
+    /** Hora local 'HH:MM' no fuso em que o lançamento foi feito; nulo se não houver horário. */
+    private function localTime(mixed $utc, ?string $timezone): ?string
+    {
+        if ($utc === null || $utc === '') {
+            return null;
+        }
+
+        return CarbonImmutable::parse((string) $utc, 'UTC')->setTimezone($timezone ?: 'UTC')->format('H:i');
     }
 
     /**

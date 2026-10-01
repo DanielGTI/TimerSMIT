@@ -40,6 +40,7 @@ class TimeEntryController extends Controller
             'note' => ['nullable', 'string', 'max:2000'],
             'title' => ['nullable', 'string'],
             'workItemType' => ['nullable', 'string'],
+            'iterationPath' => ['nullable', 'string', 'max:500'],
         ]);
 
         $project = $this->access->authorize(
@@ -50,6 +51,7 @@ class TimeEntryController extends Controller
             devopsWorkItemId: $data['workItemId'],
             title: $data['title'] ?? null,
             workItemType: $data['workItemType'] ?? null,
+            iterationPath: $data['iterationPath'] ?? null,
         );
 
         $entry = $this->entries->createManual(

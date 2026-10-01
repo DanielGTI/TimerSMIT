@@ -62,6 +62,20 @@ class ReportController extends Controller
         ));
     }
 
+    /** Limite de linhas da grade detalhada; acima disso a resposta vem marcada como cortada. */
+    public const DETAIL_ROW_LIMIT = 20000;
+
+    public function detail(Request $request, TenantContext $tenantContext): JsonResponse
+    {
+        $tenant = $tenantContext->tenant();
+        $filters = $this->filters($request, $tenant->id);
+
+        $scope = $this->reports->scopeFor($tenant, $tenantContext->member());
+        $this->reports->assertFiltersAllowed($tenant, $scope, $filters);
+
+        return response()->json($this->reports->detail($tenant, $scope, $filters, self::DETAIL_ROW_LIMIT));
+    }
+
     public function csv(Request $request, TenantContext $tenantContext): StreamedResponse
     {
         $tenant = $tenantContext->tenant();
@@ -93,6 +107,7 @@ class ReportController extends Controller
             CsvWriter::writeRow($out, [
                 'Data', 'Pessoa', 'Projeto', 'Work item', 'Título do work item', 'Atividade', 'Faturável',
                 'Duração (HH:MM:SS)', 'Duração (segundos)', 'Origem', 'Estado da semana', 'Comentário',
+                'Tipo do work item', 'Iteração', 'Início', 'Fim',
             ]);
 
             foreach ($export['rows'] as $row) {
@@ -109,6 +124,10 @@ class ReportController extends Controller
                     $row['source'] === 'timer' ? 'Timer' : 'Manual',
                     self::WEEK_STATUS_LABELS[$row['weekStatus']] ?? $row['weekStatus'],
                     $row['note'],
+                    $row['workItemType'],
+                    $row['iterationPath'],
+                    $row['startTime'],
+                    $row['endTime'],
                 ]);
             }
 

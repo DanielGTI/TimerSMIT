@@ -423,6 +423,87 @@ class ReportTest extends TestCase
         $this->assertSame($sorted, $keys, 'a ordem data → pessoa deve ser a da tela');
     }
 
+    // ---------- grade detalhada ----------
+
+    private function detail(Member $as, array $extra = [])
+    {
+        return $this->getJson('/api/reports/time/detail?'.$this->query($extra), $this->auth($as));
+    }
+
+    public function test_detail_returns_every_row_with_type_iteration_and_local_times(): void
+    {
+        $entry = $this->entry($this->alice, $this->a, '2026-09-30', 1800, [
+            'source' => 'timer',
+            'timezone' => 'America/Sao_Paulo',
+            'started_at_utc' => '2026-09-30 12:00:00',
+            'ended_at_utc' => '2026-09-30 12:30:00',
+            'devops_work_item_id' => 77,
+        ]);
+        WorkItemSnapshot::query()->create(['tenant_id' => $this->tenant->id, 'project_id' => $this->a->id, 'devops_work_item_id' => 77, 'title' => 'Antigo', 'work_item_type' => 'Bug', 'iteration_path' => 'A\\Sprint 1', 'captured_at' => '2026-09-01 10:00:00']);
+        WorkItemSnapshot::query()->create(['tenant_id' => $this->tenant->id, 'project_id' => $this->a->id, 'devops_work_item_id' => 77, 'title' => 'Novo', 'work_item_type' => 'Task', 'iteration_path' => 'A\\Sprint 2', 'captured_at' => '2026-09-20 10:00:00']);
+
+        $response = $this->detail($this->admin)->assertOk();
+
+        $row = collect($response->json('rows'))->firstWhere('id', (string) $entry->id);
+        $this->assertSame('Novo', $row['workItemTitle']);
+        $this->assertSame('Task', $row['workItemType']);
+        $this->assertSame('A\\Sprint 2', $row['iterationPath']);
+        $this->assertSame('09:00', $row['startTime'], 'hora local, não UTC');
+        $this->assertSame('09:30', $row['endTime']);
+        $this->assertFalse($response->json('truncated'));
+
+        // Lançamento manual não tem horário.
+        $manual = collect($response->json('rows'))->firstWhere('memberName', 'Bob');
+        $this->assertNull($manual['startTime']);
+        $this->assertNull($manual['endTime']);
+    }
+
+    public function test_detail_has_the_same_rows_totals_and_scope_as_the_screen_and_csv(): void
+    {
+        foreach ([[], ['projectId' => $this->a->id], ['memberId' => $this->alice->id], ['status' => 'open']] as $extra) {
+            $detail = $this->detail($this->admin, $extra)->assertOk();
+            $screen = $this->report($this->admin, $extra + ['perPage' => 200])->json();
+            $csv = $this->csvRows($this->csv($this->admin, $extra)->streamedContent());
+
+            $this->assertSame($screen['totals'], $detail->json('totals'), json_encode($extra));
+            $this->assertSame(array_column($screen['rows'], 'id'), array_column($detail->json('rows'), 'id'), json_encode($extra));
+            $this->assertCount(count($detail->json('rows')), $csv);
+        }
+
+        // Quem não é administrador só enxerga o escopo dele.
+        $ownIds = array_column($this->detail($this->alice)->assertOk()->json('rows'), 'memberId');
+        $this->assertSame([(string) $this->alice->id], array_values(array_unique($ownIds)));
+        $this->detail($this->alice, ['memberId' => $this->bob->id])->assertForbidden();
+    }
+
+    public function test_detail_is_cut_at_the_limit_and_says_so(): void
+    {
+        $scope = app(\App\Services\TimeReportService::class)->scopeFor($this->tenant, $this->admin);
+        $filters = ['from' => self::FROM, 'to' => self::TO];
+
+        $cut = app(\App\Services\TimeReportService::class)->detail($this->tenant, $scope, $filters, 3);
+        $this->assertTrue($cut['truncated']);
+        $this->assertCount(3, $cut['rows']);
+        $this->assertGreaterThan(3, $cut['totals']['entryCount'], 'o total continua sendo o do filtro inteiro');
+
+        $all = app(\App\Services\TimeReportService::class)->detail($this->tenant, $scope, $filters, 100);
+        $this->assertFalse($all['truncated']);
+    }
+
+    public function test_csv_appends_type_iteration_and_times_without_moving_existing_columns(): void
+    {
+        $this->entry($this->alice, $this->a, '2026-09-30', 1800, ['source' => 'timer', 'timezone' => 'America/Sao_Paulo', 'started_at_utc' => '2026-09-30 12:00:00', 'ended_at_utc' => '2026-09-30 12:30:00', 'devops_work_item_id' => 88]);
+        WorkItemSnapshot::query()->create(['tenant_id' => $this->tenant->id, 'project_id' => $this->a->id, 'devops_work_item_id' => 88, 'title' => 'Item', 'work_item_type' => 'Task', 'iteration_path' => 'A\\Sprint 9', 'captured_at' => '2026-09-20 10:00:00']);
+
+        $content = $this->csv($this->admin)->streamedContent();
+        $header = str_getcsv(strtok(ltrim($content, "\xEF\xBB\xBF"), "\n"), ';');
+
+        $this->assertSame('Comentário', $header[11]);
+        $this->assertSame(['Tipo do work item', 'Iteração', 'Início', 'Fim'], array_slice($header, 12, 4));
+        $row = collect($this->csvRows($content))->first(fn ($r) => $r[3] === '88');
+        $this->assertSame(['Task', 'A\\Sprint 9', '09:00', '09:30'], array_slice($row, 12, 4));
+    }
+
     public function test_csv_format_headers_and_content(): void
     {
         $response = $this->csv($this->admin, ['workItemId' => 10])->assertOk();
@@ -434,7 +515,9 @@ class ReportTest extends TestCase
         $this->assertStringStartsWith("\xEF\xBB\xBFData;Pessoa;Projeto;", $content);
         [$row] = $this->csvRows($content);
         $this->assertSame(['2026-09-28', 'Alice', 'Projeto A', '10'], array_slice($row, 0, 4));
-        $this->assertSame(['Desenvolvimento', 'Sim', '01:00:00', '3600', 'Manual', 'Aprovada', 'primeira'], array_slice($row, 5));
+        $this->assertSame(['Desenvolvimento', 'Sim', '01:00:00', '3600', 'Manual', 'Aprovada', 'primeira'], array_slice($row, 5, 7));
+        // Sem retrato do work item nem horário (lançamento manual): as colunas novas ficam vazias.
+        $this->assertSame(['', '', '', ''], array_slice($row, 12, 4));
     }
 
     public function test_csv_neutralizes_formulas_in_free_text(): void

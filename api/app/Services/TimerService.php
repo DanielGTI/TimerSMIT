@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\TimerSession;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -139,7 +140,13 @@ class TimerService
                 'billable' => $billable ?? $timer->billable,
             ]);
 
-            $entries = collect($slices)->map(function (array $slice) use ($tenant, $timer, $timezone) {
+            // Cada fatia começa onde a anterior terminou (a primeira, no início do timer).
+            $cursor = CarbonImmutable::instance($timer->started_at_utc)->utc();
+
+            $entries = collect($slices)->map(function (array $slice) use ($tenant, $timer, $timezone, &$cursor) {
+                $sliceStart = $cursor;
+                $cursor = $cursor->addSeconds($slice['durationSeconds']);
+
                 $entry = TimeEntry::query()->create([
                     'tenant_id' => $tenant->id,
                     'project_id' => $timer->project_id,
@@ -150,6 +157,8 @@ class TimerService
                     'local_date' => $slice['localDate'],
                     'timezone' => $timezone,
                     'duration_seconds' => $slice['durationSeconds'],
+                    'started_at_utc' => $sliceStart,
+                    'ended_at_utc' => $cursor,
                     'source' => TimeEntry::SOURCE_TIMER,
                     'billable' => $timer->billable ?? true,
                     'note' => $timer->note,

@@ -55,6 +55,7 @@ class TimerController extends Controller
             'activityTypeId' => ['nullable', 'integer', ActivityTypeService::validIdRule($tenant)],
             'title' => ['nullable', 'string'],
             'workItemType' => ['nullable', 'string'],
+            'iterationPath' => ['nullable', 'string', 'max:500'],
         ]);
 
         $project = $this->access->authorize(
@@ -65,6 +66,7 @@ class TimerController extends Controller
             devopsWorkItemId: $data['workItemId'],
             title: $data['title'] ?? null,
             workItemType: $data['workItemType'] ?? null,
+            iterationPath: $data['iterationPath'] ?? null,
         );
 
         $timer = $this->timers->start(

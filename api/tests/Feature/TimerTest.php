@@ -171,6 +171,34 @@ class TimerTest extends TestCase
         $dates = array_column($entries, 'localDate');
         sort($dates);
         $this->assertSame(['2026-09-30', '2026-10-01'], $dates);
+
+        // Cada fatia guarda o horário real (UTC) e uma começa onde a outra termina.
+        $slices = \App\Models\TimeEntry::query()->where('timer_session_id', $timer->id)->orderBy('local_date')->get();
+        $this->assertSame('2026-10-01 02:00:00', $slices[0]->started_at_utc->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-01 03:00:00', $slices[0]->ended_at_utc->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-01 03:00:00', $slices[1]->started_at_utc->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-01 04:00:00', $slices[1]->ended_at_utc->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_the_iteration_path_sent_with_the_timer_is_kept_with_the_work_item_snapshot(): void
+    {
+        [$tenant, $project, $member] = $this->setUpAuthorizedMember();
+
+        $this->postJson('/api/me/timer', [
+            'projectId' => $project->devops_project_id,
+            'projectName' => $project->devops_project_name,
+            'workItemId' => 42,
+            'title' => 'Implementar PIX',
+            'workItemType' => 'Task',
+            'iterationPath' => 'SARC\Sprint 12',
+        ], array_merge($this->authHeader($tenant, $member), ['Idempotency-Key' => str_repeat('p', 20)]))->assertCreated();
+
+        $this->assertDatabaseHas('work_item_snapshots', [
+            'tenant_id' => $tenant->id,
+            'devops_work_item_id' => 42,
+            'title' => 'Implementar PIX',
+            'iteration_path' => 'SARC\Sprint 12',
+        ]);
     }
 
     public function test_stopping_an_already_stopped_timer_is_rejected(): void

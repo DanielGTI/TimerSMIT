@@ -31,6 +31,7 @@ class WorkItemAccessService
         int $devopsWorkItemId,
         ?string $title = null,
         ?string $workItemType = null,
+        ?string $iterationPath = null,
     ): Project {
         $project = Project::query()->firstOrCreate(
             [
@@ -57,6 +58,7 @@ class WorkItemAccessService
                 'devops_work_item_id' => $devopsWorkItemId,
                 'title' => $title,
                 'work_item_type' => $workItemType,
+                'iteration_path' => $iterationPath,
                 'captured_at' => Date::now(),
             ]);
         }
