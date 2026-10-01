@@ -1,6 +1,6 @@
 # Suporte — Controle de horas
 
-Uso interno da SMIT. Canal de suporte: «DECIDIR: e-mail, grupo ou fila do time responsável».
+Uso interno da SMIT, sem canal formal de suporte: fale com o time responsável pelo sistema.
 
 ## Ao relatar um problema, inclua
 

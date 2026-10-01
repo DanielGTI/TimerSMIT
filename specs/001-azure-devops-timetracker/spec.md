@@ -133,7 +133,7 @@ Azure DevOps Services cloud no MVP; organização equivale a tenant; interface p
 
 - **CL-001** *(resolvida em 30/09/2026)*: produto **interno da SMIT**, em pt-BR e com extensão **privada** (sem listagem pública no Marketplace). Não há venda nem gates de publicação pública.
 - **CL-002**: Aprovador por projeto, gestor funcional ou configuração híbrida? Proposta inicial: um aprovador designado por usuário/projeto/semana, resolvido no envio.
-- **CL-003** *(parcial)*: hospedagem no VPS da SMIT (Coolify), sem residência contratual de terceiros. Falta definir internamente o prazo de retenção de lançamentos, auditoria e backups.
+- **CL-003** *(resolvida em 30/09/2026)*: hospedagem no VPS da SMIT (Coolify), sem residência contratual de terceiros. Backups pelo Coolify para a Cloudflare: 30 diários + 1 mensal por 12 meses. Os dados em uso não têm prazo de expiração; remover a extensão não os apaga.
 - **CL-004**: Caminho exato de autenticação segura da extensão com API própria: validar em prova técnica antes de implementar dados reais.
 
 ## Out of Scope

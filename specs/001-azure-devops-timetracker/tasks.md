@@ -112,10 +112,10 @@
       Pendente (a configurar por quem administra o VPS): backup agendado no Coolify com destino externo, restauração de teste com um backup real, monitor externo em `/api/health`, alertas por log/disco/memória e limite de retenção dos logs do Docker. Política de RPO/RTO/retenção é proposta, depende de CL-003.
 - [x] T042 Preparar descrição, ícone, suporte e aviso de dados em `extension/marketplace/`. **Escopo reduzido** pela decisão de uso interno e extensão privada (sem listagem pública, screenshots, política pública nem links de suporte no manifesto).
       Feito: ícone novo (relógio, 256×256, fonte em `icon.svg`); `overview.md` (página de detalhes da extensão privada, ligada ao `vss-extension.json` de produção junto de tags e cor da marca; empacotamento de produção validado); `PRIVACIDADE.md` como aviso interno de dados (conferido no código: e-mail não é coletado, sem token de acesso ao Azure DevOps, sem armazenamento no navegador); `SUPORTE.md`.
-      Em aberto (internos, não bloqueiam): canal de suporte e prazo de retenção (CL-003) marcados com «DECIDIR» nos dois textos.
+      Retenção definida (30 diários + 12 mensais) e sem canal formal de suporte (decisão de 30/09/2026).
       Achado: o manifesto pede o escopo `vso.work`, mas a extensão não usa token de acesso nem a API REST (só o token de identidade e o form do work item) — provavelmente dá para remover por mínimo privilégio, o que exige novo segredo da extensão e nova autorização na organização. Decidir antes do uso em produção.
 - [ ] T043 Empacotar VSIX de desenvolvimento, instalar privadamente e executar `quickstart.md` na organização de teste.
-- [x] T044 Resolver CL-001–CL-004 e decisão de publicação. **Resolvido (30/09/2026)**: produto interno da SMIT, pt-BR, extensão privada — sem versão pública e sem gates de publicação pública. CL-002 e CL-004 já decididos antes; CL-003 ficou parcial (hospedagem no VPS da SMIT; falta definir a retenção de dados e backups).
+- [x] T044 Resolver CL-001–CL-004 e decisão de publicação. **Resolvido (30/09/2026)**: produto interno da SMIT, pt-BR, extensão privada — sem versão pública e sem gates de publicação pública. CL-002 e CL-004 já decididos antes; CL-003 também resolvida (VPS da SMIT; backups de 30 diários + 12 mensais na Cloudflare).
 
 ## Dependencies & Execution Order
 

@@ -4,20 +4,20 @@ Complementa o [`SETUP.md`](SETUP.md). O que está aqui foi exercitado localmente
 
 ## 1. Backup e restauração
 
-### Política sugerida (a confirmar — ver CL-003)
+### Política (definida em 30/09/2026)
 
 | Item | Proposta |
 | --- | --- |
 | Frequência | diário, de madrugada (fuso do servidor) |
-| Retenção | 14 diários + 8 semanais |
-| Destino | armazenamento externo ao VPS (S3 compatível); disco do próprio VPS não conta como backup |
-| RPO (perda máxima aceita) | 24 h |
-| RTO (tempo para voltar) | 4 h |
+| Retenção | 30 diários + 1 mensal durante 12 meses |
+| Destino | Cloudflare (R2, compatível com S3) configurado no Coolify; disco do próprio VPS não conta como backup |
+| RPO (perda máxima aceita) | 24 h (a confirmar) |
+| RTO (tempo para voltar) | 4 h (a confirmar) |
 | Antes de deploy com migração destrutiva | backup manual (abaixo) |
 
 ### Configurar no Coolify (**a configurar**)
 
-1. Em **Storages/S3**, cadastre o destino externo.
+1. Em **Storages/S3**, cadastre o bucket da Cloudflare R2.
 2. No recurso do PostgreSQL → **Backups** → agendamento diário, retenção acima e o destino S3.
 3. Em **Notifications**, ative aviso de falha de backup (e-mail ou chat).
 4. Depois do primeiro agendamento, confirme que o arquivo apareceu no destino e **faça a restauração de teste** (abaixo) com ele.
@@ -111,7 +111,7 @@ PostgreSQL 17, 50 mil lançamentos: abrir semana p95 19 ms; iniciar/parar timer 
 
 ## 5. Lista de verificação do piloto
 
-- [ ] Backup diário agendado no Coolify com destino externo e aviso de falha.
+- [ ] Backup diário agendado no Coolify para a Cloudflare (30 diários + 12 mensais) e aviso de falha.
 - [ ] Uma restauração de teste feita com um backup **real**.
 - [ ] Monitor externo em `/api/health` com alerta.
 - [ ] Alertas de disco/memória no Coolify.

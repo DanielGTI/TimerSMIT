@@ -28,7 +28,7 @@ Cada pessoa vê os próprios lançamentos. Aprovadores, gerentes e administrador
 
 ## Retenção
 
-«DECIDIR: por quanto tempo guardar lançamentos, auditoria e backups.» Proposta para os backups: 14 diários e 8 semanais. Remover a extensão não apaga os dados automaticamente.
+Os dados em uso não têm prazo de expiração. Os backups guardam 30 dias diários e 1 por mês durante 12 meses, em armazenamento externo (Cloudflare). Remover a extensão não apaga os dados automaticamente.
 
 ## Segurança
 
