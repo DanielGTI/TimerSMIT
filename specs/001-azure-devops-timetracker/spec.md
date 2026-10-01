@@ -102,7 +102,7 @@ Como administrador, quero definir projetos elegíveis, aprovadores, atividades, 
 - **FR-011**: O sistema DEVE manter trilha de auditoria para lançamentos, decisões, reaberturas, papéis, políticas e exportações.
 - **FR-012**: A extensão DEVE apresentar guia no work item e páginas de folha, aprovações e relatórios no contexto permitido.
 - **FR-013**: O sistema NÃO DEVE escrever automaticamente campos nativos de esforço do work item no MVP.
-- **FR-014**: O produto DEVE oferecer pt-BR e en-US, suporte a teclado e tema claro/escuro.
+- **FR-014**: O produto DEVE oferecer interface em pt-BR, suporte a teclado e tema claro/escuro. (en-US fora do escopo: uso interno da SMIT — decisão de 30/09/2026.)
 - **FR-015**: O backend DEVE negar toda leitura/escrita que não passe pela autorização por tenant/projeto/papel, inclusive acesso direto a IDs conhecidos.
 
 ### Key Entities
@@ -131,9 +131,9 @@ Azure DevOps Services cloud no MVP; organização equivale a tenant; interface p
 
 ## Clarifications Required
 
-- **CL-001**: Produto interno ou SaaS multiempresa com venda pública? A arquitetura considera deve considerar como um produto interno.
+- **CL-001** *(resolvida em 30/09/2026)*: produto **interno da SMIT**, em pt-BR e com extensão **privada** (sem listagem pública no Marketplace). Não há venda nem gates de publicação pública.
 - **CL-002**: Aprovador por projeto, gestor funcional ou configuração híbrida? Proposta inicial: um aprovador designado por usuário/projeto/semana, resolvido no envio.
-- **CL-003**: Região de hospedagem, retenção e residência de dados contratuais.
+- **CL-003** *(parcial)*: hospedagem no VPS da SMIT (Coolify), sem residência contratual de terceiros. Falta definir internamente o prazo de retenção de lançamentos, auditoria e backups.
 - **CL-004**: Caminho exato de autenticação segura da extensão com API própria: validar em prova técnica antes de implementar dados reais.
 
 ## Out of Scope

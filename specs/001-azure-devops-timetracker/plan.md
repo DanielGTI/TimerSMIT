@@ -27,7 +27,7 @@ Extensão web no Azure DevOps Services com guia de work item e hubs para folha, 
 | Isolamento | FR-001/015 | Middleware + política por projeto + testes de tenants |
 | Histórias verificáveis | US1–US5 independentes | Entrega em fatias e critérios em tasks.md |
 | Fonte de verdade | FR-013 | Sem atualização de `Completed Work` |
-| Privacidade | CL-003 registrada | Retenção/região bloqueiam publicação pública |
+| Privacidade | CL-003 parcial | Uso interno e extensão privada: não há publicação pública; resta definir a retenção |
 
 **Estado do gate:** desenho preliminar aprovado como proposta; autenticação externa, localização e retenção aguardam decisão/prova técnica antes de produção.
 

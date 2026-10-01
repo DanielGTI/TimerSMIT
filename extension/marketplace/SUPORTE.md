@@ -1,19 +1,13 @@
 # Suporte — Controle de horas
 
-> **RASCUNHO:** preencher canais e prazos antes de publicar (itens marcados com «DECIDIR»).
-
-## Onde pedir ajuda
-
-- E-mail: «DECIDIR: endereço de suporte»
-- Horário de atendimento: «DECIDIR»
-- Prazo de primeira resposta: «DECIDIR» (proposta: 1 dia útil para falhas, 3 dias úteis para dúvidas)
+Uso interno da SMIT. Canal de suporte: «DECIDIR: e-mail, grupo ou fila do time responsável».
 
 ## Ao relatar um problema, inclua
 
 1. O que você fazia (por exemplo: "parar o cronômetro no work item 123").
 2. O que aconteceu e o que esperava.
 3. A mensagem exibida na tela, se houver.
-4. Data e hora aproximadas e o nome da organização. Não envie senhas nem tokens.
+4. Data e hora aproximadas. Não envie senhas nem tokens.
 
 ## Problemas comuns
 

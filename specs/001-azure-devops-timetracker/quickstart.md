@@ -8,6 +8,6 @@ Este pacote é uma especificação, não contém código executável. Ao criar o
 4. Realize a prova técnica: guia de work item, SDK, leitura com `vso.work` e sessão backend verificável. Registre resultados no `research.md`.
 5. Implemente tarefas na ordem de `tasks.md`; rode testes de autorização, concorrência e fusos.
 6. Empacote o VSIX com `tfx-cli`, publique como privado, compartilhe com a organização de teste e execute cenários US1–US5.
-7. Valide documentação, privacidade e segurança antes de preparar publisher/versão pública.
+7. Valide documentação, privacidade e segurança. A extensão é privada (uso interno da SMIT): não há versão pública a preparar.
 
 Documentação oficial: https://github.com/github/spec-kit ; https://learn.microsoft.com/en-us/azure/devops/extend/publish/overview?view=azure-devops
