@@ -42,6 +42,7 @@ Configure na aba **Environment Variables** da aplicação (referência completa 
 | `DB_USERNAME` | usuário do passo 1 |
 | `DB_PASSWORD` | senha do passo 1 |
 | `TIMERSMIT_SESSION_SECRET` | valor aleatório forte, exclusivo deste ambiente (não reutilizar entre dev/piloto/produção) |
+| `TIMERSMIT_ALLOWED_AAD_TENANTS` | Opcional. IDs de diretório (Entra ID) autorizados, separados por vírgula. O padrão já é o da SMIT (`smit.net.br`); outro diretório recebe 403 e nada é criado. Definida e vazia, nega todos. |
 | `TIMERSMIT_SESSION_TTL_MINUTES` | `60` (ou outro valor, opcional) |
 | `LOG_CHANNEL` | `stderr` (aparece direto nos logs do Coolify) |
 | `LOG_LEVEL` | `info` |

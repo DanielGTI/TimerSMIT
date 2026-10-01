@@ -9,6 +9,7 @@ use App\Services\InvalidDevOpsTokenException;
 use App\Services\SessionTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -39,6 +40,15 @@ class SessionController extends Controller
             throw ValidationException::withMessages([
                 'appToken' => $exception->getMessage(),
             ]);
+        }
+
+        // Uso interno: diretório fora da lista não cria organização nem pessoa.
+        if (! in_array(strtolower($identity->aadTenantId), config('timersmit.allowed_aad_tenants'), true)) {
+            Log::warning('auth.session.directory_not_allowed', ['aadTenantId' => $identity->aadTenantId]);
+
+            return response()->json([
+                'message' => 'Esta extensão é de uso interno e não está liberada para a sua organização.',
+            ], 403);
         }
 
         $provisioned = $this->provisioning->resolve(

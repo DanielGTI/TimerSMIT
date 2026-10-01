@@ -116,6 +116,7 @@
       Achado: o manifesto pede o escopo `vso.work`, mas a extensão não usa token de acesso nem a API REST (só o token de identidade e o form do work item) — provavelmente dá para remover por mínimo privilégio, o que exige novo segredo da extensão e nova autorização na organização. Decidir antes do uso em produção.
 - [ ] T043 Empacotar VSIX de desenvolvimento, instalar privadamente e executar `quickstart.md` na organização de teste.
 - [x] T044 Resolver CL-001–CL-004 e decisão de publicação. **Resolvido (30/09/2026)**: produto interno da SMIT, pt-BR, extensão privada — sem versão pública e sem gates de publicação pública. CL-002 e CL-004 já decididos antes; CL-003 também resolvida (VPS da SMIT; backups de 30 diários + 12 mensais na Cloudflare).
+      Acesso restrito à SMIT: além de a extensão ser privada (compartilhada só com `smitbr`), o backend só abre sessão para identidades do diretório Entra ID da SMIT (`TIMERSMIT_ALLOWED_AAD_TENANTS`, padrão `5517d73c-0aed-49c1-9d7e-0a38889a4fc5`, claim `tid` do token assinado); outro diretório recebe 403 e nenhuma organização/pessoa é criada. Coberto em `AuthSessionTest`.
 
 ## Dependencies & Execution Order
 

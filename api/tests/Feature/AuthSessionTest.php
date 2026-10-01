@@ -21,8 +21,13 @@ class AuthSessionTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function signAppToken(string $nameid, string $tid): string
+    private function signAppToken(string $nameid, string $tid, bool $allowed = true): string
     {
+        // Os testes usam diretórios aleatórios; só os "liberados" entram na lista.
+        if ($allowed) {
+            config(['timersmit.allowed_aad_tenants' => [...config('timersmit.allowed_aad_tenants'), strtolower($tid)]]);
+        }
+
         $secret = config('timersmit.extension_secret');
 
         return JWT::encode([
@@ -72,6 +77,44 @@ class AuthSessionTest extends TestCase
             'project_id' => null,
             'role' => RoleAssignment::ROLE_ADMIN,
         ]);
+    }
+
+    public function test_directory_outside_the_allowlist_gets_403_and_nothing_is_created(): void
+    {
+        $response = $this->postJson('/api/auth/session', [
+            'appToken' => $this->signAppToken((string) Str::uuid(), (string) Str::uuid(), allowed: false),
+            'claimedOrganizationId' => 'org-de-outra-empresa',
+            'claimedOrganizationName' => 'outra-empresa',
+            'displayName' => 'Alguém de fora',
+        ]);
+
+        $response->assertStatus(403)->assertJsonMissing(['sessionToken']);
+        $this->assertSame(0, Tenant::query()->count());
+        $this->assertSame(0, Member::query()->count());
+    }
+
+    public function test_allowlist_is_case_insensitive_and_defaults_to_the_smit_directory(): void
+    {
+        $smit = '5517d73c-0aed-49c1-9d7e-0a38889a4fc5';
+        $this->assertContains($smit, config('timersmit.allowed_aad_tenants'));
+
+        config(['timersmit.allowed_aad_tenants' => [$smit]]);
+        $this->postJson('/api/auth/session', [
+            'appToken' => $this->signAppToken((string) Str::uuid(), strtoupper($smit), allowed: false),
+            'claimedOrganizationId' => 'smitbr-id',
+            'claimedOrganizationName' => 'smitbr',
+        ])->assertOk();
+    }
+
+    public function test_an_empty_allowlist_denies_everyone(): void
+    {
+        config(['timersmit.allowed_aad_tenants' => []]);
+
+        $this->postJson('/api/auth/session', [
+            'appToken' => $this->signAppToken((string) Str::uuid(), (string) Str::uuid(), allowed: false),
+            'claimedOrganizationId' => 'org-x',
+            'claimedOrganizationName' => 'x',
+        ])->assertStatus(403);
     }
 
     public function test_token_signed_with_wrong_secret_never_creates_tenant_or_session(): void
