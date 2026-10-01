@@ -588,6 +588,28 @@ paths:
       responses:
         '200': { description: Visão atualizada }
         '404': { description: Designação de outra organização }
+  /reports/time/detail:
+    get:
+      operationId: getReportDetail
+      description: >-
+        Todas as linhas do filtro de uma vez (até 20.000), para a grade
+        detalhada. Mesmos filtros, escopo, ordem e totais de `/reports/time` e
+        do CSV. Cada linha traz também `workItemType`, `iterationPath` (do
+        retrato mais recente do work item) e `startTime`/`endTime` (hora local
+        HH:MM; nulos em lançamento manual). `truncated: true` quando o filtro
+        tem mais linhas do que o limite; `totals` continua sendo o do filtro
+        inteiro.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: projectId, in: query, schema: { type: integer } }
+        - { name: memberId, in: query, schema: { type: integer } }
+        - { name: activityTypeId, in: query, schema: { type: integer } }
+        - { name: billable, in: query, schema: { type: string, enum: ['0', '1', 'true', 'false'] } }
+        - { name: status, in: query, schema: { type: string, enum: [open, submitted, rejected, approved] } }
+      responses:
+        '200': { description: 'Objeto com scope, totals, rows e truncated' }
+        '403': { description: Filtro fora do escopo da pessoa }
   /reports/options:
     get:
       operationId: getReportOptions

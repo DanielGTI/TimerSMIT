@@ -12,6 +12,7 @@ export interface CreateManualEntryInput {
   billable?: boolean;
   title?: string;
   workItemType?: string;
+  iterationPath?: string;
 }
 
 export function createManualEntry(client: ApiClient, input: CreateManualEntryInput): Promise<TimeEntryDto> {

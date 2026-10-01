@@ -7,13 +7,19 @@ vi.mock("../src/lib/api/config", () => ({
 
 const fetchReport = vi.fn();
 const fetchReportOptions = vi.fn();
+const fetchReportDetail = vi.fn();
 const downloadReportCsv = vi.fn();
 const saveBlob = vi.fn();
 
 vi.mock("../src/lib/api/reports", () => ({
   fetchReport: (...args: unknown[]) => fetchReport(...args),
   fetchReportOptions: (...args: unknown[]) => fetchReportOptions(...args),
+  fetchReportDetail: (...args: unknown[]) => fetchReportDetail(...args),
   downloadReportCsv: (...args: unknown[]) => downloadReportCsv(...args),
+}));
+
+vi.mock("../src/lib/devops/sdk", () => ({
+  getHostContext: async () => ({ name: "smitbr" }),
 }));
 
 vi.mock("../src/lib/download", () => ({
@@ -33,6 +39,10 @@ function row(overrides: Partial<ReportRowDto> = {}): ReportRowDto {
     projectName: "Projeto A",
     workItemId: 15835,
     workItemTitle: "Teste Tracker",
+    workItemType: "Task",
+    iterationPath: "Projeto A\\Sprint 1",
+    startTime: null,
+    endTime: null,
     activityTypeId: "2",
     activityTypeName: "Desenvolvimento",
     activityTypeColor: "#A6D8F5",
@@ -87,6 +97,7 @@ describe("ReportsPage", () => {
 
     fetchReport.mockReset().mockResolvedValue(report());
     fetchReportOptions.mockReset().mockResolvedValue(options);
+    fetchReportDetail.mockReset().mockResolvedValue({ ...report(), rows: report().rows, truncated: false });
     downloadReportCsv.mockReset().mockResolvedValue(new Blob(["x"]));
     saveBlob.mockReset();
   });
@@ -253,5 +264,33 @@ describe("ReportsPage", () => {
     render(<ReportsPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 500");
+  });
+
+  it("a aba Detalhada só busca a grade quando aberta e usa os mesmos filtros aplicados", async () => {
+    render(<ReportsPage />);
+    await screen.findByRole("group", { name: "Totais" });
+    expect(fetchReportDetail).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Detalhada" }));
+
+    expect(await screen.findByRole("table", { name: "Lançamentos detalhados" })).toBeInTheDocument();
+    expect(fetchReportDetail).toHaveBeenCalledTimes(1);
+    expect(fetchReportDetail.mock.calls[0][1]).toEqual({ from: "2026-10-01", to: "2026-10-31" });
+    expect(screen.getByText(/Linhas filtradas:/)).toHaveTextContent("Linhas filtradas: 2 (02:30 h)");
+    expect((await screen.findAllByRole("link", { name: "15835" }))[0]).toHaveAttribute("href", expect.stringContaining("/smitbr/Projeto%20A/_workitems/edit/15835"));
+  });
+
+  it("avisa quando o período tem mais linhas do que a grade traz", async () => {
+    fetchReportDetail.mockResolvedValue({
+      ...report(),
+      totals: { totalSeconds: 9000, billableSeconds: 5400, nonBillableSeconds: 3600, entryCount: 25000 },
+      truncated: true,
+    });
+    render(<ReportsPage />);
+    await screen.findByRole("group", { name: "Totais" });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Detalhada" }));
+
+    expect(await screen.findByText(/25000 lançamentos e a grade mostra só os primeiros 2/)).toBeInTheDocument();
   });
 });

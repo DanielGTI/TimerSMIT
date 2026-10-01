@@ -38,6 +38,7 @@ export interface StartTimerInput {
   activityTypeId?: number;
   title?: string;
   workItemType?: string;
+  iterationPath?: string;
 }
 
 export function startTimer(client: ApiClient, input: StartTimerInput): Promise<TimerDto> {

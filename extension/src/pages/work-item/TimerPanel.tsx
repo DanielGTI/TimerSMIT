@@ -50,6 +50,7 @@ export function TimerPanel({
         activityTypeId: activityId ? Number(activityId) : undefined,
         title: workItem.title,
         workItemType: workItem.workItemType,
+        ...(workItem.iterationPath ? { iterationPath: workItem.iterationPath } : {}),
       });
       onTimerChange(started);
     });

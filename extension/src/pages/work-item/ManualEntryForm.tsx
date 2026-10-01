@@ -112,6 +112,7 @@ export function ManualEntryForm({
         note: note.trim() || undefined,
         title: workItem.title,
         workItemType: workItem.workItemType,
+        ...(workItem.iterationPath ? { iterationPath: workItem.iterationPath } : {}),
       });
       setFeedback({ kind: "ok", text: `Lançamento de ${formatDuration(durationMinutes)} registrado.` });
       setDurationText("00:00");

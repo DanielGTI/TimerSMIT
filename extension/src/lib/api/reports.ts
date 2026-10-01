@@ -21,6 +21,11 @@ export interface ReportRowDto {
   projectName: string;
   workItemId: number;
   workItemTitle: string | null;
+  workItemType: string | null;
+  iterationPath: string | null;
+  /** Hora local "HH:MM"; nulo em lançamento manual. */
+  startTime: string | null;
+  endTime: string | null;
   activityTypeId: string | null;
   activityTypeName: string | null;
   activityTypeColor: string | null;
@@ -48,6 +53,15 @@ export interface ReportDto {
   pagination: { page: number; perPage: number; total: number; lastPage: number };
 }
 
+/** Todas as linhas do filtro (até o limite do servidor) para a grade detalhada. */
+export interface ReportDetailDto {
+  scope: ReportDto["scope"];
+  totals: ReportDto["totals"];
+  rows: ReportRowDto[];
+  /** Verdadeiro quando o período tem mais linhas do que o servidor devolve de uma vez. */
+  truncated: boolean;
+}
+
 export interface ReportOptionsDto {
   scope: ReportDto["scope"];
   members: Array<{ id: string; name: string }>;
@@ -70,6 +84,10 @@ export function reportQuery(filters: ReportFilters, extra: Record<string, string
 
 export function fetchReport(client: ApiClient, filters: ReportFilters, page: number, perPage = 50): Promise<ReportDto> {
   return client.request<ReportDto>(`/api/reports/time?${reportQuery(filters, { page, perPage })}`);
+}
+
+export function fetchReportDetail(client: ApiClient, filters: ReportFilters): Promise<ReportDetailDto> {
+  return client.request<ReportDetailDto>(`/api/reports/time/detail?${reportQuery(filters)}`);
 }
 
 export function fetchReportOptions(client: ApiClient): Promise<ReportOptionsDto> {

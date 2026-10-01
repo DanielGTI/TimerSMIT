@@ -6,6 +6,8 @@ export interface CurrentWorkItem {
   id: number;
   title: string;
   workItemType: string;
+  /** System.IterationPath; vazio se o formulário não informar. */
+  iterationPath: string | null;
 }
 
 // Valor literal (igual a WorkItemTrackingServiceIds.WorkItemFormService) em
@@ -35,11 +37,12 @@ export async function getCurrentWorkItem(): Promise<CurrentWorkItem> {
   await ensureSdkReady();
   const service = await getFormService();
 
-  const [id, title, workItemType] = await Promise.all([
+  const [id, title, workItemType, iterationPath] = await Promise.all([
     service.getId(),
     service.getFieldValue("System.Title") as Promise<string>,
     service.getFieldValue("System.WorkItemType") as Promise<string>,
+    service.getFieldValue("System.IterationPath") as Promise<string | undefined>,
   ]);
 
-  return { id, title, workItemType };
+  return { id, title, workItemType, iterationPath: iterationPath ? String(iterationPath) : null };
 }

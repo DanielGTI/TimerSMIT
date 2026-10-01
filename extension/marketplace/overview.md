@@ -21,6 +21,7 @@ Registre, envie e aprove horas de trabalho sem sair do Azure DevOps. O lançamen
 **Relatórios**
 - Filtre por período, pessoa, projeto, atividade, faturável e estado da semana.
 - Totais, quebras por pessoa, projeto e atividade, e exportação em CSV com exatamente as mesmas linhas da tela.
+- Visão **Detalhada** em grade: agrupe por projeto, pessoa, atividade, tipo, iteração ou data (até dois níveis) com o subtotal de horas de cada grupo, filtre cada coluna, ordene e escolha as colunas.
 
 **Configuração** (administradores)
 - Regras de lançamento: incremento de duração, limite diário, janela retroativa e comentário obrigatório. Cada mudança vale daqui para a frente e não altera horas já lançadas.

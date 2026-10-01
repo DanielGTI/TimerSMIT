@@ -992,3 +992,105 @@ textarea.input {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* ---------- grade detalhada ---------- */
+
+.grid-report__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.grid-report__bar .field {
+  margin-bottom: 0;
+}
+
+.grid-report__total {
+  margin-left: auto;
+  align-self: center;
+}
+
+.columns-menu {
+  position: relative;
+}
+
+.columns-menu > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.columns-menu__list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 190px;
+  padding: 8px 12px;
+  border: 1px solid var(--ts-border);
+  border-radius: 6px;
+  background: var(--ts-popup);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.columns-menu__list .checkbox {
+  margin: 2px 0;
+}
+
+.grid-table--report th,
+.grid-table--report td {
+  white-space: nowrap;
+}
+
+.grid-table--report td:nth-child(3) {
+  white-space: normal;
+  min-width: 220px;
+}
+
+.grid-table--report td.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.th-sort {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.th-sort:focus-visible {
+  outline: 2px solid var(--ts-primary);
+  outline-offset: 2px;
+}
+
+.filter-row td {
+  padding-top: 0;
+}
+
+.group-row th {
+  background: var(--ts-surface);
+  font-weight: 400;
+}
+
+.group-toggle {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-toggle:focus-visible {
+  outline: 2px solid var(--ts-primary);
+  outline-offset: 2px;
+}
+
+.grid-report__more {
+  margin: 12px 0 0;
+}

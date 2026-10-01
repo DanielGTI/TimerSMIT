@@ -21,7 +21,7 @@ function renderForm() {
     <ManualEntryForm
       client={client}
       project={{ id: "project-guid-1", name: "SMIT LEARN IA" }}
-      workItem={{ id: 42, title: "Teste Tracker", workItemType: "Task" }}
+      workItem={{ id: 42, title: "Teste Tracker", workItemType: "Task", iterationPath: "SMIT LEARN IA\\Sprint 3" }}
       activityTypes={activityTypes}
       displayName="Daniel Ferreira"
     />,
@@ -106,6 +106,7 @@ describe("ManualEntryForm", () => {
       note: "Reunião de planejamento",
       title: "Teste Tracker",
       workItemType: "Task",
+      iterationPath: "SMIT LEARN IA\\Sprint 3",
     });
     expect(await screen.findByText("Lançamento de 01:30 registrado.")).toBeInTheDocument();
     expect(durationInput().value).toBe("00:00");
