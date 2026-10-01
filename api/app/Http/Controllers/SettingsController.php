@@ -142,6 +142,21 @@ class SettingsController extends Controller
         return $this->overview();
     }
 
+    public function syncPeople(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            // Lista vazia é recusada: viria de uma leitura que falhou e
+            // marcaria todo mundo como inativo.
+            'people' => ['required', 'array', 'min:1', 'max:5000'],
+            'people.*.identityId' => ['required', 'uuid'],
+            'people.*.displayName' => ['required', 'string', 'max:200'],
+        ]);
+
+        $this->settings->syncDirectory($this->tenantContext->tenant(), $this->tenantContext->member(), $data['people']);
+
+        return $this->overview();
+    }
+
     public function removeDesignation(Request $request, int $assignmentId): JsonResponse
     {
         $data = $request->validate(['applyToPending' => ['nullable', 'boolean']]);

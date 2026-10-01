@@ -80,7 +80,7 @@ export function ApproversSection({ settings, client, busy, run }: SectionProps):
             <label htmlFor={`${ids}-member`}>Semanas de</label>
             <select id={`${ids}-member`} className="input" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
               <option value="">Escolha…</option>
-              {settings.members.map((member) => (
+              {settings.members.filter((member) => member.directoryActive !== false).map((member) => (
                 <option key={member.id} value={member.id}>
                   {member.name}
                 </option>
@@ -91,7 +91,7 @@ export function ApproversSection({ settings, client, busy, run }: SectionProps):
             <label htmlFor={`${ids}-approver`}>Aprovador</label>
             <select id={`${ids}-approver`} className="input" value={approverId} onChange={(e) => setApproverId(e.target.value)}>
               <option value="">Escolha…</option>
-              {settings.members.map((member) => (
+              {settings.members.filter((member) => member.directoryActive !== false).map((member) => (
                 <option key={member.id} value={member.id}>
                   {member.name}
                 </option>

@@ -22,6 +22,8 @@ export interface SettingsActivityDto {
 export interface SettingsMemberDto {
   id: string;
   name: string;
+  /** Situação na última sincronização com o Azure DevOps: `null` = nunca sincronizada. */
+  directoryActive: boolean | null;
   roles: Array<{ id: string; role: Role; projectId: string | null; projectName: string | null }>;
 }
 
@@ -41,6 +43,8 @@ export interface SettingsDto {
   projects: Array<{ id: string; name: string; enabled: boolean }>;
   activityTypes: SettingsActivityDto[];
   members: SettingsMemberDto[];
+  /** Quando a lista de pessoas foi atualizada com o Azure DevOps pela última vez. */
+  peopleSyncedAt: string | null;
   designations: DesignationDto[];
 }
 
@@ -79,6 +83,14 @@ export const updateActivityType = (
   id: string,
   changes: Partial<ActivityInput> & { enabled?: boolean },
 ) => send(client, "PATCH", `/activity-types/${id}`, changes);
+
+export interface DirectoryPersonInput {
+  identityId: string;
+  displayName: string;
+}
+
+export const syncPeople = (client: ApiClient, people: DirectoryPersonInput[]) =>
+  send(client, "POST", "/people/sync", { people });
 
 export const grantRole = (client: ApiClient, memberId: string, role: Role, projectId: string | null) =>
   send(client, "POST", "/role-assignments", { memberId, role, ...(projectId ? { projectId } : {}) });

@@ -16,7 +16,14 @@ const api = {
   revokeRole: vi.fn(),
   designateApprover: vi.fn(),
   removeDesignation: vi.fn(),
+  syncPeople: vi.fn(),
 };
+
+const directory = { fetchActiveDirectoryPeople: vi.fn() };
+
+vi.mock("../src/lib/devops/directory", () => ({
+  fetchActiveDirectoryPeople: (...args: unknown[]) => directory.fetchActiveDirectoryPeople(...args),
+}));
 
 vi.mock("../src/lib/api/settings", () => ({
   fetchSettings: (...args: unknown[]) => api.fetchSettings(...args),
@@ -29,6 +36,7 @@ vi.mock("../src/lib/api/settings", () => ({
   revokeRole: (...args: unknown[]) => api.revokeRole(...args),
   designateApprover: (...args: unknown[]) => api.designateApprover(...args),
   removeDesignation: (...args: unknown[]) => api.removeDesignation(...args),
+  syncPeople: (...args: unknown[]) => api.syncPeople(...args),
 }));
 
 import type { SettingsDto } from "../src/lib/api/settings";
@@ -54,10 +62,11 @@ function settings(overrides: Partial<SettingsDto> = {}): SettingsDto {
       { id: "4", name: "Suporte", color: "#F87878", enabled: false, defaultBillable: true },
     ],
     members: [
-      { id: "10", name: "Ana Admin", roles: [{ id: "100", role: "admin", projectId: null, projectName: null }] },
-      { id: "11", name: "Eva Colaboradora", roles: [{ id: "101", role: "member", projectId: "1", projectName: "Projeto A" }] },
-      { id: "12", name: "Nando Novo", roles: [] },
+      { id: "10", name: "Ana Admin", directoryActive: true, roles: [{ id: "100", role: "admin", projectId: null, projectName: null }] },
+      { id: "11", name: "Eva Colaboradora", directoryActive: true, roles: [{ id: "101", role: "member", projectId: "1", projectName: "Projeto A" }] },
+      { id: "12", name: "Nando Novo", directoryActive: true, roles: [] },
     ],
+    peopleSyncedAt: null,
     designations: [
       { id: "200", memberId: "11", memberName: "Eva Colaboradora", approverId: "10", approverName: "Ana Admin", projectId: null, projectName: null },
     ],
@@ -69,12 +78,22 @@ async function openTab(name: string) {
   render(<SettingsPage />);
   await screen.findByText(/Configuração · smitbr/);
   fireEvent.click(screen.getByRole("tab", { name }));
+  // Ao abrir "Pessoas e papéis" a lista é atualizada sozinha; espera terminar
+  // para não clicar em controles ainda desabilitados.
+  if (name === "Pessoas e papéis") await screen.findByText(SYNC_NOTICE);
 }
+
+const SYNC_NOTICE = "Lista de pessoas atualizada com o Azure DevOps.";
 
 describe("SettingsPage", () => {
   beforeEach(() => {
     Object.values(api).forEach((fn) => fn.mockReset());
+    directory.fetchActiveDirectoryPeople.mockReset();
     api.fetchSettings.mockResolvedValue(settings());
+    directory.fetchActiveDirectoryPeople.mockResolvedValue([
+      { identityId: "aaaaaaaa-0000-4000-8000-000000000001", displayName: "Ana Admin" },
+    ]);
+    api.syncPeople.mockImplementation(async () => settings());
   });
 
   afterEach(() => {
@@ -203,6 +222,66 @@ describe("SettingsPage", () => {
 
     await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith(expect.anything(), "12", "manager", "1"));
     expect(await screen.findByText("Gestor concedido a Nando Novo.")).toBeInTheDocument();
+  });
+
+  it("ao abrir Pessoas e papéis lê quem está ativo no Azure DevOps e atualiza a lista", async () => {
+    const people = [
+      { identityId: "aaaaaaaa-0000-4000-8000-000000000001", displayName: "Ana Admin" },
+      { identityId: "aaaaaaaa-0000-4000-8000-000000000002", displayName: "Nina Nova" },
+    ];
+    directory.fetchActiveDirectoryPeople.mockResolvedValue(people);
+    api.syncPeople.mockResolvedValue(
+      settings({
+        peopleSyncedAt: "2026-10-01T12:00:00Z",
+        members: [
+          { id: "10", name: "Ana Admin", directoryActive: true, roles: [] },
+          { id: "13", name: "Nina Nova", directoryActive: true, roles: [] },
+        ],
+      }),
+    );
+
+    await openTab("Pessoas e papéis");
+
+    expect(directory.fetchActiveDirectoryPeople).toHaveBeenCalledTimes(1);
+    expect(api.syncPeople).toHaveBeenCalledWith(expect.anything(), people);
+    expect(within(screen.getByRole("list")).getByText("Nina Nova")).toBeInTheDocument();
+    expect(screen.getByText(/Lista do Azure DevOps atualizada em/)).toBeInTheDocument();
+  });
+
+  it("o botão atualiza de novo a pedido", async () => {
+    await openTab("Pessoas e papéis");
+
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar do Azure DevOps" }));
+
+    await waitFor(() => expect(api.syncPeople).toHaveBeenCalledTimes(2));
+  });
+
+  it("se a leitura do Azure DevOps falha, mostra o motivo e mantém a lista conhecida", async () => {
+    directory.fetchActiveDirectoryPeople.mockRejectedValue(new Error("O Azure DevOps não permitiu ler os usuários da organização."));
+    render(<SettingsPage />);
+    await screen.findByText(/Configuração · smitbr/);
+    fireEvent.click(screen.getByRole("tab", { name: "Pessoas e papéis" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não permitiu ler os usuários");
+    expect(api.syncPeople).not.toHaveBeenCalled();
+    expect(within(screen.getByRole("list")).getByText("Nando Novo")).toBeInTheDocument();
+  });
+
+  it("quem saiu do Azure DevOps fica numa seção à parte e some das escolhas", async () => {
+    api.syncPeople.mockResolvedValue(
+      settings({
+        members: [
+          { id: "10", name: "Ana Admin", directoryActive: true, roles: [{ id: "100", role: "admin", projectId: null, projectName: null }] },
+          { id: "14", name: "Otávio Ex-colaborador", directoryActive: false, roles: [{ id: "104", role: "member", projectId: null, projectName: null }] },
+        ],
+      }),
+    );
+
+    await openTab("Pessoas e papéis");
+
+    expect(screen.getByText("Inativos no Azure DevOps (1)")).toBeInTheDocument();
+    const choices = within(screen.getByLabelText("Pessoa")).getAllByRole("option").map((option) => option.textContent);
+    expect(choices).toEqual(["Escolha…", "Ana Admin"]);
   });
 
   it("papel sem projeto vale para a organização inteira", async () => {

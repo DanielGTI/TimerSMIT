@@ -25,7 +25,17 @@ class Member extends Model implements AuthenticatableContract
         'devops_identity_id',
         'display_name',
         'email',
+        'directory_active',
+        'directory_synced_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'directory_active' => 'boolean',
+            'directory_synced_at' => 'datetime',
+        ];
+    }
 
     public function tenant(): BelongsTo
     {

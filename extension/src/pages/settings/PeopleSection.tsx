@@ -1,5 +1,6 @@
-import { useId, useState, type FormEvent } from "react";
-import { grantRole, revokeRole, type Role } from "../../lib/api/settings";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { grantRole, revokeRole, syncPeople, type Role, type SettingsMemberDto } from "../../lib/api/settings";
+import { fetchActiveDirectoryPeople } from "../../lib/devops/directory";
 import { ORGANIZATION_SCOPE, ROLE_LABELS, type SectionProps } from "./sections";
 
 const ROLES: Role[] = ["member", "approver", "manager", "admin"];
@@ -13,6 +14,24 @@ export function PeopleSection({ settings, client, busy, run }: SectionProps): JS
   const [memberId, setMemberId] = useState("");
   const [role, setRole] = useState<Role>("member");
   const [projectId, setProjectId] = useState("");
+
+  const active = settings.members.filter((member) => member.directoryActive !== false);
+  const inactive = settings.members.filter((member) => member.directoryActive === false);
+
+  const refreshFromDirectory = () =>
+    run(
+      async () => syncPeople(client, await fetchActiveDirectoryPeople()),
+      "Lista de pessoas atualizada com o Azure DevOps.",
+    );
+
+  // Ao abrir a aba, já traz quem está ativo no Azure DevOps (uma vez por abertura).
+  const autoRefreshed = useRef(false);
+  useEffect(() => {
+    if (autoRefreshed.current) return;
+    autoRefreshed.current = true;
+    void refreshFromDirectory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na abertura da aba
+  }, []);
 
   function grant(event: FormEvent) {
     event.preventDefault();
@@ -29,30 +48,37 @@ export function PeopleSection({ settings, client, busy, run }: SectionProps): JS
           horas de todos nos projetos que gerencia; administrador configura a organização.
         </p>
 
+        <div className="toolbar">
+          <span className="muted">
+            {settings.peopleSyncedAt
+              ? `Lista do Azure DevOps atualizada em ${formatSyncedAt(settings.peopleSyncedAt)}.`
+              : "Lista ainda não atualizada com o Azure DevOps."}
+          </span>
+          <button type="button" className="btn btn--small" disabled={busy} onClick={() => void refreshFromDirectory()}>
+            Atualizar do Azure DevOps
+          </button>
+        </div>
+
         <ul className="settings-list settings-list--people">
-          {settings.members.map((member) => (
-            <li key={member.id}>
-              <strong>{member.name}</strong>
-              <span className="chips">
-                {member.roles.length === 0 && <span className="badge badge--rejected">Sem acesso</span>}
-                {member.roles.map((assignment) => (
-                  <span key={assignment.id} className="chip">
-                    {ROLE_LABELS[assignment.role]} · {assignment.projectName ?? ORGANIZATION_SCOPE}
-                    <button
-                      type="button"
-                      className="chip__remove"
-                      aria-label={`Remover ${ROLE_LABELS[assignment.role]} de ${member.name} (${assignment.projectName ?? ORGANIZATION_SCOPE})`}
-                      disabled={busy}
-                      onClick={() => void run(() => revokeRole(client, assignment.id), `Papel removido de ${member.name}.`)}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </span>
-            </li>
+          {active.map((member) => (
+            <PersonRow key={member.id} member={member} busy={busy} onRevoke={(id, name) => void run(() => revokeRole(client, id), `Papel removido de ${name}.`)} />
           ))}
         </ul>
+
+        {inactive.length > 0 && (
+          <details className="people-inactive">
+            <summary>Inativos no Azure DevOps ({inactive.length})</summary>
+            <p className="muted">
+              Sem licença ativa na última atualização. Os lançamentos e papéis continuam; só deixam de aparecer nas
+              escolhas abaixo.
+            </p>
+            <ul className="settings-list settings-list--people">
+              {inactive.map((member) => (
+                <PersonRow key={member.id} member={member} busy={busy} onRevoke={(id, name) => void run(() => revokeRole(client, id), `Papel removido de ${name}.`)} />
+              ))}
+            </ul>
+          </details>
+        )}
       </section>
 
       <form className="card" onSubmit={grant} aria-label="Conceder papel">
@@ -62,7 +88,7 @@ export function PeopleSection({ settings, client, busy, run }: SectionProps): JS
             <label htmlFor={`${ids}-member`}>Pessoa</label>
             <select id={`${ids}-member`} className="input" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
               <option value="">Escolha…</option>
-              {settings.members.map((member) => (
+              {active.map((member) => (
                 <option key={member.id} value={member.id}>
                   {member.name}
                 </option>
@@ -96,5 +122,41 @@ export function PeopleSection({ settings, client, busy, run }: SectionProps): JS
         </button>
       </form>
     </>
+  );
+}
+
+const formatSyncedAt = (iso: string): string =>
+  new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+function PersonRow({
+  member,
+  busy,
+  onRevoke,
+}: {
+  member: SettingsMemberDto;
+  busy: boolean;
+  onRevoke: (assignmentId: string, memberName: string) => void;
+}): JSX.Element {
+  return (
+    <li>
+      <strong>{member.name}</strong>
+      <span className="chips">
+        {member.roles.length === 0 && <span className="badge badge--rejected">Sem acesso</span>}
+        {member.roles.map((assignment) => (
+          <span key={assignment.id} className="chip">
+            {ROLE_LABELS[assignment.role]} · {assignment.projectName ?? ORGANIZATION_SCOPE}
+            <button
+              type="button"
+              className="chip__remove"
+              aria-label={`Remover ${ROLE_LABELS[assignment.role]} de ${member.name} (${assignment.projectName ?? ORGANIZATION_SCOPE})`}
+              disabled={busy}
+              onClick={() => onRevoke(assignment.id, member.name)}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </span>
+    </li>
   );
 }

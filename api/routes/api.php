@@ -52,6 +52,7 @@ Route::middleware('tenant')->group(function () {
         Route::patch('/projects/{projectId}', [SettingsController::class, 'updateProject'])->whereNumber('projectId');
         Route::post('/activity-types', [SettingsController::class, 'storeActivityType']);
         Route::patch('/activity-types/{typeId}', [SettingsController::class, 'updateActivityType'])->whereNumber('typeId');
+        Route::post('/people/sync', [SettingsController::class, 'syncPeople']);
         Route::post('/role-assignments', [SettingsController::class, 'grantRole']);
         Route::delete('/role-assignments/{assignmentId}', [SettingsController::class, 'revokeRole'])->whereNumber('assignmentId');
         Route::post('/approver-assignments', [SettingsController::class, 'designateApprover']);

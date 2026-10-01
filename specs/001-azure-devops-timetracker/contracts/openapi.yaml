@@ -494,6 +494,37 @@ paths:
         '200': { description: Visão atualizada }
         '404': { description: Tipo de outra organização ou inexistente }
         '422': { description: Nome repetido ou cor inválida }
+  /settings/people/sync:
+    post:
+      operationId: syncPeople
+      description: >-
+        Atualiza a lista de pessoas com quem tem licença ativa no Azure DevOps
+        (lida pela extensão com o acesso do administrador). Cria quem ainda não
+        abriu a extensão, sem nenhum papel (sem acesso até o administrador
+        liberar), atualiza nomes e marca como inativo (`directoryActive: false`)
+        quem saiu da lista; nunca apaga nem altera papéis ou lançamentos. A
+        identidade é comparada sem diferenciar maiúsculas. Lista vazia é recusada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [people]
+              properties:
+                people:
+                  type: array
+                  minItems: 1
+                  maxItems: 5000
+                  items:
+                    type: object
+                    required: [identityId, displayName]
+                    properties:
+                      identityId: { type: string, format: uuid }
+                      displayName: { type: string, maxLength: 200 }
+      responses:
+        '200': { description: Visão atualizada (members com directoryActive e peopleSyncedAt) }
+        '422': { description: Lista vazia ou identidade inválida }
   /settings/role-assignments:
     post:
       operationId: grantRole

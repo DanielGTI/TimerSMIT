@@ -443,4 +443,100 @@ class SettingsTest extends TestCase
         $this->assertSame($rowsBefore, $submission->approverRows()->count());
         $this->assertSame(WeeklySubmission::STATUS_APPROVED, $submission->fresh()->status);
     }
+
+    // ---------- lista de pessoas do Azure DevOps ----------
+
+    private function person(string $name, ?string $id = null): array
+    {
+        return ['identityId' => $id ?? (string) Str::uuid(), 'displayName' => $name];
+    }
+
+    public function test_syncing_people_creates_the_missing_ones_without_any_access(): void
+    {
+        $nova = $this->person('Nina Nova');
+
+        $response = $this->asAdmin('POST', '/people/sync', ['people' => [
+            $this->person('Ana Admin', $this->admin->devops_identity_id),
+            $nova,
+        ]])->assertOk();
+
+        $created = Member::query()->where('devops_identity_id', $nova['identityId'])->firstOrFail();
+        $this->assertSame($this->tenant->id, $created->tenant_id);
+        $this->assertSame(0, RoleAssignment::query()->where('member_id', $created->id)->count(), 'sem papel = sem acesso');
+
+        $row = collect($response->json('members'))->firstWhere('name', 'Nina Nova');
+        $this->assertTrue($row['directoryActive']);
+        $this->assertSame([], $row['roles']);
+        $this->assertNotNull($response->json('peopleSyncedAt'));
+        $this->assertDatabaseHas('audit_events', ['action' => 'settings.people_synced']);
+    }
+
+    public function test_people_who_left_the_list_are_marked_inactive_but_never_deleted(): void
+    {
+        $this->asAdmin('POST', '/people/sync', ['people' => [
+            $this->person('Ana Admin', $this->admin->devops_identity_id),
+        ]])->assertOk();
+
+        $eva = $this->employee->fresh();
+        $this->assertFalse($eva->directory_active);
+        $this->assertSame(1, RoleAssignment::query()->where('member_id', $eva->id)->count(), 'papéis ficam');
+
+        // Voltando à lista, volta a ficar ativa.
+        $this->asAdmin('POST', '/people/sync', ['people' => [
+            $this->person('Ana Admin', $this->admin->devops_identity_id),
+            $this->person('Eva Colaboradora', $this->employee->devops_identity_id),
+        ]])->assertOk();
+        $this->assertTrue($this->employee->fresh()->directory_active);
+    }
+
+    public function test_syncing_updates_names_ignores_case_and_does_not_duplicate(): void
+    {
+        $id = strtoupper($this->employee->devops_identity_id);
+
+        $this->asAdmin('POST', '/people/sync', ['people' => [
+            $this->person('Ana Admin', $this->admin->devops_identity_id),
+            $this->person('Eva Souza', $id),
+            $this->person('Eva Souza (repetida)', strtolower($id)),
+        ]])->assertOk();
+
+        $this->assertSame(1, Member::query()->where('tenant_id', $this->tenant->id)->where('display_name', 'like', 'Eva%')->count());
+        $this->assertSame('Eva Souza', $this->employee->fresh()->display_name);
+    }
+
+    public function test_a_synced_person_who_later_signs_in_is_the_same_member(): void
+    {
+        $nova = $this->person('Nina Nova', strtoupper((string) Str::uuid()));
+        $this->asAdmin('POST', '/people/sync', ['people' => [$this->person('Ana Admin', $this->admin->devops_identity_id), $nova]])->assertOk();
+        $before = Member::query()->count();
+
+        $provisioned = app(\App\Services\IdentityProvisioningService::class)->resolve(
+            new \App\Services\VerifiedDevOpsIdentity(strtolower($nova['identityId']), $this->tenant->aad_tenant_id),
+            $this->tenant->devops_organization_id,
+            $this->tenant->devops_organization_name,
+        );
+
+        $this->assertSame($before, Member::query()->count());
+        $this->assertSame('Nina Nova', $provisioned->member->display_name);
+    }
+
+    public function test_sync_rejects_empty_or_malformed_lists_and_changes_nothing(): void
+    {
+        $this->asAdmin('POST', '/people/sync', ['people' => []])->assertStatus(422);
+        $this->asAdmin('POST', '/people/sync', ['people' => [['identityId' => 'não-é-guid', 'displayName' => 'X']]])->assertStatus(422);
+        $this->asAdmin('POST', '/people/sync', ['people' => [['identityId' => (string) Str::uuid(), 'displayName' => '']]])->assertStatus(422);
+
+        $this->assertNull($this->employee->fresh()->directory_active);
+    }
+
+    public function test_only_administrators_can_sync_people_and_other_tenants_are_untouched(): void
+    {
+        $this->json('POST', '/api/settings/people/sync', ['people' => [$this->person('X')]], $this->headers($this->employee))->assertForbidden();
+
+        $other = Tenant::factory()->create();
+        $stranger = $this->member('Pessoa de outra org', $other);
+
+        $this->asAdmin('POST', '/people/sync', ['people' => [$this->person('Ana Admin', $this->admin->devops_identity_id)]])->assertOk();
+
+        $this->assertNull($stranger->fresh()->directory_active, 'outra organização não é afetada');
+    }
 }

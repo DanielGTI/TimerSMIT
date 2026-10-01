@@ -58,6 +58,16 @@ export async function getAppToken(): Promise<string> {
   return SDK.getAppToken();
 }
 
+/**
+ * Token de acesso do usuário logado à API REST do Azure DevOps, com os escopos
+ * do manifesto. Usado só para ler a lista de pessoas da organização (tela de
+ * Configuração); nunca é enviado ao backend.
+ */
+export async function getAccessToken(): Promise<string> {
+  await ensureSdkReady();
+  return SDK.getAccessToken();
+}
+
 export function notifyLoadSucceeded(): void {
   SDK.notifyLoadSucceeded();
 }

@@ -68,6 +68,7 @@ class OrganizationSettingsService
             'members' => $members->map(fn (Member $member) => [
                 'id' => (string) $member->id,
                 'name' => $member->display_name,
+                'directoryActive' => $member->directory_active,
                 'roles' => ($roles->get($member->id) ?? collect())->map(fn (RoleAssignment $role) => [
                     'id' => (string) $role->id,
                     'role' => $role->role,
@@ -75,6 +76,7 @@ class OrganizationSettingsService
                     'projectName' => $role->project_id === null ? null : $projectNames->get($role->project_id),
                 ])->values()->all(),
             ])->all(),
+            'peopleSyncedAt' => $members->max('directory_synced_at')?->toIso8601String(),
             'designations' => ApproverAssignment::query()->where('tenant_id', $tenant->id)->orderBy('id')->get()
                 ->map(fn (ApproverAssignment $assignment) => [
                     'id' => (string) $assignment->id,
@@ -200,6 +202,67 @@ class OrganizationSettingsService
         $this->audit->record($tenant, 'settings.activity_type_updated', ActivityType::class, $type->id, $actor, null, ['changes' => array_keys($values)]);
 
         return $type;
+    }
+
+    // ---------- pessoas (lista do Azure DevOps) ----------
+
+    /**
+     * Atualiza a lista de pessoas com quem tem licença ativa no Azure DevOps
+     * (lida pela extensão com o acesso do administrador). Cria quem ainda não
+     * abriu a extensão — sem nenhum papel, ou seja, sem acesso até o
+     * administrador liberar — e marca como inativo quem saiu da lista. Nunca
+     * apaga ninguém nem mexe em papéis ou lançamentos.
+     *
+     * @param  list<array{identityId: string, displayName: string}>  $people
+     * @return array{received: int, created: int, deactivated: int}
+     */
+    public function syncDirectory(Tenant $tenant, Member $actor, array $people): array
+    {
+        return DB::transaction(function () use ($tenant, $actor, $people) {
+            $now = now();
+            $seen = [];
+            $created = 0;
+
+            foreach ($people as $person) {
+                $identityId = strtolower($person['identityId']);
+                if (isset($seen[$identityId])) {
+                    continue;
+                }
+
+                $member = Member::query()
+                    ->where('tenant_id', $tenant->id)
+                    ->whereRaw('lower(devops_identity_id) = ?', [$identityId])
+                    ->first();
+
+                if ($member === null) {
+                    $member = Member::query()->create([
+                        'tenant_id' => $tenant->id,
+                        'devops_identity_id' => $person['identityId'],
+                        'display_name' => $person['displayName'],
+                    ]);
+                    $created++;
+                } elseif ($member->display_name !== $person['displayName']) {
+                    $member->display_name = $person['displayName'];
+                }
+
+                $member->directory_active = true;
+                $member->directory_synced_at = $now;
+                $member->save();
+
+                $seen[$identityId] = $member->id;
+            }
+
+            $deactivated = Member::query()
+                ->where('tenant_id', $tenant->id)
+                ->whereNotIn('id', array_values($seen))
+                ->where(fn ($query) => $query->whereNull('directory_active')->orWhere('directory_active', true))
+                ->update(['directory_active' => false, 'directory_synced_at' => $now]);
+
+            $result = ['received' => count($seen), 'created' => $created, 'deactivated' => $deactivated];
+            $this->audit->record($tenant, 'settings.people_synced', Tenant::class, $tenant->id, $actor, null, $result);
+
+            return $result;
+        });
     }
 
     // ---------- papéis ----------

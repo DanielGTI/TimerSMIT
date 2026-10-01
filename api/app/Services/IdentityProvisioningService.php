@@ -48,13 +48,17 @@ class IdentityProvisioningService
                 $tenant->update(['devops_organization_name' => $claimedOrganizationName]);
             }
 
-            $member = Member::query()->firstOrCreate(
-                [
+            // Sem diferenciar maiúsculas: a lista de pessoas sincronizada do Azure
+            // DevOps pode ter criado esta pessoa com o GUID em outra caixa.
+            $member = Member::query()
+                ->where('tenant_id', $tenant->id)
+                ->whereRaw('lower(devops_identity_id) = ?', [strtolower($identity->identityId)])
+                ->first()
+                ?? Member::query()->create([
                     'tenant_id' => $tenant->id,
                     'devops_identity_id' => $identity->identityId,
-                ],
-                ['display_name' => $identity->identityId],
-            );
+                    'display_name' => $identity->identityId,
+                ]);
 
             // Primeira pessoa a conectar uma organização nova vira admin dela
             // (bootstrap — sem isso, ninguém teria papel algum para conceder

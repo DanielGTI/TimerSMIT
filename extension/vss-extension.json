@@ -21,7 +21,7 @@
   "icons": {
     "default": "marketplace/icon.png"
   },
-  "scopes": ["vso.work"],
+  "scopes": ["vso.work", "vso.memberentitlementmanagement"],
   "contributions": [
     {
       "id": "work-item-guide",

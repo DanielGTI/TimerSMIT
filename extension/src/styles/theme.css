@@ -983,3 +983,12 @@ textarea.input {
   gap: 8px;
   margin: 4px 0 12px;
 }
+
+.people-inactive {
+  margin-top: 16px;
+}
+
+.people-inactive > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
