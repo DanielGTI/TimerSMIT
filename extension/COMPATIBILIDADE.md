@@ -18,7 +18,7 @@ Avaliação de 01/10/2026, com base na documentação oficial da Microsoft ([man
 | Tipos e alvos de contribuição (`ms.vss-web.hub`, `ms.vss-web.hub-group` em `project-hub-groups-collection`, `ms.vss-work-web.work-item-form-page`) | Constam na documentação atual. Validados ao vivo. |
 | Categoria `Azure Boards` | Valor válido. |
 | Escopos | `vso.work` e `vso.memberentitlementmanagement` são nomes válidos. `vso.memberentitlementmanagement` é o de **leitura** (o de escrita é outro). `vso.work` provavelmente não é necessário (ver "Pontos de atenção"). |
-| Ícones dos itens do menu lateral | Antes: nenhum definido (todos herdavam o ícone da extensão). Depois: `iconName` com nomes Fluent funcionou só para `Completed` e `Settings`; `CalendarWeek` e `BarChartVertical` **não existem no conjunto de ícones do Azure DevOps** e o `iconAsset` foi ignorado. Agora cada hub usa `icon: { light, dark }` com `asset://` (formato do exemplo oficial da Microsoft para navegação vertical), PNGs próprios para tema claro e escuro. **A conferir ao vivo.** |
+| Ícones dos itens do menu lateral | Antes: nenhum definido (todos herdavam o ícone da extensão). Depois: `iconName` com nomes Fluent funcionou só para `Completed` e `Settings`; `CalendarWeek` e `BarChartVertical` **não existem no conjunto de ícones do Azure DevOps** e o `iconAsset` foi ignorado. Agora cada hub usa `icon: { light, dark }` com `asset://` (formato do exemplo oficial da Microsoft para navegação vertical), PNGs próprios para tema claro e escuro. **Validado ao vivo na `smitbr` (0.7.4).** |
 | Extensão privada (`public: false`) | Só aparece para as organizações com quem é compartilhada. |
 
 ## Código da extensão
