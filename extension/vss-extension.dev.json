@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "timersmit-timetracker-dev",
   "publisher": "TrackerSMIT",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "name": "Controle de horas (dev)",
   "description": "Extensão de desenvolvimento — registro e aprovação de horas integrados ao Azure DevOps.",
   "public": false,
@@ -39,10 +39,9 @@
         "name": "Folha semanal",
         "uri": "dist/src/pages/timesheet/index.html",
         "order": 10,
-        "iconName": "CalendarWeek",
-        "iconAsset": "TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/folha-semanal.png",
-        "includesData": {
-          "assets": ["TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/folha-semanal.png"]
+        "icon": {
+          "light": "asset://marketplace/nav/folha-semanal-light.png",
+          "dark": "asset://marketplace/nav/folha-semanal-dark.png"
         }
       }
     },
@@ -54,10 +53,9 @@
         "name": "Aprovações",
         "uri": "dist/src/pages/approvals/index.html",
         "order": 20,
-        "iconName": "Completed",
-        "iconAsset": "TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/aprovacoes.png",
-        "includesData": {
-          "assets": ["TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/aprovacoes.png"]
+        "icon": {
+          "light": "asset://marketplace/nav/aprovacoes-light.png",
+          "dark": "asset://marketplace/nav/aprovacoes-dark.png"
         }
       }
     },
@@ -69,10 +67,9 @@
         "name": "Relatórios",
         "uri": "dist/src/pages/reports/index.html",
         "order": 30,
-        "iconName": "BarChartVertical",
-        "iconAsset": "TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/relatorios.png",
-        "includesData": {
-          "assets": ["TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/relatorios.png"]
+        "icon": {
+          "light": "asset://marketplace/nav/relatorios-light.png",
+          "dark": "asset://marketplace/nav/relatorios-dark.png"
         }
       }
     },
@@ -84,10 +81,9 @@
         "name": "Configuração",
         "uri": "dist/src/pages/settings/index.html",
         "order": 40,
-        "iconName": "Settings",
-        "iconAsset": "TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/configuracao.png",
-        "includesData": {
-          "assets": ["TrackerSMIT.timersmit-timetracker-dev/marketplace/nav/configuracao.png"]
+        "icon": {
+          "light": "asset://marketplace/nav/configuracao-light.png",
+          "dark": "asset://marketplace/nav/configuracao-dark.png"
         }
       }
     }
