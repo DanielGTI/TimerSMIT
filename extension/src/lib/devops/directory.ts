@@ -10,7 +10,7 @@ export interface DirectoryPerson {
 interface UserEntitlement {
   id?: string;
   user?: { displayName?: string; mailAddress?: string; principalName?: string; subjectKind?: string };
-  accessLevel?: { status?: string; accountLicenseType?: string };
+  accessLevel?: { status?: string; accountLicenseType?: string; msdnLicenseType?: string; licensingSource?: string };
 }
 
 interface EntitlementPage {
@@ -26,9 +26,11 @@ const PAGE_SIZE = 100;
 const MAX_PAGES = 200;
 
 /**
- * "Ativa" = conta habilitada com algum nível de acesso (não "nenhum"), e é uma
- * pessoa (não conta de serviço). Quem saiu da empresa ou ficou sem licença
- * fica de fora.
+ * "Ativa" = o Azure DevOps considera a conta ativa (`accessLevel.status`) e é
+ * uma pessoa (não conta de serviço). Não olhamos o tipo de licença da conta:
+ * quem tem assinatura do Visual Studio vem com `accountLicenseType: "none"`
+ * (a licença está na assinatura) e é tão ativo quanto os demais. Quem saiu da
+ * empresa ou ficou sem licença tem outro status (desabilitado, pendente…).
  */
 export function selectActivePeople(entitlements: UserEntitlement[]): DirectoryPerson[] {
   const people: DirectoryPerson[] = [];
@@ -36,7 +38,6 @@ export function selectActivePeople(entitlements: UserEntitlement[]): DirectoryPe
   for (const entitlement of entitlements) {
     const { id, user, accessLevel } = entitlement;
     if (!id || accessLevel?.status !== "active") continue;
-    if (accessLevel.accountLicenseType === "none") continue;
     if (user?.subjectKind && user.subjectKind !== "user") continue;
 
     people.push({

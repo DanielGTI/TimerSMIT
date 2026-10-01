@@ -7,30 +7,30 @@ vi.mock("../src/lib/devops/sdk", () => ({
 
 import { fetchActiveDirectoryPeople, selectActivePeople } from "../src/lib/devops/directory";
 
-const entitlement = (id: string, name: string, status = "active", license = "express", kind = "user") => ({
+const entitlement = (id: string, name: string, status = "active", license = "express", kind = "user", msdn?: string) => ({
   id,
   user: { displayName: name, subjectKind: kind },
-  accessLevel: { status, accountLicenseType: license },
+  accessLevel: { status, accountLicenseType: license, ...(msdn ? { msdnLicenseType: msdn, licensingSource: "msdn" } : {}) },
 });
 
 const json = (body: unknown, status = 200) => ({ ok: status < 400, status, json: async () => body }) as Response;
 
 describe("selectActivePeople", () => {
-  it("mantém só pessoas com conta ativa e algum nível de acesso", () => {
+  it("mantém quem tem conta ativa (inclusive assinatura do Visual Studio) e tira o resto", () => {
     const people = selectActivePeople([
       entitlement("1", "Ana"),
       entitlement("2", "Beto", "disabled"),
-      entitlement("3", "Caio", "active", "none"),
+      // Assinatura do Visual Studio: a licença da conta vem como "none".
+      entitlement("3", "Caio", "active", "none", "user", "professional"),
       entitlement("4", "Robô", "active", "express", "servicePrincipal"),
       entitlement("5", "Duda", "pending"),
       entitlement("6", "Eva", "active", "stakeholder"),
+      entitlement("8", "Fábio", "active", "advanced"),
+      entitlement("9", "Gil", "none", "none"),
       { id: "7", user: { displayName: "Sem nível" } },
     ]);
 
-    expect(people).toEqual([
-      { identityId: "1", displayName: "Ana" },
-      { identityId: "6", displayName: "Eva" },
-    ]);
+    expect(people.map((person) => person.displayName)).toEqual(["Ana", "Caio", "Eva", "Fábio"]);
   });
 
   it("usa e-mail ou o id quando não há nome de exibição", () => {
