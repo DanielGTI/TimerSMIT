@@ -13,7 +13,9 @@ use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\TimerSession;
 use App\Models\WeeklySubmission;
+use App\Services\IdentityProvisioningService;
 use App\Services\SessionTokenService;
+use App\Services\VerifiedDevOpsIdentity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -509,8 +511,8 @@ class SettingsTest extends TestCase
         $this->asAdmin('POST', '/people/sync', ['people' => [$this->person('Ana Admin', $this->admin->devops_identity_id), $nova]])->assertOk();
         $before = Member::query()->count();
 
-        $provisioned = app(\App\Services\IdentityProvisioningService::class)->resolve(
-            new \App\Services\VerifiedDevOpsIdentity(strtolower($nova['identityId']), $this->tenant->aad_tenant_id),
+        $provisioned = app(IdentityProvisioningService::class)->resolve(
+            new VerifiedDevOpsIdentity(strtolower($nova['identityId']), $this->tenant->aad_tenant_id),
             $this->tenant->devops_organization_id,
             $this->tenant->devops_organization_name,
         );

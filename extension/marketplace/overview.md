@@ -6,7 +6,7 @@ Registre, envie e aprove horas de trabalho sem sair do Azure DevOps. O lançamen
 
 **No work item** — aba *Controle de horas*
 - Inicie e pare um cronômetro no work item em que você está trabalhando; o tempo vira um lançamento com a data e o fuso do momento.
-- Ou lance horas manualmente (duração, data, atividade, faturável e comentário).
+- Ou lance horas manualmente (duração, data, atividade, faturável e comentário), com horário de início e fim opcional.
 
 **Folha semanal**
 - Veja a semana (segunda a domingo) e o mês, com totais por dia e por work item.

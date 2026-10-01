@@ -33,11 +33,13 @@ const QUICK_ADDS = [
 ];
 
 const END_OF_DAY = 23 * 60 + 59;
+const MINUTES_PER_DAY = 24 * 60;
 
 /**
  * Lançamento manual no formato do "Add time" do 7pace: data, duração
  * (HH:MM + atalhos), intervalo De/Até, atividade, comentário e faturável.
- * De/Até são só uma calculadora — o que se grava é data + duração.
+ * De/Até são opcionais: só quando a pessoa os preenche o início é gravado
+ * (e aparece nos relatórios); sem isso, vale data + duração.
  */
 export function ManualEntryForm({
   client,
@@ -54,12 +56,17 @@ export function ManualEntryForm({
   const [activityId, setActivityId] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [billable, setBillable] = useState(false);
+  // O horário só é enviado se a pessoa mexeu em De/Até — os valores iniciais são só "agora".
+  const [timeInformed, setTimeInformed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const durationMinutes = parseDuration(durationText);
   const durationInvalid = durationText.trim() !== "" && durationMinutes === null;
-  const canSave = durationMinutes !== null && durationMinutes > 0 && !busy;
+  const startMinutes = timeInformed ? timeToMinutes(fromText) : null;
+  const sendsStart = startMinutes !== null;
+  const pastMidnight = sendsStart && durationMinutes !== null && startMinutes + durationMinutes > MINUTES_PER_DAY;
+  const canSave = durationMinutes !== null && durationMinutes > 0 && !pastMidnight && !busy;
 
   function applyDuration(minutes: number) {
     setDurationText(formatDuration(minutes));
@@ -81,6 +88,7 @@ export function ManualEntryForm({
   function handleRangeChange(nextFrom: string, nextTo: string) {
     setFromText(nextFrom);
     setToText(nextTo);
+    setTimeInformed(true);
     const from = timeToMinutes(nextFrom);
     const to = timeToMinutes(nextTo);
     if (from !== null && to !== null && to >= from) {
@@ -107,6 +115,7 @@ export function ManualEntryForm({
         workItemId: workItem.id,
         localDate,
         durationSeconds: durationMinutes * 60,
+        ...(sendsStart ? { startTime: fromText } : {}),
         activityTypeId: activityId ? Number(activityId) : undefined,
         billable,
         note: note.trim() || undefined,
@@ -118,6 +127,7 @@ export function ManualEntryForm({
       setDurationText("00:00");
       setFromText(nowAsTime());
       setToText(nowAsTime());
+      setTimeInformed(false);
       setNote("");
     } catch (error) {
       setFeedback({ kind: "error", text: error instanceof Error ? error.message : String(error) });
@@ -201,6 +211,31 @@ export function ManualEntryForm({
           />
         </div>
       </div>
+
+      <p className="muted">
+        Opcional: preencha De/Até para registrar o horário (ele aparece nos relatórios).
+        {timeInformed && (
+          <>
+            {" "}
+            <button
+              type="button"
+              className="btn btn--small"
+              onClick={() => {
+                setTimeInformed(false);
+                setFromText(nowAsTime());
+                setToText(nowAsTime());
+              }}
+            >
+              Limpar horário
+            </button>
+          </>
+        )}
+      </p>
+      {pastMidnight && (
+        <p className="field__error" role="alert">
+          O horário passa da meia-noite. Registre o que ficou para o dia seguinte em outro lançamento.
+        </p>
+      )}
 
       <div className="field">
         <span className="field__label">Atividade</span>

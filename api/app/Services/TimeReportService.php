@@ -9,7 +9,6 @@ use App\Models\RoleAssignment;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
-use App\Models\WorkItemSnapshot;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;

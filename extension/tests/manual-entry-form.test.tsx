@@ -75,6 +75,65 @@ describe("ManualEntryForm", () => {
     expect(durationInput().value).toBe("01:15");
   });
 
+  it("sem mexer em De/Até, não envia horário (os valores iniciais são só \"agora\")", async () => {
+    createManualEntry.mockResolvedValue({});
+    renderForm();
+
+    fireEvent.change(durationInput(), { target: { value: "01:00" } });
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+    expect(createManualEntry.mock.calls[0][1]).not.toHaveProperty("startTime");
+  });
+
+  it("preenchendo De/Até, envia o início para aparecer nos relatórios", async () => {
+    createManualEntry.mockResolvedValue({});
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText("De"), { target: { value: "09:00" } });
+    fireEvent.change(toInput(), { target: { value: "10:15" } });
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+    expect(createManualEntry.mock.calls[0][1]).toMatchObject({ startTime: "09:00", durationSeconds: 4500 });
+  });
+
+  it("depois de informar o horário, mudar a duração move o fim e o início continua sendo enviado", async () => {
+    createManualEntry.mockResolvedValue({});
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText("De"), { target: { value: "09:00" } });
+    fireEvent.change(durationInput(), { target: { value: "02:00" } });
+    expect(toInput().value).toBe("11:00");
+
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+    expect(createManualEntry.mock.calls[0][1]).toMatchObject({ startTime: "09:00", durationSeconds: 7200 });
+  });
+
+  it("recusa um horário que passa da meia-noite", () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText("De"), { target: { value: "22:30" } });
+    fireEvent.change(durationInput(), { target: { value: "02:00" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("passa da meia-noite");
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("Limpar horário volta a lançar só data e duração", async () => {
+    createManualEntry.mockResolvedValue({});
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText("De"), { target: { value: "09:00" } });
+    fireEvent.change(durationInput(), { target: { value: "01:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Limpar horário" }));
+    expect(screen.queryByRole("button", { name: "Limpar horário" })).not.toBeInTheDocument();
+
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+    expect(createManualEntry.mock.calls[0][1]).not.toHaveProperty("startTime");
+  });
+
   it("recusa duração fora do formato HH:MM", () => {
     renderForm();
     fireEvent.change(durationInput(), { target: { value: "abc" } });

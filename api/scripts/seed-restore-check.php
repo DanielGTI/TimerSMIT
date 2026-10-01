@@ -11,11 +11,12 @@ use App\Models\RoleAssignment;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
+use Illuminate\Contracts\Console\Kernel;
 
 require __DIR__.'/../vendor/autoload.php';
 
 $app = require __DIR__.'/../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
 foreach (['Empresa A', 'Empresa B'] as $name) {
     $tenant = Tenant::factory()->create(['devops_organization_name' => $name]);

@@ -7,6 +7,8 @@ export interface CreateManualEntryInput {
   workItemId: number;
   localDate: string;
   durationSeconds: number;
+  /** Início opcional (hora local HH:MM); o fim é início + duração. */
+  startTime?: string;
   activityTypeId?: number;
   note?: string;
   billable?: boolean;

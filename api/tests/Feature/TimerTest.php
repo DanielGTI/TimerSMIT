@@ -6,6 +6,7 @@ use App\Models\Member;
 use App\Models\Project;
 use App\Models\RoleAssignment;
 use App\Models\Tenant;
+use App\Models\TimeEntry;
 use App\Models\TimerSession;
 use App\Services\SessionTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -173,7 +174,7 @@ class TimerTest extends TestCase
         $this->assertSame(['2026-09-30', '2026-10-01'], $dates);
 
         // Cada fatia guarda o horário real (UTC) e uma começa onde a outra termina.
-        $slices = \App\Models\TimeEntry::query()->where('timer_session_id', $timer->id)->orderBy('local_date')->get();
+        $slices = TimeEntry::query()->where('timer_session_id', $timer->id)->orderBy('local_date')->get();
         $this->assertSame('2026-10-01 02:00:00', $slices[0]->started_at_utc->utc()->format('Y-m-d H:i:s'));
         $this->assertSame('2026-10-01 03:00:00', $slices[0]->ended_at_utc->utc()->format('Y-m-d H:i:s'));
         $this->assertSame('2026-10-01 03:00:00', $slices[1]->started_at_utc->utc()->format('Y-m-d H:i:s'));

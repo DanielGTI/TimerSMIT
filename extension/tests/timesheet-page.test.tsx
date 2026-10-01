@@ -31,6 +31,8 @@ function entry(overrides: Partial<WeekEntryDto>): WeekEntryDto {
     localDate: "2026-09-28",
     timezone: "America/Sao_Paulo",
     durationSeconds: 3600,
+    startTime: null,
+    endTime: null,
     source: "manual",
     billable: false,
     activityTypeId: "3",
@@ -285,6 +287,45 @@ describe("TimesheetPage", () => {
     await waitFor(() =>
       expect(updateEntry).toHaveBeenCalledWith(expect.anything(), "2", 1, { durationSeconds: 4500, note: "Planejamento" }),
     );
+  });
+
+  it("mostra o horário do lançamento e permite editar ou apagar o início", async () => {
+    updateEntry.mockResolvedValue({});
+    fetchWeek.mockResolvedValue(
+      week({ entries: [entry({ id: "7", durationSeconds: 5400, startTime: "09:00", endTime: "10:30" })] }),
+    );
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    expect(screen.getByText("09:00–10:30")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    expect(screen.getByLabelText("Início (opcional)")).toHaveValue("09:00");
+    fireEvent.change(screen.getByLabelText("Início (opcional)"), { target: { value: "14:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(updateEntry).toHaveBeenCalledWith(expect.anything(), "7", 1, { durationSeconds: 5400, note: "", startTime: "14:00" }),
+    );
+
+    updateEntry.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.change(screen.getByLabelText("Início (opcional)"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(updateEntry).toHaveBeenCalledWith(expect.anything(), "7", 1, { durationSeconds: 5400, note: "", startTime: null }),
+    );
+  });
+
+  it("não envia o início quando ele não mudou", async () => {
+    updateEntry.mockResolvedValue({});
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Editar" })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(updateEntry).toHaveBeenCalled());
+    expect(updateEntry.mock.calls[0][3]).not.toHaveProperty("startTime");
   });
 
   it("recusa duração inválida na edição sem chamar a API", async () => {

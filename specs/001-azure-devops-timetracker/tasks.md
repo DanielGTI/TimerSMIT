@@ -86,6 +86,7 @@
 **Checkpoint**: relatórios e CSV com o mesmo escopo. Validação ao vivo em `smitbr` pendente (inclui o download do CSV dentro do iframe do Azure DevOps).
 
 - [x] T034a [US4] (pós-validação) Relatório detalhado em grade (inspirado no 7pace): aba *Detalhada* em Relatórios com colunas Horas, Pessoa, Work item (link para o Azure DevOps), Data, Início, Fim, Projeto, Atividade, Tipo do work item e Iteração (Faturável, Semana e Comentário opcionais); agrupamento em até dois níveis com subtotal de horas e linhas (ex.: Projeto → Pessoa), filtro por coluna, ordenação, escolha de colunas e total das linhas filtradas. `GET /api/reports/time/detail` traz tudo de uma vez (até 20 mil linhas, com aviso de corte) pela mesma consulta e escopo da tela e do CSV; o CSV ganhou 4 colunas ao final (tipo, iteração, início, fim). Início/fim vêm do horário real do timer (por fatia); lançamento manual não tem horário. A iteração passa a ser lida do work item aberto e só aparece em itens abertos depois desta versão. Validação ao vivo pendente.
+      Horário no lançamento manual (opcional): no formulário, De/Até só são gravados se a pessoa os preencher (`startTime`; o fim é início + duração; não pode passar da meia-noite); na lista da semana o horário aparece e o início pode ser editado ou apagado; mudar só a duração move o fim. Validação ao vivo pendente.
 
 ## Phase 7: User Story 5 — Configuração (P2)
 

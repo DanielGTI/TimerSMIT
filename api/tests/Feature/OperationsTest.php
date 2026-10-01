@@ -78,8 +78,8 @@ class OperationsTest extends TestCase
         $this->assertStringNotContainsString('abc123', $log);
 
         // A linha da métrica em si não carrega a URL real nem a query.
-        $line = collect(explode("
-", $log))->first(fn ($row) => str_contains($row, 'api.request.failed'));
+        $line = collect(explode('
+', $log))->first(fn ($row) => str_contains($row, 'api.request.failed'));
         $this->assertStringNotContainsString('42', (string) preg_replace('/^\[[^\]]+\]/', '', (string) preg_replace('/"durationMs":\d+/', '', $line)));
     }
 

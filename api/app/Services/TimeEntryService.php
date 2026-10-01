@@ -37,6 +37,7 @@ class TimeEntryService
         ?int $activityTypeId,
         ?bool $billable,
         ?string $note,
+        ?string $startTime = null,
     ): TimeEntry {
         $policy = $this->effectivePolicy($tenant, $project);
         $commentRequired = $policy->comment_required ?? false;
@@ -49,6 +50,8 @@ class TimeEntryService
         }
 
         $this->assertIncrement($policy, $durationSeconds);
+
+        $window = $startTime === null ? null : $this->window($localDate, $startTime, $durationSeconds, $timezone);
 
         if ($commentRequired && trim((string) $note) === '') {
             throw ValidationException::withMessages(['note' => 'Comentário obrigatório para lançamentos manuais nesta organização.']);
@@ -63,7 +66,7 @@ class TimeEntryService
 
         return DB::transaction(function () use (
             $tenant, $member, $project, $devopsWorkItemId, $localDate, $durationSeconds,
-            $activityTypeId, $billable, $note, $timezone, $dailyLimitSeconds,
+            $activityTypeId, $billable, $note, $timezone, $dailyLimitSeconds, $window,
         ) {
             // Trava a linha do membro (e confere se a semana aceita edição).
             // Sem isso, duas requisições simultâneas leem o mesmo total do
@@ -92,6 +95,8 @@ class TimeEntryService
                 'local_date' => $localDate,
                 'timezone' => $timezone,
                 'duration_seconds' => $durationSeconds,
+                'started_at_utc' => $window[0] ?? null,
+                'ended_at_utc' => $window[1] ?? null,
                 'source' => TimeEntry::SOURCE_MANUAL,
                 'billable' => $billable ?? true,
                 'note' => $note,
@@ -113,7 +118,7 @@ class TimeEntryService
     }
 
     /**
-     * @param  array{durationSeconds?: int, note?: string, billable?: bool}  $changes
+     * @param  array{durationSeconds?: int, note?: string, billable?: bool, startTime?: ?string}  $changes
      */
     public function update(Tenant $tenant, Member $member, int $entryId, int $expectedRevision, array $changes): TimeEntry
     {
@@ -159,7 +164,18 @@ class TimeEntryService
                 }
             }
 
-            $entry->update([
+            // Horário: informar o início (ou null para apagar) e mudar a duração
+            // mantendo o início movem o fim; nunca pode passar da meia-noite local.
+            $times = [];
+            if (array_key_exists('startTime', $changes)) {
+                $times = $changes['startTime'] === null
+                    ? ['started_at_utc' => null, 'ended_at_utc' => null]
+                    : $this->windowColumns($entry->local_date, $changes['startTime'], $newDuration, $entry->timezone);
+            } elseif (isset($changes['durationSeconds']) && $entry->started_at_utc !== null) {
+                $times = $this->windowColumns($entry->local_date, $entry->localStartTime(), $newDuration, $entry->timezone);
+            }
+
+            $entry->update($times + [
                 'duration_seconds' => $changes['durationSeconds'] ?? $entry->duration_seconds,
                 'note' => $changes['note'] ?? $entry->note,
                 'billable' => $changes['billable'] ?? $entry->billable,
@@ -178,6 +194,35 @@ class TimeEntryService
 
             return $entry;
         });
+    }
+
+    /**
+     * Início e fim em UTC a partir da data e da hora locais. O intervalo tem de
+     * caber no dia: um lançamento é de uma data só (passou da meia-noite? lance
+     * em dois dias).
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    private function window(string $localDate, string $startTime, int $durationSeconds, string $timezone): array
+    {
+        $start = CarbonImmutable::parse(substr($localDate, 0, 10).' '.$startTime, $timezone);
+        $end = $start->addSeconds($durationSeconds);
+
+        if ($end->greaterThan($start->startOfDay()->addDay())) {
+            throw ValidationException::withMessages([
+                'startTime' => 'O horário passa da meia-noite. Registre o que ficou para o dia seguinte em outro lançamento.',
+            ]);
+        }
+
+        return [$start->utc(), $end->utc()];
+    }
+
+    /** @return array{started_at_utc: CarbonImmutable, ended_at_utc: CarbonImmutable} */
+    private function windowColumns(string $localDate, string $startTime, int $durationSeconds, string $timezone): array
+    {
+        [$start, $end] = $this->window($localDate, $startTime, $durationSeconds, $timezone);
+
+        return ['started_at_utc' => $start, 'ended_at_utc' => $end];
     }
 
     public function delete(Tenant $tenant, Member $member, int $entryId): void

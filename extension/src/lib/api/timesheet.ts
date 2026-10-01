@@ -62,6 +62,8 @@ export function submitWeek(client: ApiClient, weekStart: string): Promise<WeekDt
 
 export interface EntryChanges {
   durationSeconds?: number;
+  /** "HH:MM" define o início; `null` apaga o horário. */
+  startTime?: string | null;
   note?: string;
   billable?: boolean;
 }

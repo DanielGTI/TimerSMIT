@@ -51,6 +51,8 @@ components:
         localDate: { type: string, format: date }
         timezone: { type: string, example: America/Sao_Paulo }
         durationSeconds: { type: integer, minimum: 1 }
+        startTime: { type: [string, 'null'], example: '09:00', description: 'Hora local de início (HH:MM); nulo se o lançamento não tem horário.' }
+        endTime: { type: [string, 'null'], example: '10:30', description: 'Início + duração, em hora local.' }
         source: { type: string, enum: [timer, manual] }
         billable: { type: boolean }
         activityTypeId: { type: string }
@@ -236,6 +238,7 @@ paths:
                 workItemId: { type: integer, minimum: 1 }
                 localDate: { type: string, format: date }
                 durationSeconds: { type: integer, minimum: 1 }
+                startTime: { type: string, example: '09:00', description: 'Opcional. Hora local de início (HH:MM); início + duração não pode passar da meia-noite (422).' }
                 activityTypeId: { type: string }
                 billable: { type: boolean }
                 note: { type: string, maxLength: 2000 }
@@ -262,6 +265,7 @@ paths:
               type: object
               properties:
                 durationSeconds: { type: integer, minimum: 1 }
+                startTime: { type: [string, 'null'], description: 'HH:MM define o início (o fim acompanha a duração); null apaga o horário. Mudar só a duração de um lançamento com horário move o fim.' }
                 note: { type: string, maxLength: 2000 }
                 billable: { type: boolean }
       responses:

@@ -54,6 +54,8 @@ const week: WeekDto = {
       localDate: "2026-09-28",
       timezone: "America/Sao_Paulo",
       durationSeconds: 5400,
+      startTime: null,
+      endTime: null,
       source: "manual",
       billable: false,
       activityTypeId: "3",

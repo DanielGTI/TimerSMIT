@@ -19,6 +19,7 @@ interface EntryListProps {
 export function EntryList({ client, entries, editable, onChanged }: EntryListProps): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [durationText, setDurationText] = useState("");
+  const [startText, setStartText] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
   function startEditing(entry: WeekEntryDto) {
     setEditingId(entry.id);
     setDurationText(formatDuration(Math.round(entry.durationSeconds / 60)));
+    setStartText(entry.startTime ?? "");
     setNote(entry.note ?? "");
     setError(null);
   }
@@ -53,7 +55,13 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
   const save = (entry: WeekEntryDto) =>
     run(async () => {
       if (minutes === null || minutes <= 0) throw new Error("Use a duração no formato HH:MM (ex.: 01:30).");
-      await updateEntry(client, entry.id, entry.revision, { durationSeconds: minutes * 60, note });
+      const start = startText === "" ? null : startText;
+      await updateEntry(client, entry.id, entry.revision, {
+        durationSeconds: minutes * 60,
+        note,
+        // Só envia o início se mudou (null apaga o horário).
+        ...(start !== entry.startTime ? { startTime: start } : {}),
+      });
     });
 
   const remove = (entry: WeekEntryDto) => run(() => deleteEntry(client, entry.id));
@@ -95,14 +103,30 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                   </td>
                   <td>
                     {editing ? (
-                      <input
-                        className={minutes === null ? "input input--compact input--invalid" : "input input--compact"}
-                        aria-label="Duração (HH:MM)"
-                        value={durationText}
-                        onChange={(event) => setDurationText(event.target.value)}
-                      />
+                      <>
+                        <input
+                          className={minutes === null ? "input input--compact input--invalid" : "input input--compact"}
+                          aria-label="Duração (HH:MM)"
+                          value={durationText}
+                          onChange={(event) => setDurationText(event.target.value)}
+                        />
+                        <input
+                          className="input input--compact"
+                          type="time"
+                          aria-label="Início (opcional)"
+                          value={startText}
+                          onChange={(event) => setStartText(event.target.value)}
+                        />
+                      </>
                     ) : (
-                      formatHours(entry.durationSeconds)
+                      <>
+                        {formatHours(entry.durationSeconds)}
+                        {entry.startTime && entry.endTime && (
+                          <span className="muted block">
+                            {entry.startTime}–{entry.endTime}
+                          </span>
+                        )}
+                      </>
                     )}
                   </td>
                   <td>{entry.source === "timer" ? "Timer" : "Manual"}</td>

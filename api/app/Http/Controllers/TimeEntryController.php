@@ -35,6 +35,8 @@ class TimeEntryController extends Controller
             'workItemId' => ['required', 'integer', 'min:1'],
             'localDate' => ['required', 'date_format:Y-m-d'],
             'durationSeconds' => ['required', 'integer', 'min:1'],
+            // Horário de início opcional (hora local, HH:MM); o fim é início + duração.
+            'startTime' => ['nullable', 'date_format:H:i'],
             'activityTypeId' => ['nullable', 'integer', ActivityTypeService::validIdRule($tenant)],
             'billable' => ['nullable', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
@@ -64,6 +66,7 @@ class TimeEntryController extends Controller
             activityTypeId: $data['activityTypeId'] ?? null,
             billable: $data['billable'] ?? null,
             note: $data['note'] ?? null,
+            startTime: $data['startTime'] ?? null,
         );
 
         return response()->json(TimeEntryPresenter::present($entry), 201);
@@ -81,6 +84,8 @@ class TimeEntryController extends Controller
 
         $changes = $request->validate([
             'durationSeconds' => ['sometimes', 'integer', 'min:1'],
+            // null apaga o horário do lançamento.
+            'startTime' => ['sometimes', 'nullable', 'date_format:H:i'],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'billable' => ['sometimes', 'boolean'],
         ]);

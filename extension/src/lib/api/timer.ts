@@ -14,6 +14,9 @@ export interface TimeEntryDto {
   localDate: string;
   timezone: string;
   durationSeconds: number;
+  /** Hora local "HH:MM"; nulo quando o lançamento não tem horário. */
+  startTime: string | null;
+  endTime: string | null;
   source: "timer" | "manual";
   billable: boolean;
   activityTypeId: string | null;

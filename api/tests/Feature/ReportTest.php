@@ -12,6 +12,7 @@ use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
 use App\Models\WorkItemSnapshot;
 use App\Services\SessionTokenService;
+use App\Services\TimeReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -478,15 +479,15 @@ class ReportTest extends TestCase
 
     public function test_detail_is_cut_at_the_limit_and_says_so(): void
     {
-        $scope = app(\App\Services\TimeReportService::class)->scopeFor($this->tenant, $this->admin);
+        $scope = app(TimeReportService::class)->scopeFor($this->tenant, $this->admin);
         $filters = ['from' => self::FROM, 'to' => self::TO];
 
-        $cut = app(\App\Services\TimeReportService::class)->detail($this->tenant, $scope, $filters, 3);
+        $cut = app(TimeReportService::class)->detail($this->tenant, $scope, $filters, 3);
         $this->assertTrue($cut['truncated']);
         $this->assertCount(3, $cut['rows']);
         $this->assertGreaterThan(3, $cut['totals']['entryCount'], 'o total continua sendo o do filtro inteiro');
 
-        $all = app(\App\Services\TimeReportService::class)->detail($this->tenant, $scope, $filters, 100);
+        $all = app(TimeReportService::class)->detail($this->tenant, $scope, $filters, 100);
         $this->assertFalse($all['truncated']);
     }
 

@@ -15,6 +15,8 @@ final class TimeEntryPresenter
             'localDate' => $entry->local_date,
             'timezone' => $entry->timezone,
             'durationSeconds' => $entry->duration_seconds,
+            'startTime' => $entry->localStartTime(),
+            'endTime' => $entry->localEndTime(),
             'source' => $entry->source,
             'billable' => $entry->billable,
             'activityTypeId' => $entry->activity_type_id !== null ? (string) $entry->activity_type_id : null,

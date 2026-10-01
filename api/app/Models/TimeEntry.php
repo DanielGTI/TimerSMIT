@@ -58,6 +58,17 @@ class TimeEntry extends Model
         ];
     }
 
+    /** Hora local 'HH:MM' do início (no fuso em que o lançamento foi feito); nulo se não houver horário. */
+    public function localStartTime(): ?string
+    {
+        return $this->started_at_utc?->copy()->setTimezone($this->timezone ?: 'UTC')->format('H:i');
+    }
+
+    public function localEndTime(): ?string
+    {
+        return $this->ended_at_utc?->copy()->setTimezone($this->timezone ?: 'UTC')->format('H:i');
+    }
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
