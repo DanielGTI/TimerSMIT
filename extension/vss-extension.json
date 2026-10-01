@@ -48,7 +48,12 @@
       "properties": {
         "name": "Folha semanal",
         "uri": "dist/src/pages/timesheet/index.html",
-        "order": 10
+        "order": 10,
+        "iconName": "CalendarWeek",
+        "iconAsset": "TrackerSMIT.timersmit-timetracker/marketplace/nav/folha-semanal.png",
+        "includesData": {
+          "assets": ["TrackerSMIT.timersmit-timetracker/marketplace/nav/folha-semanal.png"]
+        }
       }
     },
     {
@@ -58,7 +63,12 @@
       "properties": {
         "name": "Aprovações",
         "uri": "dist/src/pages/approvals/index.html",
-        "order": 20
+        "order": 20,
+        "iconName": "Completed",
+        "iconAsset": "TrackerSMIT.timersmit-timetracker/marketplace/nav/aprovacoes.png",
+        "includesData": {
+          "assets": ["TrackerSMIT.timersmit-timetracker/marketplace/nav/aprovacoes.png"]
+        }
       }
     },
     {
@@ -68,7 +78,12 @@
       "properties": {
         "name": "Relatórios",
         "uri": "dist/src/pages/reports/index.html",
-        "order": 30
+        "order": 30,
+        "iconName": "BarChartVertical",
+        "iconAsset": "TrackerSMIT.timersmit-timetracker/marketplace/nav/relatorios.png",
+        "includesData": {
+          "assets": ["TrackerSMIT.timersmit-timetracker/marketplace/nav/relatorios.png"]
+        }
       }
     },
     {
@@ -78,12 +93,18 @@
       "properties": {
         "name": "Configuração",
         "uri": "dist/src/pages/settings/index.html",
-        "order": 40
+        "order": 40,
+        "iconName": "Settings",
+        "iconAsset": "TrackerSMIT.timersmit-timetracker/marketplace/nav/configuracao.png",
+        "includesData": {
+          "assets": ["TrackerSMIT.timersmit-timetracker/marketplace/nav/configuracao.png"]
+        }
       }
     }
   ],
   "files": [
     { "path": "dist", "addressable": true },
-    { "path": "marketplace/icon.png", "addressable": true }
+    { "path": "marketplace/icon.png", "addressable": true },
+    { "path": "marketplace/nav", "addressable": true }
   ]
 }
