@@ -5,7 +5,15 @@ import { fetchActivityTypes } from "../../lib/api/activityTypes";
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
 import { fetchCurrentSession } from "../../lib/api/me";
-import { fetchMonth, fetchWeek, submitWeek, type MonthDto, type WeekDto } from "../../lib/api/timesheet";
+import {
+  fetchMonth,
+  fetchWeek,
+  recallWeek,
+  submitWeek,
+  type MonthDto,
+  type WeekDto,
+  type WeekStatus,
+} from "../../lib/api/timesheet";
 import { formatDuration, formatHours, todayLocalIso } from "../../lib/time/format";
 import { addDays, addMonths, dayMonth, formatWeekRange, mondayOf, monthOf } from "../../lib/time/weeks";
 import { AddTimePanel, type AddTimeResources } from "./AddTimePanel";
@@ -44,7 +52,8 @@ function decisionBanner(week: WeekDto): { className: string; text: string } | nu
  * Folha semanal (US2, T024): grade por work item e dia, lançamentos com
  * editar/excluir, envio da semana e resumo mensal. Os totais vêm prontos do
  * servidor — a tela só formata. O "+" de cada dia do calendário (e o botão
- * "Adicionar tempo") lança horas escolhendo o work item pela busca.
+ * "Adicionar tempo") lança horas escolhendo o work item pela busca. Semana
+ * enviada pode ter o envio cancelado pela própria pessoa (volta a aberta).
  */
 export function TimesheetPage(): JSX.Element {
   const client = useMemo(() => createApiClient({ apiBaseUrl: getApiBaseUrl() }), []);
@@ -62,6 +71,8 @@ export function TimesheetPage(): JSX.Element {
   const [addingOn, setAddingOn] = useState<string | null>(null);
   const [addTimeResources, setAddTimeResources] = useState<AddTimeResources | null>(null);
   const [addTimeError, setAddTimeError] = useState<string | null>(null);
+  // Pedido de cancelar o envio; `date` é o dia do "+" que abre o lançamento logo depois.
+  const [recalling, setRecalling] = useState<{ weekStart: string; date: string | null } | null>(null);
 
   const reload = () => setReloadTick((tick) => tick + 1);
 
@@ -110,6 +121,7 @@ export function TimesheetPage(): JSX.Element {
   function goToWeek(start: string) {
     setWeekStart(start);
     setConfirming(false);
+    setRecalling(null);
     setNotice(null);
     // O calendário acompanha a semana quando ela sai do mês exibido.
     if (monthOf(start) !== month && monthOf(addDays(start, 6)) !== month) {
@@ -129,6 +141,33 @@ export function TimesheetPage(): JSX.Element {
       setError(errorText(failure));
       setConfirming(false);
     } finally {
+      setBusy(false);
+    }
+  }
+
+  /** "+" do calendário: em semana enviada, primeiro pergunta se cancela o envio. */
+  function handleAddTime(date: string, weekStatus: WeekStatus) {
+    if (weekStatus !== "submitted") {
+      setAddingOn(date);
+      return;
+    }
+    goToWeek(mondayOf(date));
+    setRecalling({ weekStart: mondayOf(date), date });
+  }
+
+  async function handleRecall() {
+    if (!recalling) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setWeek(await recallWeek(client, recalling.weekStart));
+      setNotice("Envio cancelado: a semana está aberta de novo. Depois de lançar, envie outra vez.");
+      if (recalling.date) setAddingOn(recalling.date);
+      reload();
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setRecalling(null);
       setBusy(false);
     }
   }
@@ -184,7 +223,20 @@ export function TimesheetPage(): JSX.Element {
               </button>
             )}
 
-            {confirming ? (
+            {recalling ? (
+              <span className="confirm" role="group" aria-label="Confirmar cancelamento do envio">
+                <span>
+                  {recalling.date ? "Esta semana já foi enviada. Para lançar, cancele o envio: " : "Cancelar o envio? "}
+                  ela volta a Aberta e sai da fila do aprovador; depois, envie de novo.
+                </span>
+                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void handleRecall()}>
+                  {recalling.date ? "Cancelar envio e lançar" : "Cancelar envio"}
+                </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => setRecalling(null)}>
+                  Voltar
+                </button>
+              </span>
+            ) : confirming ? (
               <span className="confirm" role="group" aria-label="Confirmar envio da semana">
                 <span>Depois de enviada, a semana fica bloqueada para edição.</span>
                 <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void handleSubmit()}>
@@ -195,9 +247,16 @@ export function TimesheetPage(): JSX.Element {
                 </button>
               </span>
             ) : (
-              <button type="button" className="btn btn--primary" disabled={!canSubmit} onClick={() => setConfirming(true)}>
-                Enviar semana
-              </button>
+              <>
+                {week.status === "submitted" && (
+                  <button type="button" className="btn" onClick={() => setRecalling({ weekStart, date: null })}>
+                    Cancelar envio
+                  </button>
+                )}
+                <button type="button" className="btn btn--primary" disabled={!canSubmit} onClick={() => setConfirming(true)}>
+                  Enviar semana
+                </button>
+              </>
             )}
           </div>
         )}
@@ -244,7 +303,7 @@ export function TimesheetPage(): JSX.Element {
         today={today}
         onMonthChange={(delta) => setMonth(addMonths(month, delta))}
         onPickDay={(date) => goToWeek(mondayOf(date))}
-        onAddTime={setAddingOn}
+        onAddTime={handleAddTime}
       />
 
       {addingOn !== null && (

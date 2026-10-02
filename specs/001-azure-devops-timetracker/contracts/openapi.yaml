@@ -326,6 +326,25 @@ paths:
               schema: { $ref: '#/components/schemas/Week' }
         '409': { description: 'Já enviada ou aprovada, há um timer ativo, ou não há ninguém que possa decidir (nem aprovador designado nem administrador).' }
         '422': { description: Semana sem lançamentos }
+  /me/weeks/{weekStartDate}/recall:
+    post:
+      operationId: recallWeek
+      description: >-
+        submitted → open, pela própria pessoa, enquanto ninguém decidiu: a
+        semana sai da fila de aprovação e volta a aceitar lançamentos; o
+        próximo envio cria uma nova revisão. Repetir com a mesma
+        Idempotency-Key devolve o mesmo resultado. Auditado como
+        `week.recalled`.
+      parameters:
+        - { name: weekStartDate, in: path, required: true, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200':
+          description: Semana aberta de novo (corpo igual ao de getWeek).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Week' }
+        '409': { description: 'A semana não está enviada (aberta, rejeitada) ou já foi aprovada — aprovada só um administrador reabre.' }
   /approvals:
     get:
       operationId: listApprovals

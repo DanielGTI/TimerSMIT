@@ -33,6 +33,8 @@ Route::middleware('tenant')->group(function () {
         ->where('weekStartDate', '\d{4}-\d{2}-\d{2}');
     Route::post('/me/weeks/{weekStartDate}/submit', [TimesheetController::class, 'submit'])
         ->where('weekStartDate', '\d{4}-\d{2}-\d{2}');
+    Route::post('/me/weeks/{weekStartDate}/recall', [TimesheetController::class, 'recall'])
+        ->where('weekStartDate', '\d{4}-\d{2}-\d{2}');
     Route::get('/me/months/{month}', [TimesheetController::class, 'month'])
         ->where('month', '\d{4}-(?:0[1-9]|1[0-2])');
 

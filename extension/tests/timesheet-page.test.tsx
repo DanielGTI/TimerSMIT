@@ -8,6 +8,7 @@ vi.mock("../src/lib/api/config", () => ({
 const fetchWeek = vi.fn();
 const fetchMonth = vi.fn();
 const submitWeek = vi.fn();
+const recallWeek = vi.fn();
 const updateEntry = vi.fn();
 const deleteEntry = vi.fn();
 
@@ -15,6 +16,7 @@ vi.mock("../src/lib/api/timesheet", () => ({
   fetchWeek: (...args: unknown[]) => fetchWeek(...args),
   fetchMonth: (...args: unknown[]) => fetchMonth(...args),
   submitWeek: (...args: unknown[]) => submitWeek(...args),
+  recallWeek: (...args: unknown[]) => recallWeek(...args),
   updateEntry: (...args: unknown[]) => updateEntry(...args),
   deleteEntry: (...args: unknown[]) => deleteEntry(...args),
 }));
@@ -119,6 +121,7 @@ describe("TimesheetPage", () => {
     fetchWeek.mockReset().mockResolvedValue(week());
     fetchMonth.mockReset().mockResolvedValue(monthData);
     submitWeek.mockReset();
+    recallWeek.mockReset();
     updateEntry.mockReset();
     deleteEntry.mockReset().mockResolvedValue(undefined);
     createManualEntry.mockReset().mockResolvedValue({});
@@ -517,12 +520,74 @@ describe("TimesheetPage", () => {
       expect(((await within(dialog).findByLabelText("Data")) as HTMLInputElement).value).toBe("2026-10-02");
     });
 
-    it("semana enviada não tem + nos dias nem o botão", async () => {
-      fetchWeek.mockResolvedValue(week({ status: "submitted", revision: 1, submittedAt: "2026-09-30T15:00:00Z" }));
-      fetchMonth.mockResolvedValue({
+    function submittedMonth(status: "submitted" | "approved") {
+      return {
         ...monthData,
-        weeks: monthData.weeks.map((item) => (item.weekStartDate === WEEK ? { ...item, status: "submitted" } : item)),
+        weeks: monthData.weeks.map((item) => (item.weekStartDate === WEEK ? { ...item, status } : item)),
+      };
+    }
+    const submitted = () => week({ status: "submitted", revision: 1, submittedAt: "2026-09-30T15:00:00Z" });
+
+    it("+ em semana enviada pede para cancelar o envio e então abre o lançamento", async () => {
+      fetchWeek.mockResolvedValue(submitted());
+      fetchMonth.mockResolvedValue(submittedMonth("submitted"));
+      recallWeek.mockImplementation(async () => {
+        fetchWeek.mockResolvedValue(week());
+        return week();
       });
+      render(<TimesheetPage />);
+      await screen.findByText("Enviada", { selector: ".summary .badge" });
+      const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
+
+      fireEvent.click(await within(calendar).findByRole("button", { name: "Adicionar tempo em 02/10" }));
+
+      // Ainda não cancelou nem abriu o painel: primeiro a confirmação.
+      const confirm = screen.getByRole("group", { name: "Confirmar cancelamento do envio" });
+      expect(confirm).toHaveTextContent("Esta semana já foi enviada");
+      expect(recallWeek).not.toHaveBeenCalled();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      fireEvent.click(within(confirm).getByRole("button", { name: "Cancelar envio e lançar" }));
+
+      await waitFor(() => expect(recallWeek).toHaveBeenCalledWith(expect.anything(), WEEK));
+      const dialog = await screen.findByRole("dialog", { name: "Adicionar tempo" });
+      expect(((await within(dialog).findByLabelText("Data")) as HTMLInputElement).value).toBe("2026-10-02");
+      expect(screen.getByText(/Envio cancelado/)).toBeInTheDocument();
+      expect(screen.getByText("Aberta", { selector: ".summary .badge" })).toBeInTheDocument();
+    });
+
+    it("Voltar não cancela o envio", async () => {
+      fetchWeek.mockResolvedValue(submitted());
+      fetchMonth.mockResolvedValue(submittedMonth("submitted"));
+      render(<TimesheetPage />);
+      const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
+
+      fireEvent.click(await within(calendar).findByRole("button", { name: "Adicionar tempo em 30/09" }));
+      fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+
+      expect(recallWeek).not.toHaveBeenCalled();
+      expect(screen.queryByRole("group", { name: "Confirmar cancelamento do envio" })).not.toBeInTheDocument();
+    });
+
+    it("semana enviada tem o botão Cancelar envio; erro do servidor aparece", async () => {
+      fetchWeek.mockResolvedValue(submitted());
+      recallWeek.mockRejectedValue(new Error("Esta semana não está enviada; não há envio para cancelar."));
+      render(<TimesheetPage />);
+      await screen.findByText("Enviada", { selector: ".summary .badge" });
+      expect(screen.queryByRole("button", { name: "+ Adicionar tempo" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancelar envio" }));
+      const confirm = screen.getByRole("group", { name: "Confirmar cancelamento do envio" });
+      expect(confirm).toHaveTextContent("Cancelar o envio?");
+      fireEvent.click(within(confirm).getByRole("button", { name: "Cancelar envio" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("não há envio para cancelar");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("semana aprovada não tem + nos dias nem os botões", async () => {
+      fetchWeek.mockResolvedValue(week({ status: "approved", revision: 1, submittedAt: "2026-09-30T15:00:00Z" }));
+      fetchMonth.mockResolvedValue(submittedMonth("approved"));
       render(<TimesheetPage />);
       await screen.findByText("28 set – 04 out 2026");
       const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
@@ -530,6 +595,7 @@ describe("TimesheetPage", () => {
       await waitFor(() => expect(within(calendar).queryByRole("button", { name: "Adicionar tempo em 30/09" })).not.toBeInTheDocument());
       expect(within(calendar).getByRole("button", { name: "Adicionar tempo em 23/09" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "+ Adicionar tempo" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Cancelar envio" })).not.toBeInTheDocument();
     });
   });
 });

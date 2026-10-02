@@ -369,6 +369,102 @@ class TimesheetTest extends TestCase
         $this->deleteJson("/api/entries/{$entry->id}", [], $this->headers())->assertStatus(409);
     }
 
+    // ---------- cancelar envio ----------
+
+    private function recallWeek(string $key = 'recall-key-00000001', ?Member $member = null)
+    {
+        return $this->postJson('/api/me/weeks/'.self::WEEK.'/recall', [], $this->headers($member, key: $key));
+    }
+
+    private function admin(): Member
+    {
+        return Member::query()->findOrFail(
+            RoleAssignment::query()->where('role', RoleAssignment::ROLE_ADMIN)->value('member_id'),
+        );
+    }
+
+    public function test_recalling_a_submitted_week_reopens_it_for_new_entries_and_a_new_submit(): void
+    {
+        $this->entry('2026-09-28', 3600);
+        $this->submitWeek(key: 'first-key-000000001')->assertOk();
+
+        $this->recallWeek()->assertOk()->assertJson(['status' => 'open', 'revision' => 1]);
+
+        $this->postJson('/api/entries', $this->manualEntryPayload('2026-10-02', 1800), $this->headers(key: 'entry-key-0000000001'))
+            ->assertCreated();
+        $this->submitWeek(key: 'second-key-00000001')
+            ->assertOk()
+            ->assertJson(['status' => 'submitted', 'revision' => 2, 'totalSeconds' => 5400]);
+
+        $event = AuditEvent::query()->where('action', 'week.recalled')->firstOrFail();
+        $this->assertSame($this->member->id, $event->actor_member_id);
+        $this->assertSame(self::WEEK, $event->context['weekStartDate']);
+        $this->assertSame(1, $event->context['revision']);
+    }
+
+    public function test_repeating_the_same_recall_returns_the_same_result(): void
+    {
+        $this->entry('2026-09-28', 3600);
+        $this->submitWeek()->assertOk();
+
+        $this->recallWeek(key: 'same-recall-0000001')->assertOk();
+        $this->recallWeek(key: 'same-recall-0000001')->assertOk()->assertJson(['status' => 'open']);
+        $this->recallWeek(key: 'other-recall-000001')->assertStatus(409);
+
+        $this->assertSame(1, AuditEvent::query()->where('action', 'week.recalled')->count());
+    }
+
+    public function test_only_a_submitted_week_can_be_recalled(): void
+    {
+        // Nunca enviada.
+        $this->recallWeek(key: 'recall-open-0000001')->assertStatus(409);
+
+        $submission = WeeklySubmission::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'member_id' => $this->member->id,
+            'week_start_date' => self::WEEK,
+            'status' => WeeklySubmission::STATUS_REJECTED,
+        ]);
+        $this->recallWeek(key: 'recall-rejected-001')->assertStatus(409);
+
+        $submission->update(['status' => WeeklySubmission::STATUS_APPROVED]);
+        $this->recallWeek(key: 'recall-approved-001')
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Semana aprovada: peça a um administrador para reabrir.');
+        $this->assertSame(WeeklySubmission::STATUS_APPROVED, $submission->fresh()->status);
+    }
+
+    public function test_a_recalled_week_leaves_the_approval_queue_and_a_late_decision_is_a_conflict(): void
+    {
+        $this->entry('2026-09-28', 3600);
+        $this->submitWeek()->assertOk();
+        $submission = WeeklySubmission::query()->firstOrFail();
+        $admin = $this->admin();
+
+        $this->getJson('/api/approvals', $this->headers($admin))->assertOk()->assertJsonCount(1);
+
+        $this->recallWeek()->assertOk();
+
+        $this->getJson('/api/approvals', $this->headers($admin))->assertOk()->assertJsonCount(0);
+        $this->postJson("/api/approvals/{$submission->id}/decision", ['decision' => 'approve', 'revision' => 1], $this->headers($admin, key: 'decide-key-00000001'))
+            ->assertStatus(409);
+        $this->assertSame(WeeklySubmission::STATUS_OPEN, $submission->fresh()->status);
+    }
+
+    public function test_recall_only_touches_my_own_week_and_requires_the_idempotency_key(): void
+    {
+        $this->entry('2026-09-28', 3600);
+        $this->submitWeek()->assertOk();
+        $colleague = Member::factory()->for($this->tenant)->create();
+
+        // O colega não tem semana enviada; a minha continua enviada.
+        $this->recallWeek(member: $colleague)->assertStatus(409);
+        $this->assertSame(WeeklySubmission::STATUS_SUBMITTED, WeeklySubmission::query()->firstOrFail()->status);
+
+        $this->postJson('/api/me/weeks/'.self::WEEK.'/recall', [], ['Authorization' => $this->headers()['Authorization']])
+            ->assertStatus(422);
+    }
+
     // ---------- dono do lançamento ----------
 
     public function test_a_colleague_cannot_edit_or_delete_my_entry(): void

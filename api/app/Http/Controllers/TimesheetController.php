@@ -36,13 +36,7 @@ class TimesheetController extends Controller
 
     public function submit(Request $request, TenantContext $tenantContext, string $weekStartDate): JsonResponse
     {
-        $key = $request->header('Idempotency-Key');
-
-        if (! is_string($key) || strlen($key) < 16 || strlen($key) > 128) {
-            throw ValidationException::withMessages([
-                'Idempotency-Key' => 'Cabeçalho Idempotency-Key ausente ou fora do tamanho esperado (16-128).',
-            ]);
-        }
+        $key = $this->idempotencyKey($request);
 
         $this->timesheet->submit($tenantContext->tenant(), $tenantContext->member(), $weekStartDate, $key);
 
@@ -51,5 +45,32 @@ class TimesheetController extends Controller
             $tenantContext->member(),
             $weekStartDate,
         ));
+    }
+
+    /** Cancela o envio (submitted → open) para a pessoa poder lançar de novo. */
+    public function recall(Request $request, TenantContext $tenantContext, string $weekStartDate): JsonResponse
+    {
+        $key = $this->idempotencyKey($request);
+
+        $this->timesheet->recall($tenantContext->tenant(), $tenantContext->member(), $weekStartDate, $key);
+
+        return response()->json($this->timesheet->week(
+            $tenantContext->tenant(),
+            $tenantContext->member(),
+            $weekStartDate,
+        ));
+    }
+
+    private function idempotencyKey(Request $request): string
+    {
+        $key = $request->header('Idempotency-Key');
+
+        if (! is_string($key) || strlen($key) < 16 || strlen($key) > 128) {
+            throw ValidationException::withMessages([
+                'Idempotency-Key' => 'Cabeçalho Idempotency-Key ausente ou fora do tamanho esperado (16-128).',
+            ]);
+        }
+
+        return $key;
     }
 }

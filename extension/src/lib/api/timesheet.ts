@@ -60,6 +60,14 @@ export function submitWeek(client: ApiClient, weekStart: string): Promise<WeekDt
   });
 }
 
+/** Recolhe o envio (enviada → aberta) enquanto ninguém decidiu, para lançar de novo. */
+export function recallWeek(client: ApiClient, weekStart: string): Promise<WeekDto> {
+  return client.request<WeekDto>(`/api/me/weeks/${weekStart}/recall`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+  });
+}
+
 export interface EntryChanges {
   durationSeconds?: number;
   /** "HH:MM" define o início; `null` apaga o horário. */

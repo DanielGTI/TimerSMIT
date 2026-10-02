@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ConflictException;
 use App\Models\ApprovalDecision;
+use App\Models\AuditEvent;
 use App\Models\Member;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Folha semanal (US2): consulta da semana/mês e envio. Somas são sempre em
+ * Folha semanal (US2): consulta da semana/mês, envio e cancelamento do envio. Somas são sempre em
  * segundos inteiros, feitas aqui no servidor a partir das mesmas linhas que
  * a tela mostra (FR-005) — a tela nunca recalcula totais por conta própria.
  */
@@ -240,6 +241,67 @@ class TimesheetService
                     'totalSeconds' => $totalSeconds,
                     'entryCount' => $entries->count(),
                     'designatedApproverIds' => $designated,
+                ],
+            );
+
+            return $submission;
+        });
+    }
+
+    /**
+     * submitted → open, pela própria pessoa, enquanto ninguém decidiu: ela
+     * recolhe o envio para lançar ou corrigir e depois envia de novo (nova
+     * revisão). Aprovada continua bloqueada — só um administrador reabre.
+     *
+     * Trava a linha da semana como a decisão do aprovador: ou a decisão vem
+     * antes (e o cancelamento recebe 409), ou o cancelamento vem antes e a
+     * decisão encontra a semana aberta (409 do lado do aprovador).
+     */
+    public function recall(Tenant $tenant, Member $member, string $weekStart, string $idempotencyKey): WeeklySubmission
+    {
+        $this->assertWeekStart($weekStart);
+
+        return DB::transaction(function () use ($tenant, $member, $weekStart, $idempotencyKey) {
+            $this->weeks->lockMember($member);
+
+            $submission = WeeklySubmission::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('member_id', $member->id)
+                ->where('week_start_date', $weekStart)
+                ->lockForUpdate()
+                ->first();
+
+            $repeated = $submission && AuditEvent::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('action', 'week.recalled')
+                ->where('subject_id', $submission->id)
+                ->where('context->idempotencyKey', $idempotencyKey)
+                ->exists();
+
+            if ($repeated) {
+                return $submission;
+            }
+
+            if ($submission?->status === WeeklySubmission::STATUS_APPROVED) {
+                throw new ConflictException('Semana aprovada: peça a um administrador para reabrir.');
+            }
+
+            if ($submission?->status !== WeeklySubmission::STATUS_SUBMITTED) {
+                throw new ConflictException('Esta semana não está enviada; não há envio para cancelar.');
+            }
+
+            $submission->update(['status' => WeeklySubmission::STATUS_OPEN]);
+
+            $this->audit->record(
+                tenant: $tenant,
+                action: 'week.recalled',
+                subjectType: WeeklySubmission::class,
+                subjectId: $submission->id,
+                actor: $member,
+                context: [
+                    'weekStartDate' => $weekStart,
+                    'revision' => $submission->revision,
+                    'idempotencyKey' => $idempotencyKey,
                 ],
             );
 
