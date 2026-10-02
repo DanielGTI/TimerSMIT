@@ -156,6 +156,19 @@ class SettingsTest extends TestCase
         $this->assertSame(10, $event->context['after']['dailyLimitHours']);
     }
 
+    public function test_any_member_reads_the_current_rules_through_me(): void
+    {
+        $this->role($this->employee, 'member');
+        $this->asAdmin('PUT', '/policy', $this->policy(['dailyLimitHours' => 8, 'retroactiveWindowDays' => 7, 'durationIncrementMinutes' => 15]))
+            ->assertOk();
+
+        $this->getJson('/api/me', $this->headers($this->employee))
+            ->assertOk()
+            ->assertJsonPath('policy.dailyLimitHours', 8)
+            ->assertJsonPath('policy.retroactiveWindowDays', 7)
+            ->assertJsonPath('policy.durationIncrementMinutes', 15);
+    }
+
     public function test_policy_values_are_validated(): void
     {
         foreach ([

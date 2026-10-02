@@ -42,6 +42,20 @@
       }
     },
     {
+      "id": "instructions-hub",
+      "type": "ms.vss-web.hub",
+      "targets": ["TrackerSMIT.timersmit-timetracker.hub-group"],
+      "properties": {
+        "name": "Instruções",
+        "uri": "dist/src/pages/instructions/index.html",
+        "order": 5,
+        "icon": {
+          "light": "asset://marketplace/nav/instrucoes-light.png",
+          "dark": "asset://marketplace/nav/instrucoes-dark.png"
+        }
+      }
+    },
+    {
       "id": "timesheet-hub",
       "type": "ms.vss-web.hub",
       "targets": ["TrackerSMIT.timersmit-timetracker.hub-group"],

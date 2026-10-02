@@ -415,6 +415,17 @@ class OrganizationSettingsService
 
     // ---------- helpers ----------
 
+    /**
+     * Regras de lançamento em vigor, para qualquer membro ler (a página de
+     * instruções mostra os limites reais). Só leitura: quem altera é o admin.
+     *
+     * @return array<string, mixed>
+     */
+    public function currentPolicyFor(Tenant $tenant): array
+    {
+        return $this->presentPolicy($this->currentPolicy($tenant));
+    }
+
     private function currentPolicy(Tenant $tenant): ?Policy
     {
         return Policy::query()

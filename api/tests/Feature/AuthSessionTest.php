@@ -67,7 +67,12 @@ class AuthSessionTest extends TestCase
         $sessionToken = $response->json('sessionToken');
         $this->getJson('/api/me', ['Authorization' => "Bearer {$sessionToken}"])
             ->assertOk()
-            ->assertJson(['displayName' => 'Ada Lovelace']);
+            ->assertJson(['displayName' => 'Ada Lovelace'])
+            // Sem política cadastrada, valem os padrões; qualquer membro pode lê-los.
+            ->assertJsonPath('policy.dailyLimitHours', 24)
+            ->assertJsonPath('policy.retroactiveWindowDays', 30)
+            ->assertJsonPath('policy.durationIncrementMinutes', 1)
+            ->assertJsonPath('policy.commentRequired', false);
 
         // Bootstrap: primeira pessoa a conectar uma organização nova vira
         // admin dela (sem isso, ninguém teria papel para conceder acesso).

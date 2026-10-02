@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\OrganizationSettingsService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 
@@ -11,6 +12,8 @@ use Illuminate\Http\JsonResponse;
  */
 class MeController extends Controller
 {
+    public function __construct(private readonly OrganizationSettingsService $settings) {}
+
     public function show(TenantContext $tenantContext): JsonResponse
     {
         return response()->json([
@@ -18,6 +21,8 @@ class MeController extends Controller
             'organizationName' => $tenantContext->tenant()->devops_organization_name,
             'memberId' => (string) $tenantContext->member()->id,
             'displayName' => $tenantContext->member()->display_name,
+            // Regras de lançamento em vigor (incremento, limite diário, janela retroativa, comentário).
+            'policy' => $this->settings->currentPolicyFor($tenantContext->tenant()),
         ]);
     }
 }

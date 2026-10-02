@@ -15,6 +15,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         "work-item": "src/pages/work-item/index.html",
+        instructions: "src/pages/instructions/index.html",
         timesheet: "src/pages/timesheet/index.html",
         approvals: "src/pages/approvals/index.html",
         reports: "src/pages/reports/index.html",

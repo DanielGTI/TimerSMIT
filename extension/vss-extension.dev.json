@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "timersmit-timetracker-dev",
   "publisher": "TrackerSMIT",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "name": "Controle de horas (dev)",
   "description": "Extensão de desenvolvimento — registro e aprovação de horas integrados ao Azure DevOps.",
   "public": false,
@@ -29,6 +29,20 @@
       "properties": {
         "name": "Controle de horas",
         "order": 100
+      }
+    },
+    {
+      "id": "instructions-hub",
+      "type": "ms.vss-web.hub",
+      "targets": ["TrackerSMIT.timersmit-timetracker-dev.hub-group"],
+      "properties": {
+        "name": "Instruções",
+        "uri": "dist/src/pages/instructions/index.html",
+        "order": 5,
+        "icon": {
+          "light": "asset://marketplace/nav/instrucoes-light.png",
+          "dark": "asset://marketplace/nav/instrucoes-dark.png"
+        }
       }
     },
     {
