@@ -20,6 +20,7 @@ import { addDays, addMonths, dayMonth, formatWeekRange, mondayOf, monthOf } from
 import { AddTimePanel, type AddTimeResources } from "./AddTimePanel";
 import { EntryList } from "./EntryList";
 import { MonthCalendar } from "./MonthCalendar";
+import { MyHourBank } from "./MyHourBank";
 import { WeekGrid } from "./WeekGrid";
 
 const errorText = (failure: unknown): string => (failure instanceof Error ? failure.message : String(failure));
@@ -405,6 +406,8 @@ export function TimesheetPage(): JSX.Element {
         onPickDay={(date) => goToWeek(mondayOf(date))}
         onAddTime={handleAddTime}
       />
+
+      <MyHourBank client={client} />
 
       {addingOn !== null && (
         <AddTimePanel

@@ -50,6 +50,8 @@ export function OvertimeSection({ settings, client, busy, run }: SectionProps): 
     nightPercent: current.nightPercent,
     nightReducedHour: current.nightReducedHour,
     requireTimeOfDay: current.requireTimeOfDay,
+    bankValidityMonths: current.bankValidityMonths ?? 6,
+    bankWeighted: current.bankWeighted ?? true,
   }));
   const [holidayDate, setHolidayDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
@@ -161,6 +163,31 @@ export function OvertimeSection({ settings, client, busy, run }: SectionProps): 
             label="Exigir horário (De/Até) nos lançamentos manuais"
             checked={rules.requireTimeOfDay}
             onChange={(value) => set("requireTimeOfDay", value)}
+          />
+        </div>
+
+        <h3 className="settings-subtitle">Banco de horas</h3>
+        <div className="filters__grid">
+          <div className="field">
+            <label htmlFor={`${ids}-bvm`}>Prazo para compensar (meses)</label>
+            <input
+              id={`${ids}-bvm`}
+              className="input"
+              type="number"
+              min={1}
+              max={12}
+              value={rules.bankValidityMonths}
+              onChange={(e) => set("bankValidityMonths", Number(e.target.value))}
+              required
+            />
+            <span className="muted settings-hint">CLT: até 6 meses por acordo individual escrito; até 12 por acordo coletivo</span>
+          </div>
+        </div>
+        <div className="field">
+          <Switch
+            label="Creditar no banco as horas ponderadas (com o fator do dia)"
+            checked={rules.bankWeighted}
+            onChange={(value) => set("bankWeighted", value)}
           />
         </div>
 

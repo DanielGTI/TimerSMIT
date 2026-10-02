@@ -80,6 +80,8 @@ class SettingsController extends Controller
             'nightPercent' => ['required', 'integer', 'between:0,100'],
             'nightReducedHour' => ['required', 'boolean'],
             'requireTimeOfDay' => ['required', 'boolean'],
+            'bankValidityMonths' => ['sometimes', 'integer', 'between:1,12'],
+            'bankWeighted' => ['sometimes', 'boolean'],
         ], [
             'workdayEnd.after' => 'O fim do expediente precisa ser depois do início.',
             'nightEnd.different' => 'O início e o fim do período noturno não podem ser iguais.',

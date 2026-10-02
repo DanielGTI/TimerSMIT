@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AdditionalHourReview;
 use App\Models\Holiday;
 use App\Models\Member;
+use App\Models\OvertimeRule;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Support\AdditionalHoursResult;
@@ -28,7 +29,7 @@ class AdditionalHoursService
 
     /**
      * @param  Collection<int, TimeEntry>  $entries  da mesma organização
-     * @return array<int, array{entry: TimeEntry, result: AdditionalHoursResult, regime: string, review: ?AdditionalHourReview, ruleId: ?int}> indexado pelo id do lançamento
+     * @return array<int, array{entry: TimeEntry, result: AdditionalHoursResult, regime: string, review: ?AdditionalHourReview, ruleId: ?int, rule: ?OvertimeRule}> indexado pelo id do lançamento
      */
     public function evaluate(Tenant $tenant, Collection $entries): array
     {
@@ -71,6 +72,7 @@ class AdditionalHoursService
                 'regime' => $regime,
                 'review' => $reviews->get($entry->id),
                 'ruleId' => $rule?->id,
+                'rule' => $rule,
             ];
         }
 

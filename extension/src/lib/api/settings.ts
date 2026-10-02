@@ -25,6 +25,10 @@ export interface OvertimeRulesDto {
   nightPercent: number;
   nightReducedHour: boolean;
   requireTimeOfDay: boolean;
+  /** Prazo para compensar o banco de horas (1 a 12 meses). */
+  bankValidityMonths: number;
+  /** O banco recebe as horas ponderadas (com o fator) em vez das horas de relógio. */
+  bankWeighted: boolean;
   version: number;
   effectiveFrom: string | null;
 }

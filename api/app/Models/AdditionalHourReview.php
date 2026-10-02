@@ -33,6 +33,8 @@ class AdditionalHourReview extends Model
         'classified_by',
         'classified_at',
         'classification_note',
+        'bank_seconds',
+        'bank_expires_on',
     ];
 
     protected function casts(): array
@@ -42,6 +44,8 @@ class AdditionalHourReview extends Model
             'classified_at' => 'datetime',
             'additional_seconds' => 'integer',
             'weighted_seconds' => 'integer',
+            'bank_seconds' => 'integer',
+            'bank_expires_on' => 'date',
         ];
     }
 

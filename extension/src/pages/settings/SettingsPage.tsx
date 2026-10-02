@@ -6,18 +6,20 @@ import { fetchSettings, type SettingsDto } from "../../lib/api/settings";
 import { ActivitiesSection } from "./ActivitiesSection";
 import { AdditionalHoursSection } from "./AdditionalHoursSection";
 import { ApproversSection } from "./ApproversSection";
+import { HourBankSection } from "./HourBankSection";
 import { PeopleSection } from "./PeopleSection";
 import { ProjectsSection } from "./ProjectsSection";
 import { OvertimeSection } from "./OvertimeSection";
 import { RulesSection } from "./RulesSection";
 import type { SectionProps } from "./sections";
 
-type Tab = "rules" | "overtime" | "additional" | "projects" | "activities" | "people" | "approvers";
+type Tab = "rules" | "overtime" | "additional" | "bank" | "projects" | "activities" | "people" | "approvers";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "rules", label: "Regras" },
   { id: "overtime", label: "Horas extras" },
   { id: "additional", label: "Horas adicionais" },
+  { id: "bank", label: "Banco de horas" },
   { id: "projects", label: "Projetos" },
   { id: "activities", label: "Atividades" },
   { id: "people", label: "Pessoas e papéis" },
@@ -106,6 +108,7 @@ export function SettingsPage(): JSX.Element {
       {tab === "rules" && <RulesSection {...section} />}
       {tab === "overtime" && <OvertimeSection {...section} />}
       {tab === "additional" && <AdditionalHoursSection {...section} />}
+      {tab === "bank" && <HourBankSection {...section} />}
       {tab === "projects" && <ProjectsSection {...section} />}
       {tab === "activities" && <ActivitiesSection {...section} />}
       {tab === "people" && <PeopleSection {...section} />}

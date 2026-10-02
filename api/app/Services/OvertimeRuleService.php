@@ -34,6 +34,8 @@ class OvertimeRuleService
         'nightPercent' => 20,
         'nightReducedHour' => true,
         'requireTimeOfDay' => true,
+        'bankValidityMonths' => 6,
+        'bankWeighted' => true,
     ];
 
     public function __construct(private readonly AuditService $audit) {}
@@ -103,6 +105,8 @@ class OvertimeRuleService
             'nightPercent' => $rule->night_percent,
             'nightReducedHour' => $rule->night_reduced_hour,
             'requireTimeOfDay' => $rule->require_time_of_day,
+            'bankValidityMonths' => $rule->bank_validity_months ?? 6,
+            'bankWeighted' => $rule->bank_weighted ?? true,
             'version' => $rule->version,
             'effectiveFrom' => $rule->effective_from->toIso8601String(),
         ];
@@ -137,6 +141,9 @@ class OvertimeRuleService
                 'night_percent' => $values['nightPercent'],
                 'night_reduced_hour' => $values['nightReducedHour'],
                 'require_time_of_day' => $values['requireTimeOfDay'],
+                // Campos do banco de horas: quem não os envia mantém os da versão atual.
+                'bank_validity_months' => $values['bankValidityMonths'] ?? $before['bankValidityMonths'],
+                'bank_weighted' => $values['bankWeighted'] ?? $before['bankWeighted'],
                 'effective_from' => Date::now(),
             ]);
 

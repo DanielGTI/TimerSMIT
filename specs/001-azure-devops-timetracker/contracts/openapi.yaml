@@ -505,6 +505,8 @@ paths:
                 nightPercent: { type: integer, minimum: 0, maximum: 100 }
                 nightReducedHour: { type: boolean }
                 requireTimeOfDay: { type: boolean }
+                bankValidityMonths: { type: integer, minimum: 1, maximum: 12, description: Prazo para compensar o banco de horas. Omitido mantém o atual. }
+                bankWeighted: { type: boolean, description: O banco recebe as horas ponderadas (com o fator). Omitido mantém o atual. }
       responses:
         '200': { description: Visão atualizada (campo `overtime`) }
         '422': { description: Valor inválido }
@@ -721,7 +723,8 @@ paths:
       description: >-
         Só administradores. Define o destino das horas adicionais de semanas
         aprovadas e congela os valores calculados. `pending` desfaz. Banco de
-        horas só para CLT. Reabrir a semana apaga essas decisões.
+        horas só para CLT. Reabrir a semana apaga essas decisões. Tirar do
+        banco horas que já foram usadas em folga ou pagamento é recusado (409).
       requestBody:
         required: true
         content:
@@ -737,6 +740,70 @@ paths:
         '200': { description: '`{ updated }`' }
         '409': { description: Lançamento inexistente ou de semana não aprovada }
         '422': { description: Sem hora adicional, ou banco de horas para quem não é CLT }
+  /me/hour-bank:
+    get:
+      operationId: getMyHourBank
+      description: >-
+        Saldo e extrato do banco de horas de quem chama. Créditos: horas
+        adicionais classificadas como banco (congeladas na classificação, com
+        vencimento contado do dia trabalhado). Débitos: folgas, pagamentos e
+        ajustes do administrador, que consomem primeiro o crédito que vence
+        antes. O que sobra no vencimento vira uma linha `expiry` e deve ser
+        pago como hora extra.
+      responses:
+        '200': { description: '`{ member, validityMonths, summary, events[] }` (eventos em ordem cronológica, com saldo após cada um).' }
+  /hour-bank:
+    get:
+      operationId: listHourBanks
+      description: Só administradores. Saldo de cada pessoa CLT e de quem já tem movimento no banco.
+      responses:
+        '200': { description: '`{ members: [{ memberId, memberName, regime, summary }] }`' }
+        '403': { description: Não é administrador }
+  /hour-bank/{memberId}:
+    get:
+      operationId: getHourBank
+      description: Só administradores. Mesmo formato de `/me/hour-bank`.
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Extrato }
+        '403': { description: Não é administrador }
+  /hour-bank/{memberId}/movements:
+    post:
+      operationId: addHourBankMovement
+      description: >-
+        Só administradores. Folga (até 90 dias à frente), pagamento em folha ou
+        ajuste (hoje ou antes). Recusado (409) se alguma folga ou pagamento
+        ficar sem horas para cobrir. Ajuste para mais só para CLT.
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 128 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, seconds, localDate, note]
+              properties:
+                kind: { type: string, enum: [time_off, payout, adjustment] }
+                direction: { type: string, enum: [credit, debit], description: Só para ajuste; padrão debit. }
+                seconds: { type: integer, minimum: 60, maximum: 1800000 }
+                localDate: { type: string, format: date }
+                note: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Extrato atualizado }
+        '409': { description: Saldo insuficiente }
+        '422': { description: Data, horas ou motivo inválidos }
+  /hour-bank/movements/{movementId}:
+    delete:
+      operationId: removeHourBankMovement
+      description: Só administradores. Desfaz uma folga, pagamento ou ajuste; 409 se um crédito de ajuste já foi usado.
+      parameters:
+        - { name: movementId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Extrato atualizado }
+        '409': { description: As horas do ajuste já foram usadas }
   /reports/time/detail:
     get:
       operationId: getReportDetail

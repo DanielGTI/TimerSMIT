@@ -5,6 +5,7 @@ use App\Http\Controllers\AdditionalHoursController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\HourBankController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
@@ -39,6 +40,8 @@ Route::middleware('tenant')->group(function () {
     Route::get('/me/months/{month}', [TimesheetController::class, 'month'])
         ->where('month', '\d{4}-(?:0[1-9]|1[0-2])');
 
+    Route::get('/me/hour-bank', [HourBankController::class, 'mine']);
+
     Route::get('/approvals', [ApprovalController::class, 'index']);
     Route::get('/approvals/{submissionId}', [ApprovalController::class, 'show'])->whereNumber('submissionId');
     Route::post('/approvals/{submissionId}/decision', [ApprovalController::class, 'decide'])->whereNumber('submissionId');
@@ -72,6 +75,14 @@ Route::middleware('tenant')->group(function () {
     Route::middleware('admin')->prefix('additional-hours')->group(function () {
         Route::get('/', [AdditionalHoursController::class, 'index']);
         Route::post('/classify', [AdditionalHoursController::class, 'classify']);
+    });
+
+    // Banco de horas de todos: saldos, extrato, folgas, pagamentos e ajustes.
+    Route::middleware('admin')->prefix('hour-bank')->group(function () {
+        Route::get('/', [HourBankController::class, 'index']);
+        Route::get('/{memberId}', [HourBankController::class, 'show'])->whereNumber('memberId');
+        Route::post('/{memberId}/movements', [HourBankController::class, 'store'])->whereNumber('memberId');
+        Route::delete('/movements/{movementId}', [HourBankController::class, 'destroy'])->whereNumber('movementId');
     });
 
     Route::post('/entries', [TimeEntryController::class, 'store']);

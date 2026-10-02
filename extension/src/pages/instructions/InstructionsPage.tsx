@@ -334,6 +334,12 @@ export function InstructionsPage(): JSX.Element {
           <li>
             Onde ver: na Folha semanal, embaixo da duração de cada lançamento, e no total da semana (“Horas adicionais”).
           </li>
+          <li>
+            <strong>Banco de horas:</strong> o saldo fica no fim da Folha semanal, com o extrato. As horas entram quando o
+            administrador as manda para o banco e saem nas folgas que ele lança. Cada crédito{" "}
+            <strong>vence no prazo do acordo</strong> (em geral 6 meses), e uma folga usa primeiro o que vence antes. O que
+            vencer sem uso é pago como hora extra. Quer folgar? Combine com o gestor; quem lança a folga é o administrador.
+          </li>
         </ul>
         {overtime && !overtime.enabled && (
           <p className="muted">O controle de horas adicionais está desligado nesta organização no momento.</p>
@@ -380,8 +386,9 @@ export function InstructionsPage(): JSX.Element {
             estado da semana e work item), agrupamento em grade e <strong>Exportar CSV</strong> com os filtros aplicados.
           </li>
           <li>
-            <strong>Configuração</strong> (só administradores): regras e fuso, projetos, atividades, pessoas e papéis, e
-            aprovadores designados.
+            <strong>Configuração</strong> (só administradores): regras e fuso, horas extras e feriados, classificação
+            das horas adicionais, banco de horas (folgas e ajustes), projetos, atividades, pessoas e papéis, e aprovadores
+            designados.
           </li>
         </ul>
       </Section>
@@ -405,6 +412,11 @@ export function InstructionsPage(): JSX.Element {
           </dd>
           <dt>Minha hora adicional aparece como “a validar”.</dt>
           <dd>É o normal até a semana ser aprovada e o administrador classificar (hora extra, banco ou a pagar).</dd>
+          <dt>Meu saldo do banco de horas diminuiu sem eu folgar.</dt>
+          <dd>
+            Provavelmente um crédito venceu. No extrato aparece a linha “Vencido (hora extra a pagar)”: essas horas não se
+            perdem, são pagas como hora extra.
+          </dd>
           <dt>“Já existe timer ativo para outro item.”</dt>
           <dd>Pare o timer que está correndo antes de iniciar outro.</dd>
           <dt>Não acho meu item na busca.</dt>

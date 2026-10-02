@@ -57,6 +57,8 @@ function settings(overrides: Partial<SettingsDto> = {}): SettingsDto {
       nightPercent: 20,
       nightReducedHour: true,
       requireTimeOfDay: true,
+      bankValidityMonths: 6,
+      bankWeighted: true,
       version: 1,
       effectiveFrom: "2026-10-02T12:00:00Z",
     },

@@ -1607,3 +1607,57 @@ a.wi-chip__id:hover {
   padding: 6px 0;
   border-top: 1px solid var(--ts-border-soft);
 }
+
+/* Banco de horas: resumo, lançamento do administrador e extrato. */
+.bank-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.bank-summary > div {
+  padding: 8px 12px;
+  border: 1px solid var(--ts-border-soft);
+  border-radius: var(--ts-radius);
+  background: var(--ts-surface);
+}
+
+.bank-summary dt {
+  color: var(--ts-muted);
+  font-size: 12px;
+}
+
+.bank-summary dd {
+  margin: 2px 0 0;
+  font-size: 16px;
+}
+
+.bank-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.bank-form .field {
+  margin-bottom: 0;
+}
+
+.bank-form__note {
+  flex: 1 1 240px;
+}
+
+.bank-in {
+  color: var(--ts-success);
+  white-space: nowrap;
+}
+
+.bank-out {
+  color: var(--ts-danger);
+  white-space: nowrap;
+}
+
+.entry-table tr.is-current td {
+  background: var(--ts-hover);
+}

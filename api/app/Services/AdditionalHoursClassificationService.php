@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
 use App\Models\WorkItemSnapshot;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
@@ -28,6 +29,7 @@ class AdditionalHoursClassificationService
     public function __construct(
         private readonly AdditionalHoursService $additional,
         private readonly AuditService $audit,
+        private readonly HourBankService $bank,
     ) {}
 
     /**
@@ -118,40 +120,18 @@ class AdditionalHoursClassificationService
 
             $now = Date::now();
 
-            foreach ($entries as $entry) {
-                $item = $evaluation[$entry->id];
-                $review = $item['review'] ?? new AdditionalHourReview([
-                    'tenant_id' => $tenant->id,
-                    'member_id' => $entry->member_id,
-                    'time_entry_id' => $entry->id,
-                ]);
+            // Tirar horas do banco não pode deixar sem cobertura uma folga já lançada.
+            $leavingBank = $entries
+                ->filter(fn (TimeEntry $entry) => $evaluation[$entry->id]['review']?->classification === AdditionalHourReview::BANK
+                    && $classification !== AdditionalHourReview::BANK)
+                ->pluck('member_id')
+                ->unique()
+                ->values()
+                ->all();
 
-                if ($classification === self::PENDING) {
-                    $review->fill([
-                        'classification' => null,
-                        'additional_seconds' => null,
-                        'weighted_seconds' => null,
-                        'overtime_rule_id' => null,
-                        'classified_by' => null,
-                        'classified_at' => null,
-                        'classification_note' => null,
-                    ]);
-                } else {
-                    // Congela o que o cálculo deu agora: mudanças futuras de regra ou de
-                    // feriados não alteram horas que o administrador já decidiu.
-                    $review->fill([
-                        'classification' => $classification,
-                        'additional_seconds' => $item['result']->additionalSeconds,
-                        'weighted_seconds' => $item['result']->weightedSeconds,
-                        'overtime_rule_id' => $item['ruleId'],
-                        'classified_by' => $actor->id,
-                        'classified_at' => $now,
-                        'classification_note' => $note === '' ? null : $note,
-                    ]);
-                }
-
-                $review->save();
-            }
+            $this->bank->guard($tenant, $leavingBank, function () use ($tenant, $actor, $entries, $evaluation, $classification, $note, $now) {
+                $this->save($tenant, $actor, $entries, $evaluation, $classification, $note, $now);
+            }, 'Estas horas do banco já foram usadas em folga ou pagamento. Desfaça esse lançamento no banco de horas antes');
 
             $this->audit->record($tenant, 'additional_hours.classified', AdditionalHourReview::class, null, $actor, null, [
                 'classification' => $classification,
@@ -161,6 +141,61 @@ class AdditionalHoursClassificationService
 
             return $entries->count();
         });
+    }
+
+    /**
+     * @param  Collection<int, TimeEntry>  $entries
+     * @param  array<int, array<string, mixed>>  $evaluation
+     */
+    private function save(Tenant $tenant, Member $actor, Collection $entries, array $evaluation, string $classification, ?string $note, $now): void
+    {
+        foreach ($entries as $entry) {
+            $item = $evaluation[$entry->id];
+            $review = $item['review'] ?? new AdditionalHourReview([
+                'tenant_id' => $tenant->id,
+                'member_id' => $entry->member_id,
+                'time_entry_id' => $entry->id,
+            ]);
+
+            if ($classification === self::PENDING) {
+                $review->fill([
+                    'classification' => null,
+                    'additional_seconds' => null,
+                    'weighted_seconds' => null,
+                    'overtime_rule_id' => null,
+                    'classified_by' => null,
+                    'classified_at' => null,
+                    'classification_note' => null,
+                    'bank_seconds' => null,
+                    'bank_expires_on' => null,
+                ]);
+            } else {
+                $rule = $item['rule'];
+                $bank = $classification === AdditionalHourReview::BANK;
+
+                // Congela o que o cálculo deu agora: mudanças futuras de regra ou de
+                // feriados não alteram horas que o administrador já decidiu.
+                $review->fill([
+                    'classification' => $classification,
+                    'additional_seconds' => $item['result']->additionalSeconds,
+                    'weighted_seconds' => $item['result']->weightedSeconds,
+                    'overtime_rule_id' => $item['ruleId'],
+                    'classified_by' => $actor->id,
+                    'classified_at' => $now,
+                    'classification_note' => $note === '' ? null : $note,
+                    // Crédito no banco: horas ponderadas ou de relógio, conforme a regra do
+                    // lançamento, e vencimento contado do dia trabalhado.
+                    'bank_seconds' => $bank
+                        ? (($rule?->bank_weighted ?? true) ? $item['result']->weightedSeconds : $item['result']->additionalSeconds)
+                        : null,
+                    'bank_expires_on' => $bank
+                        ? CarbonImmutable::parse(substr((string) $entry->local_date, 0, 10))->addMonthsNoOverflow($rule?->bank_validity_months ?? 6)->toDateString()
+                        : null,
+                ]);
+            }
+
+            $review->save();
+        }
     }
 
     /**

@@ -27,6 +27,7 @@ class ApprovalService
         private readonly TimesheetService $timesheet,
         private readonly AuditService $audit,
         private readonly AdditionalHoursService $additional,
+        private readonly HourBankService $bank,
     ) {}
 
     /**
@@ -207,10 +208,12 @@ class ApprovalService
 
             // A semana vai ser editada e aprovada de novo: as decisões sobre as horas
             // adicionais (não autorizada, hora extra, banco) valiam para a versão anterior.
-            AdditionalHourReview::query()
+            // Se parte dessas horas já foi usada do banco (folga, pagamento), a reabertura
+            // deixaria o uso sem cobertura: é preciso desfazer o uso antes.
+            $this->bank->guard($tenant, [$submission->member_id], fn () => AdditionalHourReview::query()
                 ->where('tenant_id', $tenant->id)
                 ->whereIn('time_entry_id', $this->weekEntries($tenant, $submission)->pluck('id'))
-                ->delete();
+                ->delete(), 'Esta semana tem horas no banco que já foram usadas em folga ou pagamento. Desfaça esse lançamento no banco de horas antes de reabrir');
 
             $this->record($tenant, $submission, $admin, ApprovalDecision::REOPENED, $reason, $submission->member_id === $admin->id, $idempotencyKey, $now);
 

@@ -26,6 +26,8 @@ class OvertimeRule extends Model
         'night_percent',
         'night_reduced_hour',
         'require_time_of_day',
+        'bank_validity_months',
+        'bank_weighted',
         'effective_from',
     ];
 
@@ -40,6 +42,8 @@ class OvertimeRule extends Model
             'night_percent' => 'integer',
             'night_reduced_hour' => 'boolean',
             'require_time_of_day' => 'boolean',
+            'bank_validity_months' => 'integer',
+            'bank_weighted' => 'boolean',
             'effective_from' => 'datetime',
         ];
     }
