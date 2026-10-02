@@ -235,9 +235,39 @@ class HourBankService
     }
 
     /**
+     * Movimento do banco num mês, para o fechamento: folgas, pagamentos,
+     * ajustes e vencimentos com data no mês, e o saldo no último dia.
+     *
+     * @return array{creditedSeconds: int, timeOffSeconds: int, payoutSeconds: int, adjustmentSeconds: int, expiredSeconds: int, balanceSeconds: int}
+     */
+    public function month(Tenant $tenant, int $memberId, string $monthStart, string $monthEnd): array
+    {
+        $ledger = $this->ledger($tenant, $memberId, $monthEnd);
+
+        $totals = ['creditedSeconds' => 0, 'timeOffSeconds' => 0, 'payoutSeconds' => 0, 'adjustmentSeconds' => 0, 'expiredSeconds' => 0];
+        foreach ($ledger['events'] as $event) {
+            if ($event['date'] < $monthStart) {
+                continue;
+            }
+
+            $kind = $event['type'] === 'expiry' ? 'expiry' : ($event['meta']['kind'] ?? 'credit');
+            match ($kind) {
+                'credit' => $totals['creditedSeconds'] += $event['seconds'],
+                HourBankMovement::KIND_TIME_OFF => $totals['timeOffSeconds'] -= $event['seconds'],
+                HourBankMovement::KIND_PAYOUT => $totals['payoutSeconds'] -= $event['seconds'],
+                HourBankMovement::KIND_ADJUSTMENT => $totals['adjustmentSeconds'] += $event['seconds'],
+                'expiry' => $totals['expiredSeconds'] -= $event['seconds'],
+            };
+        }
+
+        return $totals + ['balanceSeconds' => $ledger['balanceSeconds']];
+    }
+
+    /**
+     * @param  ?string  $asOf  só o que tem data até este dia (padrão: tudo, com vencimentos até hoje)
      * @return array<string, mixed>
      */
-    private function ledger(Tenant $tenant, int $memberId): array
+    private function ledger(Tenant $tenant, int $memberId, ?string $asOf = null): array
     {
         $reviews = AdditionalHourReview::query()
             ->where('additional_hour_reviews.tenant_id', $tenant->id)
@@ -300,7 +330,15 @@ class HourBankService
             }
         }
 
-        return HourBankLedger::compute($credits, $debits, $this->today($tenant));
+        $today = $this->today($tenant);
+
+        if ($asOf !== null) {
+            $credits = array_values(array_filter($credits, fn (array $credit) => $credit['date'] <= $asOf));
+            $debits = array_values(array_filter($debits, fn (array $debit) => $debit['date'] <= $asOf));
+            $today = min($today, $asOf);
+        }
+
+        return HourBankLedger::compute($credits, $debits, $today);
     }
 
     /**

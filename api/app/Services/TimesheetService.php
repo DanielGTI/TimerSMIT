@@ -31,6 +31,7 @@ class TimesheetService
         private readonly AuditService $audit,
         private readonly ApproverResolver $approvers,
         private readonly AdditionalHoursService $additional,
+        private readonly WorkLimitService $limits,
     ) {}
 
     /**
@@ -86,6 +87,8 @@ class TimesheetService
                 'weightedSeconds' => (int) $additional->filter()->sum('weightedSeconds'),
                 'pendingSeconds' => (int) $additional->filter(fn ($view) => $view !== null && $view['status'] === 'pending')->sum('seconds'),
             ],
+            // Avisos de limite de jornada (2h extras/dia, semanal, 11h de descanso); não bloqueiam nada.
+            'alerts' => $this->limits->alerts($tenant, $member, $weekStart, WeekCalendar::endOf($weekStart)),
             'entries' => $entries->map(function (TimeEntry $entry) use ($snapshots, $additional) {
                 $snapshot = $snapshots->get($entry->project_id.':'.$entry->devops_work_item_id);
 

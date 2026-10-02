@@ -36,6 +36,10 @@ class OvertimeRuleService
         'requireTimeOfDay' => true,
         'bankValidityMonths' => 6,
         'bankWeighted' => true,
+        // Limites de aviso, em horas (0 desliga).
+        'alertDailyExtraHours' => 2.0,
+        'alertWeeklyHours' => 44.0,
+        'alertRestHours' => 11.0,
     ];
 
     public function __construct(private readonly AuditService $audit) {}
@@ -107,6 +111,9 @@ class OvertimeRuleService
             'requireTimeOfDay' => $rule->require_time_of_day,
             'bankValidityMonths' => $rule->bank_validity_months ?? 6,
             'bankWeighted' => $rule->bank_weighted ?? true,
+            'alertDailyExtraHours' => ($rule->alert_daily_extra_minutes ?? 120) / 60,
+            'alertWeeklyHours' => ($rule->alert_weekly_minutes ?? 2640) / 60,
+            'alertRestHours' => ($rule->alert_rest_minutes ?? 660) / 60,
             'version' => $rule->version,
             'effectiveFrom' => $rule->effective_from->toIso8601String(),
         ];
@@ -144,6 +151,9 @@ class OvertimeRuleService
                 // Campos do banco de horas: quem não os envia mantém os da versão atual.
                 'bank_validity_months' => $values['bankValidityMonths'] ?? $before['bankValidityMonths'],
                 'bank_weighted' => $values['bankWeighted'] ?? $before['bankWeighted'],
+                'alert_daily_extra_minutes' => (int) round(($values['alertDailyExtraHours'] ?? $before['alertDailyExtraHours']) * 60),
+                'alert_weekly_minutes' => (int) round(($values['alertWeeklyHours'] ?? $before['alertWeeklyHours']) * 60),
+                'alert_rest_minutes' => (int) round(($values['alertRestHours'] ?? $before['alertRestHours']) * 60),
                 'effective_from' => Date::now(),
             ]);
 

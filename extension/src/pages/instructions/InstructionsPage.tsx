@@ -6,6 +6,9 @@ import { fetchCurrentSession, type CurrentSession, type PolicyRules } from "../.
 
 type OvertimeInfo = NonNullable<CurrentSession["overtime"]>;
 
+/** 2 → "2h", 1.5 → "1,5h". */
+const hoursText = (hours: number): string => `${hours.toLocaleString("pt-BR")}h`;
+
 const SECTIONS = [
   { id: "resumo", label: "Em resumo" },
   { id: "lancar", label: "Lançar horas" },
@@ -340,6 +343,12 @@ export function InstructionsPage(): JSX.Element {
             <strong>vence no prazo do acordo</strong> (em geral 6 meses), e uma folga usa primeiro o que vence antes. O que
             vencer sem uso é pago como hora extra. Quer folgar? Combine com o gestor; quem lança a folga é o administrador.
           </li>
+          <li>
+            <strong>Limites de jornada:</strong> a folha mostra um aviso quando você passa de{" "}
+            {hoursText(overtime?.alertDailyExtraHours ?? 2)} extras num dia útil, quando a semana passa de{" "}
+            {hoursText(overtime?.alertWeeklyHours ?? 44)} ou quando o descanso entre duas jornadas fica abaixo de{" "}
+            {hoursText(overtime?.alertRestHours ?? 11)}. O aviso não bloqueia nada, mas o aprovador também o vê.
+          </li>
         </ul>
         {overtime && !overtime.enabled && (
           <p className="muted">O controle de horas adicionais está desligado nesta organização no momento.</p>
@@ -387,8 +396,8 @@ export function InstructionsPage(): JSX.Element {
           </li>
           <li>
             <strong>Configuração</strong> (só administradores): regras e fuso, horas extras e feriados, classificação
-            das horas adicionais, banco de horas (folgas e ajustes), projetos, atividades, pessoas e papéis, e aprovadores
-            designados.
+            das horas adicionais, banco de horas (folgas e ajustes), fechamento do mês para o DP (com CSV), projetos,
+            atividades, pessoas e papéis, e aprovadores designados.
           </li>
         </ul>
       </Section>

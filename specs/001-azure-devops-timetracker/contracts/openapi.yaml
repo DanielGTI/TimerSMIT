@@ -507,6 +507,9 @@ paths:
                 requireTimeOfDay: { type: boolean }
                 bankValidityMonths: { type: integer, minimum: 1, maximum: 12, description: Prazo para compensar o banco de horas. Omitido mantém o atual. }
                 bankWeighted: { type: boolean, description: O banco recebe as horas ponderadas (com o fator). Omitido mantém o atual. }
+                alertDailyExtraHours: { type: number, minimum: 0, maximum: 12, description: 'Aviso: horas extras por dia útil (padrão 2; 0 desliga). Omitido mantém o atual.' }
+                alertWeeklyHours: { type: number, minimum: 0, maximum: 99, description: 'Aviso: horas por semana (padrão 44; 0 desliga).' }
+                alertRestHours: { type: number, minimum: 0, maximum: 24, description: 'Aviso: descanso mínimo entre jornadas (padrão 11; 0 desliga).' }
       responses:
         '200': { description: Visão atualizada (campo `overtime`) }
         '422': { description: Valor inválido }
@@ -740,6 +743,29 @@ paths:
         '200': { description: '`{ updated }`' }
         '409': { description: Lançamento inexistente ou de semana não aprovada }
         '422': { description: Sem hora adicional, ou banco de horas para quem não é CLT }
+  /additional-hours/closing:
+    get:
+      operationId: getMonthlyClosing
+      description: >-
+        Só administradores. Fechamento do mês para o DP, pelo dia trabalhado:
+        por pessoa, linhas por categoria (overtime, payable, bank, pending =
+        semana aprovada sem classificação, unapproved = semana não aprovada) e
+        fator; movimento do banco no mês (crédito, folga, pagamento, ajuste,
+        vencido, saldo no fim do mês); contagem de avisos de jornada. Horas,
+        não valores.
+      parameters:
+        - { name: month, in: query, schema: { type: string, example: '2026-10' }, description: Padrão o mês atual. }
+      responses:
+        '200': { description: '`{ month, from, to, members[] }`' }
+        '403': { description: Não é administrador }
+  /additional-hours/closing.csv:
+    get:
+      operationId: exportMonthlyClosing
+      description: Só administradores. O mesmo fechamento em CSV (UTF-8 com BOM, `;`), uma linha por pessoa, categoria e fator. Auditado (`closing.exported`).
+      parameters:
+        - { name: month, in: query, schema: { type: string, example: '2026-10' } }
+      responses:
+        '200': { description: CSV, content: { text/csv: {} } }
   /me/hour-bank:
     get:
       operationId: getMyHourBank

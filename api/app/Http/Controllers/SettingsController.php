@@ -82,6 +82,9 @@ class SettingsController extends Controller
             'requireTimeOfDay' => ['required', 'boolean'],
             'bankValidityMonths' => ['sometimes', 'integer', 'between:1,12'],
             'bankWeighted' => ['sometimes', 'boolean'],
+            'alertDailyExtraHours' => ['sometimes', 'numeric', 'between:0,12'],
+            'alertWeeklyHours' => ['sometimes', 'numeric', 'between:0,99'],
+            'alertRestHours' => ['sometimes', 'numeric', 'between:0,24'],
         ], [
             'workdayEnd.after' => 'O fim do expediente precisa ser depois do início.',
             'nightEnd.different' => 'O início e o fim do período noturno não podem ser iguais.',

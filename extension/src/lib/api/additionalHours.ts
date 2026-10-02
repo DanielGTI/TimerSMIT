@@ -68,3 +68,52 @@ export const DAY_TYPE_LABELS: Record<AdditionalHoursDto["dayType"], string> = {
   sunday: "Domingo",
   holiday: "Feriado",
 };
+
+export type ClosingCategory = "overtime" | "payable" | "bank" | "pending" | "unapproved";
+
+export interface ClosingHoursDto {
+  seconds: number;
+  nightSeconds: number;
+  weightedSeconds: number;
+}
+
+export interface ClosingLineDto extends ClosingHoursDto {
+  category: ClosingCategory;
+  /** Fator do dia (1,5; 2...); null para o que ainda não foi decidido. */
+  factor: number | null;
+}
+
+export interface ClosingMemberDto {
+  memberId: string;
+  memberName: string;
+  regime: HoursRegime;
+  totals: Record<ClosingCategory, ClosingHoursDto>;
+  lines: ClosingLineDto[];
+  /** Movimento do banco no mês; null se a pessoa não tem banco. */
+  bank: {
+    creditedSeconds: number;
+    timeOffSeconds: number;
+    payoutSeconds: number;
+    adjustmentSeconds: number;
+    expiredSeconds: number;
+    balanceSeconds: number;
+  } | null;
+  alerts: { daily_extra: number; weekly_hours: number; rest: number };
+  deniedCount: number;
+}
+
+export interface ClosingDto {
+  month: string;
+  from: string;
+  to: string;
+  members: ClosingMemberDto[];
+}
+
+/** Fechamento do mês (YYYY-MM) para o DP. */
+export function fetchClosing(client: ApiClient, month: string): Promise<ClosingDto> {
+  return client.request<ClosingDto>(`/api/additional-hours/closing?month=${month}`);
+}
+
+export function downloadClosingCsv(client: ApiClient, month: string): Promise<Blob> {
+  return client.download(`/api/additional-hours/closing.csv?month=${month}`);
+}

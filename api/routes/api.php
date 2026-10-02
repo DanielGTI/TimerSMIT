@@ -75,6 +75,8 @@ Route::middleware('tenant')->group(function () {
     Route::middleware('admin')->prefix('additional-hours')->group(function () {
         Route::get('/', [AdditionalHoursController::class, 'index']);
         Route::post('/classify', [AdditionalHoursController::class, 'classify']);
+        Route::get('/closing', [AdditionalHoursController::class, 'closing']);
+        Route::get('/closing.csv', [AdditionalHoursController::class, 'closingCsv']);
     });
 
     // Banco de horas de todos: saldos, extrato, folgas, pagamentos e ajustes.

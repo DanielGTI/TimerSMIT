@@ -1661,3 +1661,16 @@ a.wi-chip__id:hover {
 .entry-table tr.is-current td {
   background: var(--ts-hover);
 }
+
+.banner--warning {
+  border-left-color: var(--status-warning-foreground, #b35900);
+}
+
+.banner--warning ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}

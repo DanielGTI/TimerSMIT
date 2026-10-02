@@ -24,6 +24,12 @@ const FACTORS: Array<{ key: keyof OvertimeRulesInput; label: string; hint: strin
   { key: "factorHoliday", label: "Feriado", hint: "CLT: em dobro (2) sem folga compensatória" },
 ];
 
+const LIMITS: Array<{ key: keyof OvertimeRulesInput; label: string; hint: string; max: number }> = [
+  { key: "alertDailyExtraHours", label: "Horas extras por dia útil (máximo)", hint: "CLT art. 59: até 2 horas", max: 12 },
+  { key: "alertWeeklyHours", label: "Horas por semana (máximo)", hint: "Constituição: 44 horas semanais", max: 99 },
+  { key: "alertRestHours", label: "Descanso entre jornadas (mínimo)", hint: "CLT art. 66: 11 horas", max: 24 },
+];
+
 const formatDate = (iso: string): string => {
   const [year, month, day] = iso.split("-");
   return `${day}/${month}/${year}`;
@@ -52,6 +58,9 @@ export function OvertimeSection({ settings, client, busy, run }: SectionProps): 
     requireTimeOfDay: current.requireTimeOfDay,
     bankValidityMonths: current.bankValidityMonths ?? 6,
     bankWeighted: current.bankWeighted ?? true,
+    alertDailyExtraHours: current.alertDailyExtraHours ?? 2,
+    alertWeeklyHours: current.alertWeeklyHours ?? 44,
+    alertRestHours: current.alertRestHours ?? 11,
   }));
   const [holidayDate, setHolidayDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
@@ -189,6 +198,30 @@ export function OvertimeSection({ settings, client, busy, run }: SectionProps): 
             checked={rules.bankWeighted}
             onChange={(value) => set("bankWeighted", value)}
           />
+        </div>
+
+        <h3 className="settings-subtitle">Limites de jornada (avisos)</h3>
+        <p className="muted">
+          Passou do limite, a folha e a aprovação mostram um aviso; nada é bloqueado. Use 0 para desligar um aviso.
+        </p>
+        <div className="filters__grid">
+          {LIMITS.map((limit) => (
+            <div className="field" key={limit.key}>
+              <label htmlFor={`${ids}-${limit.key}`}>{limit.label}</label>
+              <input
+                id={`${ids}-${limit.key}`}
+                className="input"
+                type="number"
+                min={0}
+                max={limit.max}
+                step={0.5}
+                value={rules[limit.key] as number}
+                onChange={(e) => set(limit.key, Number(e.target.value))}
+                required
+              />
+              <span className="muted settings-hint">{limit.hint}</span>
+            </div>
+          ))}
         </div>
 
         <button type="submit" className="btn btn--primary" disabled={busy}>

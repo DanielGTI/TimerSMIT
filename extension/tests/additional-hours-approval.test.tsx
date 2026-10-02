@@ -91,6 +91,7 @@ function detail(): ApprovalDetailDto {
       submittedAt: "2026-10-02T20:00:00Z",
       totalSeconds: 25200,
       additionalTotals: { seconds: 21600, weightedSeconds: 32400, pendingSeconds: 21600 },
+      alerts: [{ type: "daily_extra", date: "2026-09-29", seconds: 3 * 3600, limitSeconds: 2 * 3600 }],
       decisions: [],
       days: ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"].map((date) => ({
         date,
@@ -128,6 +129,7 @@ describe("Aprovação: horas adicionais", () => {
 
     expect(await screen.findByText("Horas adicionais a validar: 02:00 → 03:00")).toBeInTheDocument();
     expect(screen.getByText("Horas adicionais a validar: 04:00 → 06:00")).toBeInTheDocument();
+    expect(screen.getByRole("note", { name: "Avisos de jornada" })).toHaveTextContent("03:00 de horas extras no dia (limite 02:00)");
   });
 
   it("aprovar com tudo marcado valida as horas, sem lista de não autorizadas", async () => {

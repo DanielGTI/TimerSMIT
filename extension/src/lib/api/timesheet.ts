@@ -42,6 +42,21 @@ export interface DecisionDto {
   decidedAt: string;
 }
 
+/**
+ * Aviso de limite de jornada (não bloqueia nada): horas extras do dia acima do
+ * limite, semana acima do limite ou descanso curto entre duas jornadas.
+ */
+export interface WeekAlertDto {
+  type: "daily_extra" | "weekly_hours" | "rest";
+  /** Dia do aviso (no semanal, a segunda-feira). */
+  date: string;
+  seconds: number;
+  limitSeconds: number;
+  /** Só no descanso: fim da jornada anterior e início da seguinte ("YYYY-MM-DD HH:MM"). */
+  previousEnd?: string;
+  nextStart?: string;
+}
+
 export interface WeekDto {
   weekStartDate: string;
   weekEndDate: string;
@@ -54,6 +69,7 @@ export interface WeekDto {
   canReopen: boolean;
   totalSeconds: number;
   additionalTotals?: { seconds: number; weightedSeconds: number; pendingSeconds: number };
+  alerts?: WeekAlertDto[];
   decisions: DecisionDto[];
   days: DayTotal[];
   entries: WeekEntryDto[];

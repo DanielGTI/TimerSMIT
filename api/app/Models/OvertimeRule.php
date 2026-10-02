@@ -28,6 +28,9 @@ class OvertimeRule extends Model
         'require_time_of_day',
         'bank_validity_months',
         'bank_weighted',
+        'alert_daily_extra_minutes',
+        'alert_weekly_minutes',
+        'alert_rest_minutes',
         'effective_from',
     ];
 
@@ -44,6 +47,9 @@ class OvertimeRule extends Model
             'require_time_of_day' => 'boolean',
             'bank_validity_months' => 'integer',
             'bank_weighted' => 'boolean',
+            'alert_daily_extra_minutes' => 'integer',
+            'alert_weekly_minutes' => 'integer',
+            'alert_rest_minutes' => 'integer',
             'effective_from' => 'datetime',
         ];
     }

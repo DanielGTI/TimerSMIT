@@ -17,6 +17,7 @@ import { getApiBaseUrl } from "../../lib/api/config";
 import { formatHours, todayLocalIso } from "../../lib/time/format";
 import { formatWeekRange } from "../../lib/time/weeks";
 import { EntryList } from "../timesheet/EntryList";
+import { WeekAlerts } from "../../components/WeekAlerts";
 import { AdditionalHoursReview, type Denials } from "./AdditionalHoursReview";
 import { WeekGrid } from "../timesheet/WeekGrid";
 
@@ -240,6 +241,7 @@ export function ApprovalsPage(): JSX.Element {
                   </span>
                 </div>
 
+                <WeekAlerts alerts={detail.week.alerts} audience="approver" />
                 <WeekGrid week={detail.week} today={today} />
                 <h3>Lançamentos</h3>
                 <EntryList client={client} entries={detail.week.entries} editable={false} onChanged={reload} />

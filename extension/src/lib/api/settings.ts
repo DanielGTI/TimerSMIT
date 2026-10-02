@@ -29,6 +29,10 @@ export interface OvertimeRulesDto {
   bankValidityMonths: number;
   /** O banco recebe as horas ponderadas (com o fator) em vez das horas de relógio. */
   bankWeighted: boolean;
+  /** Limites que geram aviso, em horas (0 desliga). */
+  alertDailyExtraHours: number;
+  alertWeeklyHours: number;
+  alertRestHours: number;
   version: number;
   effectiveFrom: string | null;
 }

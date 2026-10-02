@@ -16,7 +16,16 @@ export interface CurrentSession {
   hoursRegime?: "clt" | "pj" | "none";
   policy?: PolicyRules;
   /** `requireTimeOfDay`: o lançamento manual precisa de De/Até. */
-  overtime?: { enabled: boolean; requireTimeOfDay: boolean; workdayStart: string; workdayEnd: string };
+  overtime?: {
+    enabled: boolean;
+    requireTimeOfDay: boolean;
+    workdayStart: string;
+    workdayEnd: string;
+    /** Limites que geram aviso, em horas (0 = desligado). */
+    alertDailyExtraHours?: number;
+    alertWeeklyHours?: number;
+    alertRestHours?: number;
+  };
 }
 
 export function fetchCurrentSession(client: ApiClient): Promise<CurrentSession> {
