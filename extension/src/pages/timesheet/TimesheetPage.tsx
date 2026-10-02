@@ -240,6 +240,7 @@ export function TimesheetPage(): JSX.Element {
         month={month}
         data={monthData}
         selectedWeekStart={weekStart}
+        selectedWeekDays={week?.weekStartDate === weekStart ? week.days : undefined}
         today={today}
         onMonthChange={(delta) => setMonth(addMonths(month, delta))}
         onPickDay={(date) => goToWeek(mondayOf(date))}

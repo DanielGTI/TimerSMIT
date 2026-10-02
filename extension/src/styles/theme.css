@@ -651,6 +651,8 @@ textarea.input {
 }
 
 .calendar__hours {
+  /* Mantém a altura do dia mesmo sem horas para mostrar. */
+  min-height: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -700,9 +702,10 @@ textarea.input {
   }
 }
 
-.calendar__outside {
+/* Dias de outro mês que completam a linha: funcionam igual, só mais apagados. */
+.calendar__day--outside .calendar__number,
+.calendar__day--outside .calendar__hours {
   color: var(--ts-border);
-  font-size: 12px;
 }
 
 .calendar__total {

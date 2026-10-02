@@ -498,6 +498,25 @@ describe("TimesheetPage", () => {
       expect(createManualEntry).not.toHaveBeenCalled();
     });
 
+    it("dias de outro mês na linha (ex.: outubro na visão de setembro) também têm + e abrem a semana", async () => {
+      fetchWeek.mockResolvedValue(
+        week({
+          days: week().days.map((day) => (day.date === "2026-10-01" ? { ...day, totalSeconds: 7200 } : day)),
+        }),
+      );
+      render(<TimesheetPage />);
+      await screen.findByText("28 set – 04 out 2026");
+      const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
+
+      // Horas de fora do mês vêm da semana aberta na folha.
+      expect(within(calendar).getByRole("button", { name: "Abrir a semana do dia 01/10" })).toHaveTextContent("02:00");
+      expect(within(calendar).getByRole("button", { name: "Adicionar tempo em 31/08" })).toBeInTheDocument();
+
+      fireEvent.click(within(calendar).getByRole("button", { name: "Adicionar tempo em 02/10" }));
+      const dialog = await screen.findByRole("dialog", { name: "Adicionar tempo" });
+      expect(((await within(dialog).findByLabelText("Data")) as HTMLInputElement).value).toBe("2026-10-02");
+    });
+
     it("semana enviada não tem + nos dias nem o botão", async () => {
       fetchWeek.mockResolvedValue(week({ status: "submitted", revision: 1, submittedAt: "2026-09-30T15:00:00Z" }));
       fetchMonth.mockResolvedValue({
