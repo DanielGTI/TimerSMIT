@@ -10,6 +10,7 @@ Registre, envie e aprove horas de trabalho sem sair do Azure DevOps. O lançamen
 
 **Folha semanal**
 - Veja a semana (segunda a domingo) e o mês, com totais por dia e por work item.
+- Lance horas pela data: o "+" de cada dia do calendário abre o lançamento já naquele dia, e você escolhe o work item pelo número ou pelo título.
 - Edite ou exclua lançamentos enquanto a semana estiver aberta.
 - Envie a semana para aprovação quando terminar.
 

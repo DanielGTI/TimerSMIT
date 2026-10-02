@@ -6,7 +6,7 @@ import { fetchCurrentSession, type CurrentSession } from "../../lib/api/me";
 import { fetchActiveTimer, type TimerDto } from "../../lib/api/timer";
 import { getWebContext } from "../../lib/devops/sdk";
 import { getCurrentWorkItem, type CurrentWorkItem } from "../../lib/devops/workItems";
-import { ManualEntryForm } from "./ManualEntryForm";
+import { ManualEntryForm } from "../../components/ManualEntryForm";
 import { TimerPanel } from "./TimerPanel";
 
 interface Loaded {

@@ -8,7 +8,7 @@ vi.mock("../src/lib/api/entries", () => ({
 }));
 
 import type { ApiClient } from "../src/lib/api/client";
-import { ManualEntryForm } from "../src/pages/work-item/ManualEntryForm";
+import { ManualEntryForm } from "../src/components/ManualEntryForm";
 
 const client = {} as ApiClient;
 const activityTypes = [

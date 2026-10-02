@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DecisionHistory } from "../../components/DecisionHistory";
 import { StatusBadge } from "../../components/StatusBadge";
+import { fetchActivityTypes } from "../../lib/api/activityTypes";
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
+import { fetchCurrentSession } from "../../lib/api/me";
 import { fetchMonth, fetchWeek, submitWeek, type MonthDto, type WeekDto } from "../../lib/api/timesheet";
-import { formatHours, todayLocalIso } from "../../lib/time/format";
-import { addDays, addMonths, formatWeekRange, mondayOf, monthOf } from "../../lib/time/weeks";
+import { formatDuration, formatHours, todayLocalIso } from "../../lib/time/format";
+import { addDays, addMonths, dayMonth, formatWeekRange, mondayOf, monthOf } from "../../lib/time/weeks";
+import { AddTimePanel, type AddTimeResources } from "./AddTimePanel";
 import { EntryList } from "./EntryList";
 import { MonthCalendar } from "./MonthCalendar";
 import { WeekGrid } from "./WeekGrid";
@@ -40,7 +43,8 @@ function decisionBanner(week: WeekDto): { className: string; text: string } | nu
 /**
  * Folha semanal (US2, T024): grade por work item e dia, lançamentos com
  * editar/excluir, envio da semana e resumo mensal. Os totais vêm prontos do
- * servidor — a tela só formata.
+ * servidor — a tela só formata. O "+" de cada dia do calendário (e o botão
+ * "Adicionar tempo") lança horas escolhendo o work item pela busca.
  */
 export function TimesheetPage(): JSX.Element {
   const client = useMemo(() => createApiClient({ apiBaseUrl: getApiBaseUrl() }), []);
@@ -55,6 +59,9 @@ export function TimesheetPage(): JSX.Element {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
+  const [addingOn, setAddingOn] = useState<string | null>(null);
+  const [addTimeResources, setAddTimeResources] = useState<AddTimeResources | null>(null);
+  const [addTimeError, setAddTimeError] = useState<string | null>(null);
 
   const reload = () => setReloadTick((tick) => tick + 1);
 
@@ -83,6 +90,23 @@ export function TimesheetPage(): JSX.Element {
     };
   }, [client, month, reloadTick]);
 
+  // Nome e atividades só são lidos na primeira vez que o painel abre.
+  useEffect(() => {
+    if (addingOn === null || addTimeResources) return;
+    let cancelled = false;
+    setAddTimeError(null);
+
+    Promise.all([fetchCurrentSession(client), fetchActivityTypes(client)])
+      .then(([session, activityTypes]) => !cancelled && setAddTimeResources({ displayName: session.displayName, activityTypes }))
+      .catch((failure: unknown) => !cancelled && setAddTimeError(errorText(failure)));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, addingOn, addTimeResources]);
+
+  const closeAddTime = useCallback(() => setAddingOn(null), []);
+
   function goToWeek(start: string) {
     setWeekStart(start);
     setConfirming(false);
@@ -109,8 +133,17 @@ export function TimesheetPage(): JSX.Element {
     }
   }
 
+  function handleAddTimeSaved({ localDate, minutes }: { localDate: string; minutes: number }) {
+    setAddingOn(null);
+    goToWeek(mondayOf(localDate));
+    setNotice(`Lançamento de ${formatDuration(minutes)} registrado em ${dayMonth(localDate)}.`);
+    reload();
+  }
+
   const editable = week !== null && (week.status === "open" || week.status === "rejected");
   const canSubmit = editable && week.entries.length > 0 && !busy;
+  // Sem data escolhida no calendário, vale hoje se estiver nesta semana.
+  const defaultAddDate = mondayOf(today) === weekStart ? today : weekStart;
 
   return (
     <div className="page page--wide">
@@ -144,6 +177,12 @@ export function TimesheetPage(): JSX.Element {
             )}
 
             <span className="summary__spacer" />
+
+            {editable && (
+              <button type="button" className="btn" onClick={() => setAddingOn(defaultAddDate)}>
+                + Adicionar tempo
+              </button>
+            )}
 
             {confirming ? (
               <span className="confirm" role="group" aria-label="Confirmar envio da semana">
@@ -204,7 +243,19 @@ export function TimesheetPage(): JSX.Element {
         today={today}
         onMonthChange={(delta) => setMonth(addMonths(month, delta))}
         onPickDay={(date) => goToWeek(mondayOf(date))}
+        onAddTime={setAddingOn}
       />
+
+      {addingOn !== null && (
+        <AddTimePanel
+          client={client}
+          date={addingOn}
+          resources={addTimeResources}
+          resourcesError={addTimeError}
+          onClose={closeAddTime}
+          onSaved={handleAddTimeSaved}
+        />
+      )}
     </div>
   );
 }

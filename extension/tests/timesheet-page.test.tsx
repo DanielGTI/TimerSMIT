@@ -19,6 +19,25 @@ vi.mock("../src/lib/api/timesheet", () => ({
   deleteEntry: (...args: unknown[]) => deleteEntry(...args),
 }));
 
+const createManualEntry = vi.fn();
+const searchWorkItems = vi.fn();
+const fetchWorkItemDetails = vi.fn();
+
+vi.mock("../src/lib/api/entries", () => ({
+  createManualEntry: (...args: unknown[]) => createManualEntry(...args),
+}));
+vi.mock("../src/lib/api/me", () => ({
+  fetchCurrentSession: async () => ({ tenantId: "t", organizationName: "smitbr", memberId: "m", displayName: "Daniel Ferreira" }),
+}));
+vi.mock("../src/lib/api/activityTypes", () => ({
+  fetchActivityTypes: async () => [{ id: "3", name: "Desenvolvimento", color: "#A6D8F5", defaultBillable: false }],
+}));
+vi.mock("../src/lib/devops/workItemSearch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/devops/workItemSearch")>()),
+  searchWorkItems: (...args: unknown[]) => searchWorkItems(...args),
+  fetchWorkItemDetails: (...args: unknown[]) => fetchWorkItemDetails(...args),
+}));
+
 import type { WeekDto, WeekEntryDto } from "../src/lib/api/timesheet";
 import { TimesheetPage } from "../src/pages/timesheet/TimesheetPage";
 
@@ -102,6 +121,9 @@ describe("TimesheetPage", () => {
     submitWeek.mockReset();
     updateEntry.mockReset();
     deleteEntry.mockReset().mockResolvedValue(undefined);
+    createManualEntry.mockReset().mockResolvedValue({});
+    searchWorkItems.mockReset().mockResolvedValue([]);
+    fetchWorkItemDetails.mockReset();
   });
 
   afterEach(() => {
@@ -377,5 +399,118 @@ describe("TimesheetPage", () => {
 
     await waitFor(() => expect(fetchMonth).toHaveBeenLastCalledWith(expect.anything(), "2026-10"));
     expect(await screen.findByText("outubro de 2026")).toBeInTheDocument();
+  });
+
+  describe("adicionar tempo pela data", () => {
+    const hit = { id: 15596, title: "(Reunião)(Alinhamento) Com o cliente 07/08/2026", workItemType: "Task", projectName: "McCain", state: "Active" };
+    const details = {
+      ...hit,
+      projectId: "guid-mccain",
+      iterationPath: "McCain\\Sprint 8",
+      parent: { id: 15550, title: "08 Agosto 2026 Suporte ao Cliente", workItemType: "User Story" },
+      webUrl: "https://dev.azure.com/smitbr/McCain/_workitems/edit/15596",
+    };
+
+    async function openFromDay(day: string) {
+      render(<TimesheetPage />);
+      await screen.findByText("28 set – 04 out 2026");
+      const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
+      fireEvent.click(within(calendar).getByRole("button", { name: `Adicionar tempo em ${day}` }));
+      return screen.findByRole("dialog", { name: "Adicionar tempo" });
+    }
+
+    it("o + do dia abre o painel com a data, busca o work item e lança nele", async () => {
+      searchWorkItems.mockResolvedValue([hit, { ...hit, id: 15560, title: "Outro" }]);
+      fetchWorkItemDetails.mockResolvedValue(details);
+      const dialog = await openFromDay("15/09");
+
+      expect(await within(dialog).findByText("Daniel Ferreira")).toBeInTheDocument();
+      expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe("2026-09-15");
+      expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
+
+      fireEvent.change(within(dialog).getByRole("combobox", { name: "Work item" }), { target: { value: "155" } });
+      await waitFor(() => expect(searchWorkItems).toHaveBeenLastCalledWith("155"));
+      fireEvent.click(await within(dialog).findByRole("option", { name: /#15596/ }));
+
+      // Escolhido: o chip mostra o item; o detalhe traz projeto, pai e título inteiro.
+      const tooltip = await within(dialog).findByRole("tooltip");
+      expect(fetchWorkItemDetails).toHaveBeenCalledWith(15596);
+      expect(tooltip).toHaveTextContent("McCain / … / #15550 08 Agosto 2026 Suporte ao Cliente");
+      expect(tooltip).toHaveTextContent("#15596 (Reunião)(Alinhamento) Com o cliente 07/08/2026");
+      expect(within(dialog).getByRole("link", { name: "#15596" })).toHaveAttribute("href", details.webUrl);
+
+      fireEvent.change(within(dialog).getByLabelText("Duração"), { target: { value: "01:30" } });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+
+      await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+      expect(createManualEntry.mock.calls[0][1]).toMatchObject({
+        projectId: "guid-mccain",
+        projectName: "McCain",
+        workItemId: 15596,
+        localDate: "2026-09-15",
+        durationSeconds: 5400,
+        title: hit.title,
+        workItemType: "Task",
+        iterationPath: "McCain\\Sprint 8",
+      });
+
+      expect(await screen.findByText("Lançamento de 01:30 registrado em 15/09.")).toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await waitFor(() => expect(fetchWeek).toHaveBeenLastCalledWith(expect.anything(), "2026-09-14"));
+    });
+
+    it("trocar o work item volta para a busca", async () => {
+      searchWorkItems.mockResolvedValue([hit]);
+      fetchWorkItemDetails.mockResolvedValue(details);
+      const dialog = await openFromDay("30/09");
+
+      fireEvent.focus(await within(dialog).findByRole("combobox", { name: "Work item" }));
+      fireEvent.click(await within(dialog).findByRole("option", { name: /#15596/ }));
+      fireEvent.click(await within(dialog).findByRole("button", { name: "Trocar o work item" }));
+
+      expect(within(dialog).getByRole("combobox", { name: "Work item" })).toHaveValue("");
+      expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
+    });
+
+    it("item sem projeto identificado não é escolhido", async () => {
+      searchWorkItems.mockResolvedValue([hit]);
+      fetchWorkItemDetails.mockResolvedValue({ ...details, projectId: null });
+      const dialog = await openFromDay("30/09");
+
+      fireEvent.focus(await within(dialog).findByRole("combobox", { name: "Work item" }));
+      fireEvent.click(await within(dialog).findByRole("option", { name: /#15596/ }));
+
+      expect(await within(dialog).findByText(/Não foi possível identificar o projeto do #15596/)).toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
+    });
+
+    it("Cancelar e Esc fecham sem lançar", async () => {
+      const dialog = await openFromDay("30/09");
+      fireEvent.click(await within(dialog).findByRole("button", { name: "Cancelar" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "+ Adicionar tempo" }));
+      const again = await screen.findByRole("dialog", { name: "Adicionar tempo" });
+      // Sem dia escolhido, vale hoje (a semana aberta é a atual).
+      expect((await within(again).findByLabelText("Data") as HTMLInputElement).value).toBe("2026-09-30");
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(createManualEntry).not.toHaveBeenCalled();
+    });
+
+    it("semana enviada não tem + nos dias nem o botão", async () => {
+      fetchWeek.mockResolvedValue(week({ status: "submitted", revision: 1, submittedAt: "2026-09-30T15:00:00Z" }));
+      fetchMonth.mockResolvedValue({
+        ...monthData,
+        weeks: monthData.weeks.map((item) => (item.weekStartDate === WEEK ? { ...item, status: "submitted" } : item)),
+      });
+      render(<TimesheetPage />);
+      await screen.findByText("28 set – 04 out 2026");
+      const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
+
+      await waitFor(() => expect(within(calendar).queryByRole("button", { name: "Adicionar tempo em 30/09" })).not.toBeInTheDocument());
+      expect(within(calendar).getByRole("button", { name: "Adicionar tempo em 23/09" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "+ Adicionar tempo" })).not.toBeInTheDocument();
+    });
   });
 });

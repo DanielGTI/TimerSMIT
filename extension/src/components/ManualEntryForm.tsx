@@ -1,10 +1,10 @@
-import { useId, useState, type FormEvent } from "react";
-import { ActivitySelect } from "../../components/ActivitySelect";
-import { Switch } from "../../components/Switch";
-import type { ActivityTypeDto } from "../../lib/api/activityTypes";
-import type { ApiClient } from "../../lib/api/client";
-import { createManualEntry } from "../../lib/api/entries";
-import type { CurrentWorkItem } from "../../lib/devops/workItems";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { ActivitySelect } from "./ActivitySelect";
+import { Switch } from "./Switch";
+import type { ActivityTypeDto } from "../lib/api/activityTypes";
+import type { ApiClient } from "../lib/api/client";
+import { createManualEntry } from "../lib/api/entries";
+import type { CurrentWorkItem } from "../lib/devops/workItems";
 import {
   formatDuration,
   initials,
@@ -13,14 +13,22 @@ import {
   parseDuration,
   timeToMinutes,
   todayLocalIso,
-} from "../../lib/time/format";
+} from "../lib/time/format";
 
 interface ManualEntryFormProps {
   client: ApiClient;
-  project: { id: string; name: string };
-  workItem: CurrentWorkItem;
+  /** Projeto e work item do lançamento; enquanto faltarem (busca ainda vazia), não salva. */
+  project: { id: string; name: string } | null;
+  workItem: CurrentWorkItem | null;
   activityTypes: ActivityTypeDto[];
   displayName: string;
+  /** Escolha do work item (folha semanal); na guia do work item ele já vem do formulário aberto. */
+  workItemField?: ReactNode;
+  initialDate?: string;
+  /** Painel lateral: mostra fechar/Cancelar. */
+  onCancel?: () => void;
+  /** Quem abriu cuida do aviso e de fechar; sem isso, o formulário limpa e mostra o aviso. */
+  onSaved?: (saved: { localDate: string; minutes: number }) => void;
 }
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
@@ -40,6 +48,9 @@ const MINUTES_PER_DAY = 24 * 60;
  * (HH:MM + atalhos), intervalo De/Até, atividade, comentário e faturável.
  * De/Até são opcionais: só quando a pessoa os preenche o início é gravado
  * (e aparece nos relatórios); sem isso, vale data + duração.
+ *
+ * Serve à guia do work item (item fixo) e ao painel da folha semanal
+ * (data pronta, item escolhido pela busca em `workItemField`).
  */
 export function ManualEntryForm({
   client,
@@ -47,9 +58,13 @@ export function ManualEntryForm({
   workItem,
   activityTypes,
   displayName,
+  workItemField,
+  initialDate,
+  onCancel,
+  onSaved,
 }: ManualEntryFormProps): JSX.Element {
   const ids = useId();
-  const [localDate, setLocalDate] = useState(() => todayLocalIso());
+  const [localDate, setLocalDate] = useState(() => initialDate ?? todayLocalIso());
   const [durationText, setDurationText] = useState("00:00");
   const [fromText, setFromText] = useState(() => nowAsTime());
   const [toText, setToText] = useState(() => nowAsTime());
@@ -66,7 +81,8 @@ export function ManualEntryForm({
   const startMinutes = timeInformed ? timeToMinutes(fromText) : null;
   const sendsStart = startMinutes !== null;
   const pastMidnight = sendsStart && durationMinutes !== null && startMinutes + durationMinutes > MINUTES_PER_DAY;
-  const canSave = durationMinutes !== null && durationMinutes > 0 && !pastMidnight && !busy;
+  const canSave =
+    project !== null && workItem !== null && durationMinutes !== null && durationMinutes > 0 && !pastMidnight && !busy;
 
   function applyDuration(minutes: number) {
     setDurationText(formatDuration(minutes));
@@ -104,7 +120,7 @@ export function ManualEntryForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (durationMinutes === null || durationMinutes <= 0) return;
+    if (!project || !workItem || durationMinutes === null || durationMinutes <= 0) return;
 
     setBusy(true);
     setFeedback(null);
@@ -123,6 +139,10 @@ export function ManualEntryForm({
         workItemType: workItem.workItemType,
         ...(workItem.iterationPath ? { iterationPath: workItem.iterationPath } : {}),
       });
+      if (onSaved) {
+        onSaved({ localDate, minutes: durationMinutes });
+        return;
+      }
       setFeedback({ kind: "ok", text: `Lançamento de ${formatDuration(durationMinutes)} registrado.` });
       setDurationText("00:00");
       setFromText(nowAsTime());
@@ -137,8 +157,15 @@ export function ManualEntryForm({
   }
 
   return (
-    <form className="card" onSubmit={(event) => void handleSubmit(event)}>
-      <h2>Adicionar tempo</h2>
+    <form className={onCancel ? "add-time" : "card"} onSubmit={(event) => void handleSubmit(event)}>
+      <div className="add-time__header">
+        <h2>Adicionar tempo</h2>
+        {onCancel && (
+          <button type="button" className="btn btn--icon btn--ghost" aria-label="Fechar" onClick={onCancel}>
+            ×
+          </button>
+        )}
+      </div>
 
       <div className="user-chip">
         <span className="avatar" aria-hidden="true">
@@ -146,6 +173,8 @@ export function ManualEntryForm({
         </span>
         <span>{displayName}</span>
       </div>
+
+      {workItemField && <div className="field">{workItemField}</div>}
 
       <div className="field">
         <label htmlFor={`${ids}-date`}>Data</label>
@@ -262,6 +291,11 @@ export function ManualEntryForm({
       <Switch label="Horas faturáveis" checked={billable} onChange={setBillable} />
 
       <div className="actions">
+        {onCancel && (
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancelar
+          </button>
+        )}
         <button type="submit" className="btn btn--primary" disabled={!canSave}>
           Salvar
         </button>
