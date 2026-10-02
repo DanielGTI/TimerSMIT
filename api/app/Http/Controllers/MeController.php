@@ -35,7 +35,7 @@ class MeController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{enabled: bool, requireTimeOfDay: bool, workdayStart: string, workdayEnd: string}
      */
     private function overtimeFor(TenantContext $tenantContext): array
     {
@@ -46,10 +46,6 @@ class MeController extends Controller
             'requireTimeOfDay' => $this->overtime->requiresTimeOfDay($tenantContext->tenant(), $tenantContext->member()),
             'workdayStart' => $rules['workdayStart'],
             'workdayEnd' => $rules['workdayEnd'],
-            // Limites que geram aviso na folha (a página de Instruções mostra os valores).
-            'alertDailyExtraHours' => $rules['alertDailyExtraHours'],
-            'alertWeeklyHours' => $rules['alertWeeklyHours'],
-            'alertRestHours' => $rules['alertRestHours'],
         ];
     }
 }

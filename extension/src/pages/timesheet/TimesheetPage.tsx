@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DecisionHistory } from "../../components/DecisionHistory";
 import { StatusBadge } from "../../components/StatusBadge";
-import { WeekAlerts } from "../../components/WeekAlerts";
 import { fetchActivityTypes } from "../../lib/api/activityTypes";
 import { reopenApproval } from "../../lib/api/approvals";
 import { createApiClient } from "../../lib/api/client";
@@ -369,8 +368,6 @@ export function TimesheetPage(): JSX.Element {
             {decisionBanner(week)!.text}
           </p>
         )}
-
-        {week && <WeekAlerts alerts={week.alerts} audience="self" />}
 
         {notice && (
           <p className="notice" role="status">

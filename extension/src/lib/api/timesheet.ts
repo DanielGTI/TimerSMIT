@@ -69,6 +69,7 @@ export interface WeekDto {
   canReopen: boolean;
   totalSeconds: number;
   additionalTotals?: { seconds: number; weightedSeconds: number; pendingSeconds: number };
+  /** Só vem preenchido para administradores (detalhe da aprovação). */
   alerts?: WeekAlertDto[];
   decisions: DecisionDto[];
   days: DayTotal[];

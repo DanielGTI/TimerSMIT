@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ApproverAssignment;
 use App\Models\AuditEvent;
 use App\Models\Member;
 use App\Models\OvertimeRule;
@@ -11,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
 use App\Services\SessionTokenService;
+use App\Services\WorkLimitService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -105,7 +107,7 @@ class WorkLimitsAndClosingTest extends TestCase
 
     private function alerts(string $week = self::WEEK): array
     {
-        return $this->getJson("/api/me/weeks/{$week}", $this->headers())->assertOk()->json('alerts');
+        return app(WorkLimitService::class)->alerts($this->tenant, $this->member->fresh(), $week, CarbonImmutable::parse($week)->addDays(6)->toDateString());
     }
 
     // ---------- avisos ----------
@@ -209,15 +211,27 @@ class WorkLimitsAndClosingTest extends TestCase
         $this->putJson('/api/settings/overtime-rules', $payload + ['alertRestHours' => 25], $this->headers($this->admin))->assertStatus(422);
     }
 
-    public function test_the_approver_sees_the_warnings_of_the_week(): void
+    public function test_only_admins_see_the_warnings_the_person_and_other_approvers_do_not(): void
     {
+        $approver = Member::factory()->for($this->tenant)->create();
+        ApproverAssignment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'member_id' => $this->member->id,
+            'approver_id' => $approver->id,
+        ]);
+
         $this->entry('2026-09-29', '09:00', 12 * 60 + 30);
+        $this->getJson('/api/me/weeks/'.self::WEEK, $this->headers())->assertOk()->assertJsonPath('alerts', []);
+
         $this->postJson('/api/me/weeks/'.self::WEEK.'/submit', [], $this->headers(key: 'submit-key-0000000001'))->assertOk();
         $submission = WeeklySubmission::query()->firstOrFail();
 
         $this->getJson("/api/approvals/{$submission->id}", $this->headers($this->admin))
             ->assertOk()
             ->assertJsonPath('week.alerts.0.type', 'daily_extra');
+        $this->getJson("/api/approvals/{$submission->id}", $this->headers($approver))
+            ->assertOk()
+            ->assertJsonPath('week.alerts', []);
     }
 
     // ---------- fechamento mensal ----------

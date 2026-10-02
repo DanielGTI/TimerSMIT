@@ -241,7 +241,7 @@ export function ApprovalsPage(): JSX.Element {
                   </span>
                 </div>
 
-                <WeekAlerts alerts={detail.week.alerts} audience="approver" />
+                <WeekAlerts alerts={detail.week.alerts} />
                 <WeekGrid week={detail.week} today={today} />
                 <h3>Lançamentos</h3>
                 <EntryList client={client} entries={detail.week.entries} editable={false} onChanged={reload} />

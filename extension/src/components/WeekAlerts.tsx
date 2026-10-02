@@ -23,20 +23,16 @@ export function alertText(alert: WeekAlertDto): string {
 }
 
 /**
- * Avisos de limite de jornada da semana. Não impedem enviar nem aprovar:
- * servem para a pessoa, o aprovador e o administrador agirem.
+ * Avisos de limite de jornada da semana, só para administradores (o servidor
+ * só os envia a eles): conferência informativa, não impedem a aprovação.
  */
-export function WeekAlerts({ alerts, audience }: { alerts: WeekAlertDto[] | undefined; audience: "self" | "approver" }): JSX.Element | null {
+export function WeekAlerts({ alerts }: { alerts: WeekAlertDto[] | undefined }): JSX.Element | null {
   if (!alerts || alerts.length === 0) return null;
 
   return (
     <div className="banner banner--warning" role="note" aria-label="Avisos de jornada">
       <strong>Avisos de jornada</strong>{" "}
-      <span className="muted">
-        {audience === "self"
-          ? "(não impedem o envio; combine com o seu gestor)"
-          : "(não impedem a aprovação; confira se as horas foram combinadas)"}
-      </span>
+      <span className="muted">(informativo, para conferência do administrador)</span>
       <ul>
         {alerts.map((alert) => (
           <li key={`${alert.type}-${alert.date}`}>{alertText(alert)}</li>

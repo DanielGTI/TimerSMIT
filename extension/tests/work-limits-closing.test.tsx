@@ -55,13 +55,13 @@ describe("Avisos de jornada", () => {
     ).toBe("qua 30/09: só 08:00 de descanso entre 29/09 23:00 e 30/09 07:00 (mínimo 11:00).");
   });
 
-  it("não aparece sem avisos e lembra que nada é bloqueado", () => {
-    const { container } = render(<WeekAlerts alerts={[]} audience="self" />);
+  it("não aparece sem avisos e se apresenta como conferência do administrador", () => {
+    const { container } = render(<WeekAlerts alerts={[]} />);
     expect(container).toBeEmptyDOMElement();
 
-    render(<WeekAlerts alerts={[{ type: "weekly_hours", date: "2026-09-28", seconds: 45 * H, limitSeconds: 44 * H }]} audience="self" />);
+    render(<WeekAlerts alerts={[{ type: "weekly_hours", date: "2026-09-28", seconds: 45 * H, limitSeconds: 44 * H }]} />);
     const note = screen.getByRole("note", { name: "Avisos de jornada" });
-    expect(note).toHaveTextContent("não impedem o envio");
+    expect(note).toHaveTextContent("informativo, para conferência do administrador");
     expect(within(note).getAllByRole("listitem")).toHaveLength(1);
   });
 });

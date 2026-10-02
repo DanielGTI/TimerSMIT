@@ -202,7 +202,8 @@ export function OvertimeSection({ settings, client, busy, run }: SectionProps): 
 
         <h3 className="settings-subtitle">Limites de jornada (avisos)</h3>
         <p className="muted">
-          Passou do limite, a folha e a aprovação mostram um aviso; nada é bloqueado. Use 0 para desligar um aviso.
+          Só para conferência do administrador: o aviso aparece no detalhe da aprovação e no fechamento do mês. A pessoa
+          não vê, e nada é bloqueado. Use 0 para desligar um aviso.
         </p>
         <div className="filters__grid">
           {LIMITS.map((limit) => (

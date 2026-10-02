@@ -35,9 +35,10 @@ class TimesheetService
     ) {}
 
     /**
+     * @param  bool  $withAlerts  avisos de limite de jornada: só para administradores (conferência)
      * @return array<string, mixed>
      */
-    public function week(Tenant $tenant, Member $member, string $weekStart): array
+    public function week(Tenant $tenant, Member $member, string $weekStart, bool $withAlerts = false): array
     {
         $this->assertWeekStart($weekStart);
 
@@ -87,8 +88,9 @@ class TimesheetService
                 'weightedSeconds' => (int) $additional->filter()->sum('weightedSeconds'),
                 'pendingSeconds' => (int) $additional->filter(fn ($view) => $view !== null && $view['status'] === 'pending')->sum('seconds'),
             ],
-            // Avisos de limite de jornada (2h extras/dia, semanal, 11h de descanso); não bloqueiam nada.
-            'alerts' => $this->limits->alerts($tenant, $member, $weekStart, WeekCalendar::endOf($weekStart)),
+            // Avisos de limite de jornada (2h extras/dia, semanal, 11h de descanso); não bloqueiam
+            // nada e só vão para administradores — a própria pessoa não os vê.
+            'alerts' => $withAlerts ? $this->limits->alerts($tenant, $member, $weekStart, WeekCalendar::endOf($weekStart)) : [],
             'entries' => $entries->map(function (TimeEntry $entry) use ($snapshots, $additional) {
                 $snapshot = $snapshots->get($entry->project_id.':'.$entry->devops_work_item_id);
 

@@ -237,7 +237,7 @@ class ApprovalService
                 'submittedAt' => $submission->submitted_at?->toIso8601String(),
                 'submitter' => $this->person($submission->member),
             ],
-            'week' => $this->timesheet->week($tenant, $submission->member, $submission->week_start_date),
+            'week' => $this->timesheet->week($tenant, $submission->member, $submission->week_start_date, $this->approvers->isAdmin($viewer)),
             'permissions' => [
                 'canDecide' => $submission->status === WeeklySubmission::STATUS_SUBMITTED && $this->canDecide($viewer, $submission),
                 'canReopen' => $submission->status === WeeklySubmission::STATUS_APPROVED && $this->approvers->isAdmin($viewer),

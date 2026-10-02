@@ -6,9 +6,6 @@ import { fetchCurrentSession, type CurrentSession, type PolicyRules } from "../.
 
 type OvertimeInfo = NonNullable<CurrentSession["overtime"]>;
 
-/** 2 → "2h", 1.5 → "1,5h". */
-const hoursText = (hours: number): string => `${hours.toLocaleString("pt-BR")}h`;
-
 const SECTIONS = [
   { id: "resumo", label: "Em resumo" },
   { id: "lancar", label: "Lançar horas" },
@@ -342,12 +339,6 @@ export function InstructionsPage(): JSX.Element {
             administrador as manda para o banco e saem nas folgas que ele lança. Cada crédito{" "}
             <strong>vence no prazo do acordo</strong> (em geral 6 meses), e uma folga usa primeiro o que vence antes. O que
             vencer sem uso é pago como hora extra. Quer folgar? Combine com o gestor; quem lança a folga é o administrador.
-          </li>
-          <li>
-            <strong>Limites de jornada:</strong> a folha mostra um aviso quando você passa de{" "}
-            {hoursText(overtime?.alertDailyExtraHours ?? 2)} extras num dia útil, quando a semana passa de{" "}
-            {hoursText(overtime?.alertWeeklyHours ?? 44)} ou quando o descanso entre duas jornadas fica abaixo de{" "}
-            {hoursText(overtime?.alertRestHours ?? 11)}. O aviso não bloqueia nada, mas o aprovador também o vê.
           </li>
         </ul>
         {overtime && !overtime.enabled && (

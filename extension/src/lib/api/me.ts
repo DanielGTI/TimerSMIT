@@ -21,10 +21,6 @@ export interface CurrentSession {
     requireTimeOfDay: boolean;
     workdayStart: string;
     workdayEnd: string;
-    /** Limites que geram aviso, em horas (0 = desligado). */
-    alertDailyExtraHours?: number;
-    alertWeeklyHours?: number;
-    alertRestHours?: number;
   };
 }
 
