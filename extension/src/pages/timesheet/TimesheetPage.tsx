@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DecisionHistory } from "../../components/DecisionHistory";
 import { StatusBadge } from "../../components/StatusBadge";
 import { fetchActivityTypes } from "../../lib/api/activityTypes";
+import { reopenApproval } from "../../lib/api/approvals";
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
 import { fetchCurrentSession } from "../../lib/api/me";
@@ -73,6 +74,9 @@ export function TimesheetPage(): JSX.Element {
   const [addTimeError, setAddTimeError] = useState<string | null>(null);
   // Pedido de cancelar o envio; `date` é o dia do "+" que abre o lançamento logo depois.
   const [recalling, setRecalling] = useState<{ weekStart: string; date: string | null } | null>(null);
+  // Mesmo pedido para semana aprovada: só administrador reabre, com justificativa.
+  const [reopening, setReopening] = useState<{ weekStart: string; date: string | null } | null>(null);
+  const [reopenReason, setReopenReason] = useState("");
 
   const reload = () => setReloadTick((tick) => tick + 1);
 
@@ -122,6 +126,7 @@ export function TimesheetPage(): JSX.Element {
     setWeekStart(start);
     setConfirming(false);
     setRecalling(null);
+    setReopening(null);
     setNotice(null);
     // O calendário acompanha a semana quando ela sai do mês exibido.
     if (monthOf(start) !== month && monthOf(addDays(start, 6)) !== month) {
@@ -147,12 +152,34 @@ export function TimesheetPage(): JSX.Element {
 
   /** "+" do calendário: em semana enviada, primeiro pergunta se cancela o envio. */
   function handleAddTime(date: string, weekStatus: WeekStatus) {
-    if (weekStatus !== "submitted") {
+    if (weekStatus === "open" || weekStatus === "rejected") {
       setAddingOn(date);
       return;
     }
     goToWeek(mondayOf(date));
-    setRecalling({ weekStart: mondayOf(date), date });
+    if (weekStatus === "submitted") {
+      setRecalling({ weekStart: mondayOf(date), date });
+    } else {
+      setReopenReason("");
+      setReopening({ weekStart: mondayOf(date), date });
+    }
+  }
+
+  async function handleReopen() {
+    if (!reopening || !week?.submissionId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await reopenApproval(client, week.submissionId, reopenReason.trim());
+      setNotice("Semana reaberta. Depois de lançar, envie para aprovação de novo.");
+      if (reopening.date) setAddingOn(reopening.date);
+      setReopening(null);
+      reload();
+    } catch (failure) {
+      setError(errorText(failure));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleRecall() {
@@ -182,6 +209,7 @@ export function TimesheetPage(): JSX.Element {
   const editable = week !== null && (week.status === "open" || week.status === "rejected");
   const canSubmit = editable && week.entries.length > 0 && !busy;
   // Sem data escolhida no calendário, vale hoje se estiver nesta semana.
+  const reopenAsked = reopening !== null && week?.weekStartDate === reopening.weekStart;
   const defaultAddDate = mondayOf(today) === weekStart ? today : weekStart;
 
   return (
@@ -223,6 +251,19 @@ export function TimesheetPage(): JSX.Element {
               </button>
             )}
 
+            {week.status === "approved" && week.canReopen && !reopenAsked && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setReopenReason("");
+                  setReopening({ weekStart, date: null });
+                }}
+              >
+                Reabrir semana
+              </button>
+            )}
+
             {recalling ? (
               <span className="confirm" role="group" aria-label="Confirmar cancelamento do envio">
                 <span>
@@ -256,6 +297,49 @@ export function TimesheetPage(): JSX.Element {
                 <button type="button" className="btn btn--primary" disabled={!canSubmit} onClick={() => setConfirming(true)}>
                   Enviar semana
                 </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {week && reopenAsked && (
+          <div className="confirm-box" role="group" aria-label="Reabrir semana aprovada">
+            {week.canReopen ? (
+              <>
+                <p>
+                  Esta semana já foi aprovada. Para {reopening.date ? "lançar" : "alterar"}, reabra-a: ela volta a Aberta e
+                  precisa ser enviada e aprovada de novo.
+                </p>
+                <label htmlFor="reopen-reason">Justificativa (obrigatória)</label>
+                <textarea
+                  id="reopen-reason"
+                  className="input"
+                  maxLength={2000}
+                  value={reopenReason}
+                  onChange={(event) => setReopenReason(event.target.value)}
+                />
+                <div className="actions">
+                  <button type="button" className="btn" disabled={busy} onClick={() => setReopening(null)}>
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={busy || reopenReason.trim() === ""}
+                    onClick={() => void handleReopen()}
+                  >
+                    {reopening.date ? "Reabrir e lançar" : "Reabrir semana"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>Esta semana já foi aprovada e não aceita novos lançamentos. Peça a um administrador para reabri-la.</p>
+                <div className="actions">
+                  <button type="button" className="btn" onClick={() => setReopening(null)}>
+                    Entendi
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -298,7 +382,6 @@ export function TimesheetPage(): JSX.Element {
       <MonthCalendar
         month={month}
         data={monthData}
-        selectedWeekStart={weekStart}
         selectedWeekDays={week?.weekStartDate === weekStart ? week.days : undefined}
         today={today}
         onMonthChange={(delta) => setMonth(addMonths(month, delta))}

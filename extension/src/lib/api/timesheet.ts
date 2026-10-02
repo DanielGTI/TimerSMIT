@@ -32,6 +32,10 @@ export interface WeekDto {
   status: WeekStatus;
   revision: number;
   submittedAt: string | null;
+  /** Id da submissão (para reabrir); null enquanto a semana nunca foi enviada. */
+  submissionId: string | null;
+  /** Semana aprovada de um administrador: ele pode reabrir direto da folha. */
+  canReopen: boolean;
   totalSeconds: number;
   decisions: DecisionDto[];
   days: DayTotal[];

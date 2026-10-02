@@ -6,7 +6,6 @@ import { dayMonth, dayOfMonth, monthGrid, monthLabel, weekdayShort } from "../..
 interface MonthCalendarProps {
   month: string;
   data: MonthDto | null;
-  selectedWeekStart: string;
   /** Totais da semana aberta na folha: dão as horas dos dias dela que caem fora do mês. */
   selectedWeekDays?: DayTotal[];
   today: string;
@@ -20,14 +19,13 @@ interface MonthCalendarProps {
  * Visão mensal: cada dia mostra suas horas na data local correta. A linha
  * inteira é uma semana, com o estado dela — a unidade de aprovação não muda
  * mesmo quando a semana atravessa dois meses. O "+" no canto do dia lança
- * horas naquela data; só semana aprovada não tem "+". Os dias de
+ * horas naquela data; em semana enviada ou aprovada o "+" leva ao pedido de cancelar o envio ou reabrir. Os dias de
  * outro mês que completam a primeira e a última linha também abrem a semana
  * e têm "+", só aparecem mais apagados.
  */
 export function MonthCalendar({
   month,
   data,
-  selectedWeekStart,
   selectedWeekDays,
   today,
   onMonthChange,
@@ -73,9 +71,9 @@ export function MonthCalendar({
           {monthGrid(month).map((weekDays) => {
             const start = weekDays[0];
             const weekStatus = statusByWeek.get(start) ?? "open";
-            const canAdd = onAddTime !== undefined && weekStatus !== "approved";
+            const canAdd = onAddTime !== undefined;
             return (
-              <tr key={start} className={start === selectedWeekStart ? "is-selected" : undefined}>
+              <tr key={start}>
                 <th scope="row">
                   <StatusBadge status={weekStatus} />
                 </th>
@@ -102,7 +100,13 @@ export function MonthCalendar({
                           type="button"
                           className="calendar__add"
                           aria-label={`Adicionar tempo em ${dayMonth(date)}`}
-                          title={weekStatus === "submitted" ? "Semana enviada: cancele o envio para lançar" : "Adicionar tempo"}
+                          title={
+                            weekStatus === "submitted"
+                              ? "Semana enviada: cancele o envio para lançar"
+                              : weekStatus === "approved"
+                                ? "Semana aprovada: é preciso reabri-la para lançar"
+                                : "Adicionar tempo"
+                          }
                           onClick={() => onAddTime(date, weekStatus)}
                         >
                           +

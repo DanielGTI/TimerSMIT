@@ -40,6 +40,8 @@ const week: WeekDto = {
   weekEndDate: "2026-10-04",
   status: "submitted",
   revision: 1,
+  submissionId: null,
+  canReopen: false,
   submittedAt: "2026-10-02T20:00:00Z",
   totalSeconds: 5400,
   decisions: [],

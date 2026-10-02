@@ -9,6 +9,7 @@ const fetchWeek = vi.fn();
 const fetchMonth = vi.fn();
 const submitWeek = vi.fn();
 const recallWeek = vi.fn();
+const reopenApproval = vi.fn();
 const updateEntry = vi.fn();
 const deleteEntry = vi.fn();
 
@@ -27,6 +28,9 @@ const fetchWorkItemDetails = vi.fn();
 
 vi.mock("../src/lib/api/entries", () => ({
   createManualEntry: (...args: unknown[]) => createManualEntry(...args),
+}));
+vi.mock("../src/lib/api/approvals", () => ({
+  reopenApproval: (...args: unknown[]) => reopenApproval(...args),
 }));
 vi.mock("../src/lib/api/me", () => ({
   fetchCurrentSession: async () => ({ tenantId: "t", organizationName: "smitbr", memberId: "m", displayName: "Daniel Ferreira" }),
@@ -88,6 +92,8 @@ function week(overrides: Partial<WeekDto> = {}): WeekDto {
     status: "open",
     revision: 0,
     submittedAt: null,
+    submissionId: null,
+    canReopen: false,
     decisions: [],
     totalSeconds: entries.reduce((sum, item) => sum + item.durationSeconds, 0),
     days,
@@ -122,6 +128,7 @@ describe("TimesheetPage", () => {
     fetchMonth.mockReset().mockResolvedValue(monthData);
     submitWeek.mockReset();
     recallWeek.mockReset();
+    reopenApproval.mockReset();
     updateEntry.mockReset();
     deleteEntry.mockReset().mockResolvedValue(undefined);
     createManualEntry.mockReset().mockResolvedValue({});
@@ -585,17 +592,74 @@ describe("TimesheetPage", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
-    it("semana aprovada não tem + nos dias nem os botões", async () => {
-      fetchWeek.mockResolvedValue(week({ status: "approved", revision: 1, submittedAt: "2026-09-30T15:00:00Z" }));
+    const approved = (canReopen: boolean) =>
+      week({ status: "approved", revision: 1, submittedAt: "2026-09-30T15:00:00Z", submissionId: "77", canReopen });
+
+    it("+ em semana aprovada: administrador reabre com justificativa e então lança", async () => {
+      fetchWeek.mockResolvedValue(approved(true));
       fetchMonth.mockResolvedValue(submittedMonth("approved"));
+      reopenApproval.mockImplementation(async () => {
+        fetchWeek.mockResolvedValue(week());
+        return {};
+      });
       render(<TimesheetPage />);
-      await screen.findByText("28 set – 04 out 2026");
+      await screen.findByText("Aprovada", { selector: ".summary .badge" });
       const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
 
-      await waitFor(() => expect(within(calendar).queryByRole("button", { name: "Adicionar tempo em 30/09" })).not.toBeInTheDocument());
-      expect(within(calendar).getByRole("button", { name: "Adicionar tempo em 23/09" })).toBeInTheDocument();
+      fireEvent.click(await within(calendar).findByRole("button", { name: "Adicionar tempo em 02/10" }));
+
+      const box = await screen.findByRole("group", { name: "Reabrir semana aprovada" });
+      const confirm = within(box).getByRole("button", { name: "Reabrir e lançar" });
+      expect(confirm).toBeDisabled(); // sem justificativa não reabre
+      fireEvent.change(within(box).getByLabelText(/Justificativa/), { target: { value: "  Esqueci de lançar hoje  " } });
+      fireEvent.click(confirm);
+
+      await waitFor(() => expect(reopenApproval).toHaveBeenCalledWith(expect.anything(), "77", "Esqueci de lançar hoje"));
+      const dialog = await screen.findByRole("dialog", { name: "Adicionar tempo" });
+      expect(((await within(dialog).findByLabelText("Data")) as HTMLInputElement).value).toBe("2026-10-02");
+      expect(screen.getByText(/Semana reaberta/)).toBeInTheDocument();
+    });
+
+    it("+ em semana aprovada: quem não é administrador só recebe o aviso", async () => {
+      fetchWeek.mockResolvedValue(approved(false));
+      fetchMonth.mockResolvedValue(submittedMonth("approved"));
+      render(<TimesheetPage />);
+      await screen.findByText("Aprovada", { selector: ".summary .badge" });
+      const calendar = await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
+
+      fireEvent.click(await within(calendar).findByRole("button", { name: "Adicionar tempo em 30/09" }));
+
+      const box = await screen.findByRole("group", { name: "Reabrir semana aprovada" });
+      expect(box).toHaveTextContent("Peça a um administrador para reabri-la");
+      expect(within(box).queryByLabelText(/Justificativa/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(reopenApproval).not.toHaveBeenCalled();
+
+      fireEvent.click(within(box).getByRole("button", { name: "Entendi" }));
+      expect(screen.queryByRole("group", { name: "Reabrir semana aprovada" })).not.toBeInTheDocument();
+    });
+
+    it("administrador tem o botão Reabrir semana na folha aprovada; quem não é, não", async () => {
+      fetchWeek.mockResolvedValue(approved(true));
+      const { unmount } = render(<TimesheetPage />);
+      await screen.findByText("Aprovada", { selector: ".summary .badge" });
+      fireEvent.click(screen.getByRole("button", { name: "Reabrir semana" }));
+      expect(screen.getByRole("button", { name: "Reabrir semana" })).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Reabrir semana aprovada" })).toHaveTextContent("Para alterar");
+      unmount();
+
+      fetchWeek.mockResolvedValue(approved(false));
+      render(<TimesheetPage />);
+      await screen.findByText("Aprovada", { selector: ".summary .badge" });
+      expect(screen.queryByRole("button", { name: "Reabrir semana" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "+ Adicionar tempo" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Cancelar envio" })).not.toBeInTheDocument();
+    });
+
+    it("a semana aberta no calendário não tem mais o destaque de bordas azuis", async () => {
+      const { container } = render(<TimesheetPage />);
+      await screen.findByRole("table", { name: /Horas por dia em setembro de 2026/ });
+
+      expect(container.querySelector(".calendar .is-selected")).toBeNull();
     });
   });
 });

@@ -623,10 +623,6 @@ textarea.input {
   width: 96px;
 }
 
-.calendar tr.is-selected > * {
-  box-shadow: inset 0 2px 0 var(--ts-primary), inset 0 -2px 0 var(--ts-primary);
-}
-
 .calendar__day {
   display: flex;
   flex-direction: column;

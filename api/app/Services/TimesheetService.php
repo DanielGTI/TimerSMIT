@@ -58,6 +58,10 @@ class TimesheetService
             'status' => $submission?->status ?? WeeklySubmission::STATUS_OPEN,
             'revision' => $submission?->revision ?? 0,
             'submittedAt' => $submission?->submitted_at?->toIso8601String(),
+            // Para reabrir a própria semana aprovada sem passar pela tela de Aprovações
+            // (só administradores; o servidor confere de novo em ApprovalService::reopen).
+            'submissionId' => $submission ? (string) $submission->id : null,
+            'canReopen' => $submission?->status === WeeklySubmission::STATUS_APPROVED && $this->approvers->isAdmin($member),
             'totalSeconds' => (int) $entries->sum('duration_seconds'),
             'decisions' => $submission
                 ? $submission->decisions()->with('approver')->orderBy('id')->get()->map(fn (ApprovalDecision $decision) => [

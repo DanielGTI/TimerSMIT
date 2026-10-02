@@ -465,6 +465,53 @@ class TimesheetTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_an_admin_sees_can_reopen_on_their_own_approved_week_and_can_reopen_and_log_hours(): void
+    {
+        $admin = $this->admin();
+        $entry = TimeEntry::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'project_id' => $this->project->id,
+            'member_id' => $admin->id,
+            'local_date' => '2026-09-28',
+            'duration_seconds' => 3600,
+        ]);
+        $submission = WeeklySubmission::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'member_id' => $admin->id,
+            'week_start_date' => self::WEEK,
+            'status' => WeeklySubmission::STATUS_APPROVED,
+        ]);
+
+        $this->getJson('/api/me/weeks/'.self::WEEK, $this->headers($admin))
+            ->assertOk()
+            ->assertJson(['status' => 'approved', 'submissionId' => (string) $submission->id, 'canReopen' => true]);
+
+        $this->postJson('/api/entries', $this->manualEntryPayload('2026-10-02'), $this->headers($admin, key: 'entry-key-0000000001'))
+            ->assertStatus(409);
+
+        $this->postJson("/api/approvals/{$submission->id}/reopen", ['reason' => 'Esqueci de lançar hoje'], $this->headers($admin, key: 'reopen-key-00000001'))
+            ->assertOk();
+
+        $this->getJson('/api/me/weeks/'.self::WEEK, $this->headers($admin))->assertJson(['status' => 'open', 'canReopen' => false]);
+        $this->postJson('/api/entries', $this->manualEntryPayload('2026-10-02'), $this->headers($admin, key: 'entry-key-0000000002'))
+            ->assertCreated();
+        $this->assertNotNull($entry->fresh());
+    }
+
+    public function test_a_regular_member_cannot_reopen_their_approved_week(): void
+    {
+        $submission = WeeklySubmission::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'member_id' => $this->member->id,
+            'week_start_date' => self::WEEK,
+            'status' => WeeklySubmission::STATUS_APPROVED,
+        ]);
+
+        $this->getJson('/api/me/weeks/'.self::WEEK, $this->headers())->assertOk()->assertJson(['canReopen' => false]);
+        $this->postJson("/api/approvals/{$submission->id}/reopen", ['reason' => 'x'], $this->headers(key: 'reopen-key-00000002'))
+            ->assertForbidden();
+    }
+
     // ---------- dono do lançamento ----------
 
     public function test_a_colleague_cannot_edit_or_delete_my_entry(): void
