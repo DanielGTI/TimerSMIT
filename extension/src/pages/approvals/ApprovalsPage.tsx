@@ -17,6 +17,7 @@ import { getApiBaseUrl } from "../../lib/api/config";
 import { formatHours, todayLocalIso } from "../../lib/time/format";
 import { formatWeekRange } from "../../lib/time/weeks";
 import { EntryList } from "../timesheet/EntryList";
+import { AdditionalHoursReview, type Denials } from "./AdditionalHoursReview";
 import { WeekGrid } from "../timesheet/WeekGrid";
 
 type View = "pending" | "decided";
@@ -41,6 +42,7 @@ export function ApprovalsPage(): JSX.Element {
   const [detail, setDetail] = useState<ApprovalDetailDto | null>(null);
   const [mode, setMode] = useState<Mode>("idle");
   const [reason, setReason] = useState("");
+  const [denials, setDenials] = useState<Denials>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -85,6 +87,7 @@ export function ApprovalsPage(): JSX.Element {
     setSelectedId(id);
     setMode("idle");
     setReason("");
+    setDenials({});
     setError(null);
     setNotice(null);
   }
@@ -106,11 +109,24 @@ export function ApprovalsPage(): JSX.Element {
     }
   }
 
-  const approve = () =>
-    act(
-      () => decideApproval(client, detail!.submission.id, { decision: "approve", revision: detail!.submission.revision }),
-      "Semana aprovada.",
+  const approve = () => {
+    const unauthorized = Object.entries(denials).map(([entryId, text]) => ({ entryId, reason: text.trim() }));
+    if (unauthorized.some((item) => item.reason === "")) {
+      setError("Informe o motivo de cada hora adicional não autorizada.");
+      return Promise.resolve();
+    }
+    return act(
+      () =>
+        decideApproval(client, detail!.submission.id, {
+          decision: "approve",
+          revision: detail!.submission.revision,
+          ...(unauthorized.length > 0 ? { unauthorized } : {}),
+        }),
+      unauthorized.length > 0
+        ? `Semana aprovada. ${unauthorized.length} hora(s) adicional(is) marcada(s) como não autorizada(s).`
+        : "Semana aprovada.",
     );
+  };
 
   const reject = () => {
     if (reason.trim() === "") {
@@ -139,6 +155,7 @@ export function ApprovalsPage(): JSX.Element {
   const cancel = () => {
     setMode("idle");
     setReason("");
+    setDenials({});
     setError(null);
   };
 
@@ -259,6 +276,7 @@ export function ApprovalsPage(): JSX.Element {
                 {mode === "approve" && (
                   <div className="confirm-box" role="group" aria-label="Confirmar aprovação">
                     <p>Depois de aprovada, a semana e seus lançamentos ficam bloqueados.</p>
+                    <AdditionalHoursReview entries={detail.week.entries} denials={denials} onChange={setDenials} disabled={busy} />
                     <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void approve()}>
                       Confirmar aprovação
                     </button>

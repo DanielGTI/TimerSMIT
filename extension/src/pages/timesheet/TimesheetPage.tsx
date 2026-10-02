@@ -112,7 +112,15 @@ export function TimesheetPage(): JSX.Element {
     setAddTimeError(null);
 
     Promise.all([fetchCurrentSession(client), fetchActivityTypes(client)])
-      .then(([session, activityTypes]) => !cancelled && setAddTimeResources({ displayName: session.displayName, activityTypes }))
+      .then(
+        ([session, activityTypes]) =>
+          !cancelled &&
+          setAddTimeResources({
+            displayName: session.displayName,
+            activityTypes,
+            requireTime: session.overtime?.requireTimeOfDay ?? false,
+          }),
+      )
       .catch((failure: unknown) => !cancelled && setAddTimeError(errorText(failure)));
 
     return () => {
@@ -237,6 +245,15 @@ export function TimesheetPage(): JSX.Element {
             <span>
               Total da semana: <strong>{formatHours(week.totalSeconds)}</strong>
             </span>
+            {week.additionalTotals && week.additionalTotals.seconds > 0 && (
+              <span>
+                Horas adicionais: <strong>{formatHours(week.additionalTotals.weightedSeconds)}</strong>{" "}
+                <span className="muted">
+                  ({formatHours(week.additionalTotals.seconds)} trabalhadas
+                  {week.additionalTotals.pendingSeconds > 0 && `, ${formatHours(week.additionalTotals.pendingSeconds)} a validar`})
+                </span>
+              </span>
+            )}
             {week.submittedAt && week.status !== "open" && (
               <span className="muted">
                 Enviada em {new Date(week.submittedAt).toLocaleString("pt-BR")} (revisão {week.revision})

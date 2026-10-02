@@ -53,6 +53,23 @@ function settings(overrides: Partial<SettingsDto> = {}): SettingsDto {
       version: 0,
       effectiveFrom: null,
     },
+    overtime: {
+      enabled: true,
+      workdayStart: "09:00",
+      workdayEnd: "18:00",
+      factorWeekday: 1.5,
+      factorSaturday: 1.5,
+      factorSunday: 2,
+      factorHoliday: 2,
+      nightStart: "22:00",
+      nightEnd: "05:00",
+      nightPercent: 20,
+      nightReducedHour: true,
+      requireTimeOfDay: true,
+      version: 1,
+      effectiveFrom: "2026-10-02T12:00:00Z",
+    },
+    holidays: [],
     projects: [
       { id: "1", name: "Projeto A", enabled: true },
       { id: "2", name: "Projeto B", enabled: false },
@@ -62,9 +79,9 @@ function settings(overrides: Partial<SettingsDto> = {}): SettingsDto {
       { id: "4", name: "Suporte", color: "#F87878", enabled: false, defaultBillable: true },
     ],
     members: [
-      { id: "10", name: "Ana Admin", directoryActive: true, roles: [{ id: "100", role: "admin", projectId: null, projectName: null }] },
-      { id: "11", name: "Eva Colaboradora", directoryActive: true, roles: [{ id: "101", role: "member", projectId: "1", projectName: "Projeto A" }] },
-      { id: "12", name: "Nando Novo", directoryActive: true, roles: [] },
+      { id: "10", name: "Ana Admin", directoryActive: true, hoursRegime: "clt", roles: [{ id: "100", role: "admin", projectId: null, projectName: null }] },
+      { id: "11", name: "Eva Colaboradora", directoryActive: true, hoursRegime: "clt", roles: [{ id: "101", role: "member", projectId: "1", projectName: "Projeto A" }] },
+      { id: "12", name: "Nando Novo", directoryActive: true, hoursRegime: "clt", roles: [] },
     ],
     peopleSyncedAt: null,
     designations: [
@@ -106,6 +123,8 @@ describe("SettingsPage", () => {
     expect(await screen.findByText("Configuração · smitbr")).toBeInTheDocument();
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Regras",
+      "Horas extras",
+      "Horas adicionais",
       "Projetos",
       "Atividades",
       "Pessoas e papéis",
@@ -234,8 +253,8 @@ describe("SettingsPage", () => {
       settings({
         peopleSyncedAt: "2026-10-01T12:00:00Z",
         members: [
-          { id: "10", name: "Ana Admin", directoryActive: true, roles: [] },
-          { id: "13", name: "Nina Nova", directoryActive: true, roles: [] },
+          { id: "10", name: "Ana Admin", directoryActive: true, hoursRegime: "clt", roles: [] },
+          { id: "13", name: "Nina Nova", directoryActive: true, hoursRegime: "clt", roles: [] },
         ],
       }),
     );
@@ -271,8 +290,8 @@ describe("SettingsPage", () => {
     api.syncPeople.mockResolvedValue(
       settings({
         members: [
-          { id: "10", name: "Ana Admin", directoryActive: true, roles: [{ id: "100", role: "admin", projectId: null, projectName: null }] },
-          { id: "14", name: "Otávio Ex-colaborador", directoryActive: false, roles: [{ id: "104", role: "member", projectId: null, projectName: null }] },
+          { id: "10", name: "Ana Admin", directoryActive: true, hoursRegime: "clt", roles: [{ id: "100", role: "admin", projectId: null, projectName: null }] },
+          { id: "14", name: "Otávio Ex-colaborador", directoryActive: false, hoursRegime: "clt", roles: [{ id: "104", role: "member", projectId: null, projectName: null }] },
         ],
       }),
     );

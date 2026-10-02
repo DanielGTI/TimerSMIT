@@ -13,7 +13,10 @@ export interface CurrentSession {
   organizationName: string;
   memberId: string;
   displayName: string;
+  hoursRegime?: "clt" | "pj" | "none";
   policy?: PolicyRules;
+  /** `requireTimeOfDay`: o lançamento manual precisa de De/Até. */
+  overtime?: { enabled: boolean; requireTimeOfDay: boolean; workdayStart: string; workdayEnd: string };
 }
 
 export function fetchCurrentSession(client: ApiClient): Promise<CurrentSession> {

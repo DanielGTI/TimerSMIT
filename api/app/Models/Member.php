@@ -20,11 +20,23 @@ class Member extends Model implements AuthenticatableContract
     use Authenticatable;
     use HasFactory;
 
+    /** Horas adicionais podem virar hora extra, banco de horas ou a pagar. */
+    public const REGIME_CLT = 'clt';
+
+    /** Horas adicionais só podem ser "a pagar" (sem banco de horas). */
+    public const REGIME_PJ = 'pj';
+
+    /** Não controla jornada (ex.: cargo de confiança): não gera hora adicional. */
+    public const REGIME_NONE = 'none';
+
+    public const REGIMES = [self::REGIME_CLT, self::REGIME_PJ, self::REGIME_NONE];
+
     protected $fillable = [
         'tenant_id',
         'devops_identity_id',
         'display_name',
         'email',
+        'hours_regime',
         'directory_active',
         'directory_synced_at',
     ];

@@ -60,7 +60,7 @@ describe("InstructionsPage", () => {
 
     const index = screen.getByRole("navigation", { name: "Seções desta página" });
     const links = within(index).getAllByRole("link");
-    expect(links).toHaveLength(9);
+    expect(links).toHaveLength(10);
     for (const link of links) {
       const id = link.getAttribute("href")!.slice(1);
       expect(document.getElementById(id), `seção #${id}`).not.toBeNull();

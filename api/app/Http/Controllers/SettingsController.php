@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Member;
 use App\Models\RoleAssignment;
 use App\Services\OrganizationSettingsService;
+use App\Services\OvertimeRuleService;
 use App\Support\TenantContext;
 use DateTimeZone;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +29,7 @@ class SettingsController extends Controller
     public function __construct(
         private readonly OrganizationSettingsService $settings,
         private readonly TenantContext $tenantContext,
+        private readonly OvertimeRuleService $overtime,
     ) {}
 
     public function show(): JsonResponse
@@ -55,6 +58,72 @@ class SettingsController extends Controller
         ]);
 
         $this->settings->updatePolicy($this->tenantContext->tenant(), $this->tenantContext->member(), $data);
+
+        return $this->overview();
+    }
+
+    public function updateOvertimeRules(Request $request): JsonResponse
+    {
+        $time = ['required', 'date_format:H:i'];
+        $factor = ['required', 'numeric', 'between:1,5'];
+
+        $data = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'workdayStart' => $time,
+            'workdayEnd' => [...$time, 'after:workdayStart'],
+            'factorWeekday' => $factor,
+            'factorSaturday' => $factor,
+            'factorSunday' => $factor,
+            'factorHoliday' => $factor,
+            'nightStart' => $time,
+            'nightEnd' => [...$time, 'different:nightStart'],
+            'nightPercent' => ['required', 'integer', 'between:0,100'],
+            'nightReducedHour' => ['required', 'boolean'],
+            'requireTimeOfDay' => ['required', 'boolean'],
+        ], [
+            'workdayEnd.after' => 'O fim do expediente precisa ser depois do início.',
+            'nightEnd.different' => 'O início e o fim do período noturno não podem ser iguais.',
+            '*.between' => 'Use um valor entre :min e :max.',
+        ]);
+
+        $this->overtime->update($this->tenantContext->tenant(), $this->tenantContext->member(), $data);
+
+        return $this->overview();
+    }
+
+    public function storeHoliday(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'name' => ['required', 'string', 'max:100'],
+        ]);
+
+        $this->settings->addHoliday($this->tenantContext->tenant(), $this->tenantContext->member(), $data['date'], $data['name']);
+
+        return $this->overview();
+    }
+
+    public function storeNationalHolidays(Request $request): JsonResponse
+    {
+        $data = $request->validate(['year' => ['required', 'integer', 'between:2000,2100']]);
+
+        $this->settings->addNationalHolidays($this->tenantContext->tenant(), $this->tenantContext->member(), (int) $data['year']);
+
+        return $this->overview();
+    }
+
+    public function destroyHoliday(int $holidayId): JsonResponse
+    {
+        $this->settings->removeHoliday($this->tenantContext->tenant(), $this->tenantContext->member(), $holidayId);
+
+        return $this->overview();
+    }
+
+    public function updateHoursRegime(Request $request, int $memberId): JsonResponse
+    {
+        $data = $request->validate(['regime' => ['required', Rule::in(Member::REGIMES)]]);
+
+        $this->settings->setHoursRegime($this->tenantContext->tenant(), $this->tenantContext->member(), $memberId, $data['regime']);
 
         return $this->overview();
     }

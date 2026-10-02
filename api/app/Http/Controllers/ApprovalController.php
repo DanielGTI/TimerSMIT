@@ -51,6 +51,10 @@ class ApprovalController extends Controller
             'decision' => ['required', Rule::in(['approve', 'reject'])],
             'reason' => ['nullable', 'string', 'max:2000'],
             'revision' => ['nullable', 'integer', 'min:1'],
+            // Horas adicionais que o aprovador não autoriza (só vale ao aprovar).
+            'unauthorized' => ['nullable', 'array', 'max:200'],
+            'unauthorized.*.entryId' => ['required', 'integer', 'min:1'],
+            'unauthorized.*.reason' => ['required', 'string', 'max:500'],
         ]);
 
         $tenant = $tenantContext->tenant();
@@ -64,6 +68,7 @@ class ApprovalController extends Controller
             reason: $data['reason'] ?? null,
             expectedRevision: isset($data['revision']) ? (int) $data['revision'] : null,
             idempotencyKey: $key,
+            unauthorized: $data['unauthorized'] ?? [],
         );
 
         return response()->json($this->approvals->present($tenant, $member, $submission));

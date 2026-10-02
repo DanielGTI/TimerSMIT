@@ -3,11 +3,14 @@
 namespace App\Services;
 
 use App\Exceptions\ConflictException;
+use App\Models\AdditionalHourReview;
 use App\Models\ApprovalDecision;
 use App\Models\Member;
 use App\Models\Tenant;
+use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,6 +26,7 @@ class ApprovalService
         private readonly ApproverResolver $approvers,
         private readonly TimesheetService $timesheet,
         private readonly AuditService $audit,
+        private readonly AdditionalHoursService $additional,
     ) {}
 
     /**
@@ -119,10 +123,11 @@ class ApprovalService
         ?string $reason,
         ?int $expectedRevision,
         string $idempotencyKey,
+        array $unauthorized = [],
     ): WeeklySubmission {
         $reason = $reason === null ? null : trim($reason);
 
-        return DB::transaction(function () use ($tenant, $decider, $submissionId, $decision, $reason, $expectedRevision, $idempotencyKey) {
+        return DB::transaction(function () use ($tenant, $decider, $submissionId, $decision, $reason, $expectedRevision, $idempotencyKey, $unauthorized) {
             $submission = $this->lock($tenant, $submissionId);
 
             $previous = $submission->decisions()->where('idempotency_key', $idempotencyKey)->first();
@@ -150,6 +155,10 @@ class ApprovalService
 
             $now = Date::now();
             $self = $submission->member_id === $decider->id;
+
+            if (! $rejecting) {
+                $this->recordUnauthorized($tenant, $decider, $submission, $unauthorized, $now);
+            }
 
             $submission->update([
                 'status' => $rejecting ? WeeklySubmission::STATUS_REJECTED : WeeklySubmission::STATUS_APPROVED,
@@ -196,6 +205,13 @@ class ApprovalService
                 'approver_id' => null,
             ]);
 
+            // A semana vai ser editada e aprovada de novo: as decisões sobre as horas
+            // adicionais (não autorizada, hora extra, banco) valiam para a versão anterior.
+            AdditionalHourReview::query()
+                ->where('tenant_id', $tenant->id)
+                ->whereIn('time_entry_id', $this->weekEntries($tenant, $submission)->pluck('id'))
+                ->delete();
+
             $this->record($tenant, $submission, $admin, ApprovalDecision::REOPENED, $reason, $submission->member_id === $admin->id, $idempotencyKey, $now);
 
             return $submission;
@@ -225,6 +241,76 @@ class ApprovalService
                 'ownWeek' => $submission->member_id === $viewer->id,
             ],
         ];
+    }
+
+    /**
+     * @return Collection<int, TimeEntry>
+     */
+    private function weekEntries(Tenant $tenant, WeeklySubmission $submission)
+    {
+        return TimeEntry::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('member_id', $submission->member_id)
+            ->where('week_start_date', $submission->week_start_date)
+            ->get();
+    }
+
+    /**
+     * Ao aprovar, o aprovador pode marcar lançamentos com hora adicional como
+     * "não autorizada" (com motivo). A hora continua registrada: o aviso vai
+     * para o administrador, que decide o destino. Cada aprovação refaz a lista.
+     *
+     * @param  list<array{entryId: int, reason: string}>  $unauthorized
+     */
+    private function recordUnauthorized(Tenant $tenant, Member $decider, WeeklySubmission $submission, array $unauthorized, $now): void
+    {
+        $entries = $this->weekEntries($tenant, $submission);
+        $evaluation = $this->additional->evaluate($tenant, $entries);
+
+        $eligible = collect($evaluation)
+            ->filter(fn (array $item) => $this->additional->present($item) !== null)
+            ->keys()
+            ->all();
+
+        $errors = [];
+        foreach ($unauthorized as $item) {
+            if (! in_array((int) $item['entryId'], $eligible, true)) {
+                $errors[] = "O lançamento #{$item['entryId']} não tem hora adicional nesta semana.";
+            } elseif (trim((string) ($item['reason'] ?? '')) === '') {
+                $errors[] = 'Informe o motivo de cada hora adicional não autorizada.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages(['unauthorized' => array_values(array_unique($errors))]);
+        }
+
+        // Nova decisão substitui as anteriores (a semana pode ter sido rejeitada e reenviada).
+        AdditionalHourReview::query()
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('time_entry_id', $entries->pluck('id'))
+            ->whereNull('classification')
+            ->delete();
+
+        foreach ($unauthorized as $item) {
+            AdditionalHourReview::query()->updateOrCreate(
+                ['time_entry_id' => (int) $item['entryId']],
+                [
+                    'tenant_id' => $tenant->id,
+                    'member_id' => $submission->member_id,
+                    'denial_reason' => trim($item['reason']),
+                    'denied_by' => $decider->id,
+                    'denied_at' => $now,
+                ],
+            );
+        }
+
+        if ($unauthorized !== []) {
+            $this->audit->record($tenant, 'week.additional_hours_denied', WeeklySubmission::class, $submission->id, $decider, null, [
+                'weekStartDate' => $submission->week_start_date,
+                'entryIds' => array_map(fn (array $item) => (int) $item['entryId'], $unauthorized),
+            ]);
+        }
     }
 
     private function canDecide(Member $member, WeeklySubmission $submission): bool

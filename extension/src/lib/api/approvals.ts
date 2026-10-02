@@ -58,6 +58,8 @@ export interface DecisionInput {
   decision: "approve" | "reject";
   revision: number;
   reason?: string;
+  /** Ao aprovar: horas adicionais que o aprovador não autoriza, com motivo. */
+  unauthorized?: Array<{ entryId: string; reason: string }>;
 }
 
 export function decideApproval(client: ApiClient, id: string, input: DecisionInput): Promise<ApprovalDetailDto> {

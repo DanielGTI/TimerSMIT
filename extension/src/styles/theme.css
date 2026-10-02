@@ -1526,3 +1526,84 @@ a.wi-chip__id:hover {
 .guide-faq dd {
   margin: 2px 0 0;
 }
+
+/* ---------- horas adicionais ---------- */
+
+.settings-subtitle {
+  margin: 18px 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.field--end {
+  display: flex;
+  align-items: flex-end;
+}
+
+.additional-tag {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-left: 3px solid var(--ts-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.additional-tag--pending {
+  border-left-color: #c8501c;
+}
+
+.additional-tag--overtime,
+.additional-tag--payable {
+  border-left-color: var(--ts-success);
+}
+
+.additional-tag__denied {
+  color: var(--ts-danger);
+}
+
+.classify-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.classify-bar > span {
+  flex: 1 1 100%;
+}
+
+.additional-review {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ts-border-soft);
+  border-radius: var(--ts-radius);
+}
+
+.additional-review legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.additional-review ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.additional-review li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+  border-top: 1px solid var(--ts-border-soft);
+}

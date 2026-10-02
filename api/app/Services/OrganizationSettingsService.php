@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\ConflictException;
 use App\Models\ActivityType;
 use App\Models\ApproverAssignment;
+use App\Models\Holiday;
 use App\Models\Member;
 use App\Models\Policy;
 use App\Models\Project;
@@ -12,6 +13,7 @@ use App\Models\RoleAssignment;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
 use App\Models\WeeklySubmission;
+use App\Support\NationalHolidays;
 use App\Support\WeekCalendar;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +41,7 @@ class OrganizationSettingsService
         private readonly AuditService $audit,
         private readonly ApproverResolver $approvers,
         private readonly ActivityTypeService $activityTypes,
+        private readonly OvertimeRuleService $overtime,
     ) {}
 
     /**
@@ -58,6 +61,10 @@ class OrganizationSettingsService
         return [
             'organization' => ['name' => $tenant->devops_organization_name, 'timezone' => $tenant->default_timezone],
             'policy' => $this->presentPolicy($this->currentPolicy($tenant)),
+            'overtime' => $this->overtime->present($this->overtime->current($tenant)),
+            'holidays' => Holiday::query()->where('tenant_id', $tenant->id)->orderBy('date')->get()
+                ->map(fn (Holiday $holiday) => ['id' => (string) $holiday->id, 'date' => $holiday->date, 'name' => $holiday->name])
+                ->all(),
             'projects' => $projects->map(fn (Project $project) => [
                 'id' => (string) $project->id,
                 'name' => $project->devops_project_name,
@@ -69,6 +76,7 @@ class OrganizationSettingsService
                 'id' => (string) $member->id,
                 'name' => $member->display_name,
                 'directoryActive' => $member->directory_active,
+                'hoursRegime' => $member->hours_regime ?? Member::REGIME_CLT,
                 'roles' => ($roles->get($member->id) ?? collect())->map(fn (RoleAssignment $role) => [
                     'id' => (string) $role->id,
                     'role' => $role->role,
@@ -150,6 +158,62 @@ class OrganizationSettingsService
         $project->update(['is_enabled' => $enabled]);
 
         $this->audit->record($tenant, $enabled ? 'settings.project_enabled' : 'settings.project_disabled', Project::class, $project->id, $actor, $project);
+    }
+
+    // ---------- horas adicionais: feriados e regime ----------
+
+    public function addHoliday(Tenant $tenant, Member $actor, string $date, string $name): void
+    {
+        if (Holiday::query()->where('tenant_id', $tenant->id)->where('date', $date)->exists()) {
+            throw ValidationException::withMessages(['date' => 'Já existe um feriado nesta data.']);
+        }
+
+        $holiday = Holiday::query()->create(['tenant_id' => $tenant->id, 'date' => $date, 'name' => trim($name)]);
+
+        $this->audit->record($tenant, 'settings.holiday_added', Holiday::class, $holiday->id, $actor, null, ['date' => $date, 'name' => $holiday->name]);
+    }
+
+    /** Acrescenta os feriados nacionais do ano que ainda não estão no calendário. */
+    public function addNationalHolidays(Tenant $tenant, Member $actor, int $year): int
+    {
+        $existing = Holiday::query()->where('tenant_id', $tenant->id)->pluck('date')->flip();
+        $added = [];
+
+        foreach (NationalHolidays::forYear($year) as $date => $name) {
+            if ($existing->has($date)) {
+                continue;
+            }
+
+            Holiday::query()->create(['tenant_id' => $tenant->id, 'date' => $date, 'name' => $name]);
+            $added[] = $date;
+        }
+
+        $this->audit->record($tenant, 'settings.national_holidays_added', Tenant::class, $tenant->id, $actor, null, ['year' => $year, 'dates' => $added]);
+
+        return count($added);
+    }
+
+    public function removeHoliday(Tenant $tenant, Member $actor, int $holidayId): void
+    {
+        $holiday = Holiday::query()->where('tenant_id', $tenant->id)->findOrFail($holidayId);
+        $holiday->delete();
+
+        $this->audit->record($tenant, 'settings.holiday_removed', Holiday::class, $holiday->id, $actor, null, ['date' => $holiday->date, 'name' => $holiday->name]);
+    }
+
+    /** CLT, PJ ou sem controle de jornada. Vale para o cálculo de todas as horas ainda não classificadas. */
+    public function setHoursRegime(Tenant $tenant, Member $actor, int $memberId, string $regime): void
+    {
+        $member = Member::query()->where('tenant_id', $tenant->id)->findOrFail($memberId);
+        $before = $member->hours_regime ?? Member::REGIME_CLT;
+
+        if ($before === $regime) {
+            return;
+        }
+
+        $member->update(['hours_regime' => $regime]);
+
+        $this->audit->record($tenant, 'settings.hours_regime_updated', Member::class, $member->id, $actor, null, ['before' => $before, 'after' => $regime]);
     }
 
     // ---------- atividades ----------

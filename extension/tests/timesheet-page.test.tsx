@@ -160,6 +160,42 @@ describe("TimesheetPage", () => {
     expect(screen.getByText("Aberta", { selector: ".summary .badge" })).toBeInTheDocument();
   });
 
+  it("mostra as horas adicionais a validar no lançamento e no total da semana", async () => {
+    fetchWeek.mockResolvedValue(
+      week({
+        additionalTotals: { seconds: 7200, weightedSeconds: 10800, pendingSeconds: 7200 },
+        entries: [
+          entry({
+            id: "9",
+            localDate: "2026-09-29",
+            durationSeconds: 10800,
+            startTime: "17:00",
+            endTime: "20:00",
+            additional: { seconds: 7200, weightedSeconds: 10800, nightSeconds: 0, dayType: "weekday", status: "pending", denied: null },
+          }),
+          entry({
+            id: "10",
+            localDate: "2026-09-30",
+            additional: {
+              seconds: 3600,
+              weightedSeconds: 3600,
+              nightSeconds: 0,
+              dayType: "weekday",
+              status: "bank",
+              denied: { reason: "Sem pedido prévio" },
+            },
+          }),
+        ],
+      }),
+    );
+    render(<TimesheetPage />);
+
+    expect(await screen.findByText("Horas adicionais a validar: 02:00 → 03:00")).toBeInTheDocument();
+    expect(screen.getByText("Banco de horas: 01:00")).toBeInTheDocument();
+    expect(screen.getByText("Não autorizada pelo aprovador: Sem pedido prévio")).toBeInTheDocument();
+    expect(screen.getByText(/Horas adicionais:/)).toHaveTextContent("Horas adicionais: 03:00 (02:00 trabalhadas, 02:00 a validar)");
+  });
+
   it("navega entre semanas", async () => {
     render(<TimesheetPage />);
     await screen.findByText("28 set – 04 out 2026");

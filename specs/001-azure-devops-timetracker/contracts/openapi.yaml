@@ -356,7 +356,7 @@ paths:
         - { name: view, in: query, schema: { type: string, enum: [pending, decided] } }
       responses:
         '200':
-          description: Lista (pendentes: mais antigas primeiro).
+          description: "Lista (pendentes: mais antigas primeiro)."
           content:
             application/json:
               schema: { type: array, items: { type: object } }
@@ -391,6 +391,17 @@ paths:
                 decision: { type: string, enum: [approve, reject] }
                 reason: { type: string, maxLength: 2000, description: Obrigatório na rejeição. }
                 revision: { type: integer, minimum: 1, description: Revisão que o aprovador viu; divergente = 409. }
+                unauthorized:
+                  type: array
+                  description: >-
+                    Só ao aprovar: lançamentos com hora adicional que o aprovador não
+                    autoriza. A hora continua registrada; o administrador vê o aviso.
+                  items:
+                    type: object
+                    required: [entryId, reason]
+                    properties:
+                      entryId: { type: integer }
+                      reason: { type: string, maxLength: 500 }
       responses:
         '200': { description: Decisão registrada (corpo igual ao de getApproval) }
         '403': { description: Usuário não é aprovador designado nem administrador }
@@ -465,6 +476,85 @@ paths:
       responses:
         '200': { description: Visão atualizada }
         '422': { description: Valor inválido }
+  /settings/overtime-rules:
+    put:
+      operationId: updateOvertimeRules
+      description: >-
+        Nova versão das regras de hora adicional, válida para os lançamentos
+        feitos a partir de agora. Em dia útil, conta o que fica fora do
+        expediente; sábado, domingo e feriado contam o dia todo. Cada parte é
+        multiplicada pelo fator do dia; a parte noturna recebe ainda o adicional
+        noturno e, se ligada, a hora reduzida (52min30s). Com
+        `requireTimeOfDay`, lançamento manual sem início é recusado (422).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                workdayStart: { type: string, example: '09:00' }
+                workdayEnd: { type: string, example: '18:00', description: Depois do início. }
+                factorWeekday: { type: number, minimum: 1, maximum: 5 }
+                factorSaturday: { type: number, minimum: 1, maximum: 5 }
+                factorSunday: { type: number, minimum: 1, maximum: 5 }
+                factorHoliday: { type: number, minimum: 1, maximum: 5 }
+                nightStart: { type: string, example: '22:00' }
+                nightEnd: { type: string, example: '05:00' }
+                nightPercent: { type: integer, minimum: 0, maximum: 100 }
+                nightReducedHour: { type: boolean }
+                requireTimeOfDay: { type: boolean }
+      responses:
+        '200': { description: Visão atualizada (campo `overtime`) }
+        '422': { description: Valor inválido }
+  /settings/holidays:
+    post:
+      operationId: addHoliday
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, name]
+              properties:
+                date: { type: string, format: date }
+                name: { type: string, maxLength: 100 }
+      responses:
+        '200': { description: Visão atualizada (campo `holidays`) }
+        '422': { description: Data já cadastrada ou inválida }
+  /settings/holidays/national:
+    post:
+      operationId: addNationalHolidays
+      description: Acrescenta os feriados nacionais do ano (inclui Sexta-feira Santa) que ainda não estão no calendário.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [year], properties: { year: { type: integer } } }
+      responses:
+        '200': { description: Visão atualizada }
+  /settings/holidays/{holidayId}:
+    delete:
+      operationId: removeHoliday
+      parameters:
+        - { name: holidayId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Visão atualizada }
+  /settings/members/{memberId}/hours-regime:
+    put:
+      operationId: setHoursRegime
+      description: clt (hora extra, banco ou a pagar), pj (só a pagar) ou none (não controla jornada; não gera hora adicional).
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [regime], properties: { regime: { type: string, enum: [clt, pj, none] } } }
+      responses:
+        '200': { description: Visão atualizada }
   /settings/projects/{projectId}:
     patch:
       operationId: setProjectEnabled
@@ -611,6 +701,42 @@ paths:
       responses:
         '200': { description: Visão atualizada }
         '404': { description: Designação de outra organização }
+  /additional-hours:
+    get:
+      operationId: listAdditionalHours
+      description: >-
+        Só administradores. Horas adicionais de semanas APROVADAS no período
+        (padrão: 90 dias até hoje; no máximo um ano), para classificar.
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: memberId, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [pending, classified, all] } }
+      responses:
+        '200': { description: '`{ from, to, items[] }`; cada item traz o lançamento, a pessoa, o regime e `additional`.' }
+        '403': { description: Não é administrador }
+  /additional-hours/classify:
+    post:
+      operationId: classifyAdditionalHours
+      description: >-
+        Só administradores. Define o destino das horas adicionais de semanas
+        aprovadas e congela os valores calculados. `pending` desfaz. Banco de
+        horas só para CLT. Reabrir a semana apaga essas decisões.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entryIds, classification]
+              properties:
+                entryIds: { type: array, items: { type: integer }, maxItems: 500 }
+                classification: { type: string, enum: [overtime, bank, payable, pending] }
+                note: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: '`{ updated }`' }
+        '409': { description: Lançamento inexistente ou de semana não aprovada }
+        '422': { description: Sem hora adicional, ou banco de horas para quem não é CLT }
   /reports/time/detail:
     get:
       operationId: getReportDetail

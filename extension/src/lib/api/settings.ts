@@ -11,6 +11,35 @@ export interface PolicyDto {
   effectiveFrom: string | null;
 }
 
+/** Regras de hora adicional (versionadas como as regras de lançamento). */
+export interface OvertimeRulesDto {
+  enabled: boolean;
+  workdayStart: string;
+  workdayEnd: string;
+  factorWeekday: number;
+  factorSaturday: number;
+  factorSunday: number;
+  factorHoliday: number;
+  nightStart: string;
+  nightEnd: string;
+  nightPercent: number;
+  nightReducedHour: boolean;
+  requireTimeOfDay: boolean;
+  version: number;
+  effectiveFrom: string | null;
+}
+
+export type OvertimeRulesInput = Omit<OvertimeRulesDto, "version" | "effectiveFrom">;
+
+export interface HolidayDto {
+  id: string;
+  date: string;
+  name: string;
+}
+
+/** clt: hora extra, banco ou a pagar · pj: só a pagar · none: não controla jornada. */
+export type HoursRegime = "clt" | "pj" | "none";
+
 export interface SettingsActivityDto {
   id: string;
   name: string;
@@ -24,6 +53,7 @@ export interface SettingsMemberDto {
   name: string;
   /** Situação na última sincronização com o Azure DevOps: `null` = nunca sincronizada. */
   directoryActive: boolean | null;
+  hoursRegime: HoursRegime;
   roles: Array<{ id: string; role: Role; projectId: string | null; projectName: string | null }>;
 }
 
@@ -40,6 +70,8 @@ export interface DesignationDto {
 export interface SettingsDto {
   organization: { name: string; timezone: string };
   policy: PolicyDto;
+  overtime: OvertimeRulesDto;
+  holidays: HolidayDto[];
   projects: Array<{ id: string; name: string; enabled: boolean }>;
   activityTypes: SettingsActivityDto[];
   members: SettingsMemberDto[];
@@ -65,6 +97,20 @@ export const updateTimezone = (client: ApiClient, timezone: string) =>
   send(client, "PUT", "/organization", { timezone });
 
 export const updatePolicy = (client: ApiClient, policy: PolicyInput) => send(client, "PUT", "/policy", policy);
+
+export const updateOvertimeRules = (client: ApiClient, rules: OvertimeRulesInput) =>
+  send(client, "PUT", "/overtime-rules", rules);
+
+export const addHoliday = (client: ApiClient, date: string, name: string) =>
+  send(client, "POST", "/holidays", { date, name });
+
+export const addNationalHolidays = (client: ApiClient, year: number) =>
+  send(client, "POST", "/holidays/national", { year });
+
+export const removeHoliday = (client: ApiClient, holidayId: string) => send(client, "DELETE", `/holidays/${holidayId}`);
+
+export const setHoursRegime = (client: ApiClient, memberId: string, regime: HoursRegime) =>
+  send(client, "PUT", `/members/${memberId}/hours-regime`, { regime });
 
 export const setProjectEnabled = (client: ApiClient, projectId: string, enabled: boolean) =>
   send(client, "PATCH", `/projects/${projectId}`, { enabled });

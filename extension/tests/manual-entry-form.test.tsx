@@ -16,9 +16,10 @@ const activityTypes = [
   { id: "9", name: "Suporte ao Cliente", color: "#F87878", defaultBillable: true },
 ];
 
-function renderForm() {
+function renderForm(requireTime = false) {
   return render(
     <ManualEntryForm
+      requireTime={requireTime}
       client={client}
       project={{ id: "project-guid-1", name: "SMIT LEARN IA" }}
       workItem={{ id: 42, title: "Teste Tracker", workItemType: "Task", iterationPath: "SMIT LEARN IA\\Sprint 3" }}
@@ -200,5 +201,40 @@ describe("ManualEntryForm", () => {
     fireEvent.click(saveButton());
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Limite diário de horas excedido para esta data.");
+  });
+
+  describe("com o controle de horas adicionais ligado", () => {
+    it("De/Até é obrigatório: o horário vai sempre, sem opção de limpar", async () => {
+      createManualEntry.mockResolvedValue({});
+      renderForm(true);
+
+      expect(screen.getByText(/Obrigatório: informe De\/Até/)).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText("De"), { target: { value: "17:00" } });
+      fireEvent.change(durationInput(), { target: { value: "02:00" } });
+      expect(screen.queryByRole("button", { name: "Limpar horário" })).not.toBeInTheDocument();
+
+      fireEvent.click(saveButton());
+      await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+      expect(createManualEntry.mock.calls[0][1]).toMatchObject({ startTime: "17:00", durationSeconds: 7200 });
+    });
+
+    it("sem mexer em De/Até, envia o horário inicial (agora) em vez de omitir", async () => {
+      createManualEntry.mockResolvedValue({});
+      renderForm(true);
+
+      fireEvent.change(durationInput(), { target: { value: "00:30" } });
+      fireEvent.click(saveButton());
+
+      await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+      expect(createManualEntry.mock.calls[0][1]).toHaveProperty("startTime");
+    });
+
+    it("horário inválido impede salvar", () => {
+      renderForm(true);
+      fireEvent.change(durationInput(), { target: { value: "01:00" } });
+      fireEvent.change(screen.getByLabelText("De"), { target: { value: "" } });
+
+      expect(saveButton()).toBeDisabled();
+    });
   });
 });

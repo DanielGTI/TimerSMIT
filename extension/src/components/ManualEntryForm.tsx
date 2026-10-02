@@ -29,6 +29,8 @@ interface ManualEntryFormProps {
   onCancel?: () => void;
   /** Quem abriu cuida do aviso e de fechar; sem isso, o formulário limpa e mostra o aviso. */
   onSaved?: (saved: { localDate: string; minutes: number }) => void;
+  /** De/Até obrigatórios (controle de horas adicionais ligado na organização). */
+  requireTime?: boolean;
 }
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
@@ -47,7 +49,9 @@ const MINUTES_PER_DAY = 24 * 60;
  * Lançamento manual no formato do "Add time" do 7pace: data, duração
  * (HH:MM + atalhos), intervalo De/Até, atividade, comentário e faturável.
  * De/Até são opcionais: só quando a pessoa os preenche o início é gravado
- * (e aparece nos relatórios); sem isso, vale data + duração.
+ * (e aparece nos relatórios); sem isso, vale data + duração. Com o controle
+ * de horas adicionais ligado (`requireTime`), De/Até passam a ser obrigatórios:
+ * é o horário que separa o expediente das horas adicionais.
  *
  * Serve à guia do work item (item fixo) e ao painel da folha semanal
  * (data pronta, item escolhido pela busca em `workItemField`).
@@ -62,6 +66,7 @@ export function ManualEntryForm({
   initialDate,
   onCancel,
   onSaved,
+  requireTime = false,
 }: ManualEntryFormProps): JSX.Element {
   const ids = useId();
   const [localDate, setLocalDate] = useState(() => initialDate ?? todayLocalIso());
@@ -78,11 +83,17 @@ export function ManualEntryForm({
 
   const durationMinutes = parseDuration(durationText);
   const durationInvalid = durationText.trim() !== "" && durationMinutes === null;
-  const startMinutes = timeInformed ? timeToMinutes(fromText) : null;
+  const startMinutes = timeInformed || requireTime ? timeToMinutes(fromText) : null;
   const sendsStart = startMinutes !== null;
   const pastMidnight = sendsStart && durationMinutes !== null && startMinutes + durationMinutes > MINUTES_PER_DAY;
   const canSave =
-    project !== null && workItem !== null && durationMinutes !== null && durationMinutes > 0 && !pastMidnight && !busy;
+    project !== null &&
+    workItem !== null &&
+    durationMinutes !== null &&
+    durationMinutes > 0 &&
+    !pastMidnight &&
+    (!requireTime || sendsStart) &&
+    !busy;
 
   function applyDuration(minutes: number) {
     setDurationText(formatDuration(minutes));
@@ -242,8 +253,10 @@ export function ManualEntryForm({
       </div>
 
       <p className="muted">
-        Opcional: preencha De/Até para registrar o horário (ele aparece nos relatórios).
-        {timeInformed && (
+        {requireTime
+          ? "Obrigatório: informe De/Até. É o horário que separa o expediente das horas adicionais."
+          : "Opcional: preencha De/Até para registrar o horário (ele aparece nos relatórios)."}
+        {timeInformed && !requireTime && (
           <>
             {" "}
             <button

@@ -25,6 +25,7 @@ class TimeEntryService
     public function __construct(
         private readonly AuditService $audit,
         private readonly WeekLockGuard $weeks,
+        private readonly OvertimeRuleService $overtime,
     ) {}
 
     public function createManual(
@@ -50,6 +51,11 @@ class TimeEntryService
         }
 
         $this->assertIncrement($policy, $durationSeconds);
+
+        // Sem horário não dá para saber o que foi fora do expediente (hora adicional).
+        if ($startTime === null && $this->overtime->requiresTimeOfDay($tenant, $member)) {
+            throw ValidationException::withMessages(['startTime' => 'Informe o horário (De/Até): ele é necessário para separar o expediente das horas adicionais.']);
+        }
 
         $window = $startTime === null ? null : $this->window($localDate, $startTime, $durationSeconds, $timezone);
 
@@ -166,6 +172,15 @@ class TimeEntryService
 
             // Horário: informar o início (ou null para apagar) e mudar a duração
             // mantendo o início movem o fim; nunca pode passar da meia-noite local.
+            if (
+                array_key_exists('startTime', $changes)
+                && $changes['startTime'] === null
+                && $entry->source === TimeEntry::SOURCE_MANUAL
+                && $this->overtime->requiresTimeOfDay($tenant, $member)
+            ) {
+                throw ValidationException::withMessages(['startTime' => 'Informe o horário (De/Até): ele é necessário para separar o expediente das horas adicionais.']);
+            }
+
             $times = [];
             if (array_key_exists('startTime', $changes)) {
                 $times = $changes['startTime'] === null

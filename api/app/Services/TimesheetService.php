@@ -30,6 +30,7 @@ class TimesheetService
         private readonly WeekLockGuard $weeks,
         private readonly AuditService $audit,
         private readonly ApproverResolver $approvers,
+        private readonly AdditionalHoursService $additional,
     ) {}
 
     /**
@@ -50,6 +51,8 @@ class TimesheetService
 
         $submission = $this->submissionFor($tenant, $member, $weekStart);
         $snapshots = $this->latestSnapshots($tenant, $entries);
+        $evaluation = $this->additional->evaluate($tenant, $entries);
+        $additional = $entries->mapWithKeys(fn (TimeEntry $entry) => [$entry->id => $this->additional->present($evaluation[$entry->id])]);
         $totals = $entries->groupBy('local_date')->map(fn (Collection $day) => (int) $day->sum('duration_seconds'));
 
         return [
@@ -77,7 +80,13 @@ class TimesheetService
                 fn (string $date) => ['date' => $date, 'totalSeconds' => $totals->get($date, 0)],
                 WeekCalendar::days($weekStart),
             ),
-            'entries' => $entries->map(function (TimeEntry $entry) use ($snapshots) {
+            // Horas fora do expediente (ou em fim de semana/feriado) desta semana, já com os fatores.
+            'additionalTotals' => [
+                'seconds' => (int) $additional->filter()->sum('seconds'),
+                'weightedSeconds' => (int) $additional->filter()->sum('weightedSeconds'),
+                'pendingSeconds' => (int) $additional->filter(fn ($view) => $view !== null && $view['status'] === 'pending')->sum('seconds'),
+            ],
+            'entries' => $entries->map(function (TimeEntry $entry) use ($snapshots, $additional) {
                 $snapshot = $snapshots->get($entry->project_id.':'.$entry->devops_work_item_id);
 
                 return TimeEntryPresenter::present($entry) + [
@@ -87,6 +96,7 @@ class TimesheetService
                     'workItemType' => $snapshot?->work_item_type,
                     'activityTypeName' => $entry->activityType?->name,
                     'activityTypeColor' => $entry->activityType?->color,
+                    'additional' => $additional->get($entry->id),
                 ];
             })->values()->all(),
         ];

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AdditionalTag } from "../../components/AdditionalTag";
 import type { ApiClient } from "../../lib/api/client";
 import { deleteEntry, updateEntry, type WeekEntryDto } from "../../lib/api/timesheet";
 import { formatDuration, formatHours, parseDuration } from "../../lib/time/format";
@@ -126,6 +127,7 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                             {entry.startTime}–{entry.endTime}
                           </span>
                         )}
+                        {entry.additional && <AdditionalTag additional={entry.additional} />}
                       </>
                     )}
                   </td>

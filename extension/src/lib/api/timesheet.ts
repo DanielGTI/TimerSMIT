@@ -3,6 +3,20 @@ import type { TimeEntryDto } from "./timer";
 
 export type WeekStatus = "open" | "submitted" | "rejected" | "approved";
 
+export type AdditionalStatus = "pending" | "overtime" | "bank" | "payable";
+
+/** Parte do lançamento fora do expediente (ou em fim de semana/feriado), já com os fatores. */
+export interface AdditionalHoursDto {
+  seconds: number;
+  weightedSeconds: number;
+  nightSeconds: number;
+  dayType: "weekday" | "saturday" | "sunday" | "holiday";
+  /** "pending" até o administrador classificar: para quem lançou, "a validar". */
+  status: AdditionalStatus;
+  /** O aprovador marcou como não autorizada (a hora continua registrada). */
+  denied: { reason: string } | null;
+}
+
 export interface WeekEntryDto extends TimeEntryDto {
   projectId: string;
   projectName: string;
@@ -10,6 +24,8 @@ export interface WeekEntryDto extends TimeEntryDto {
   workItemType: string | null;
   activityTypeName: string | null;
   activityTypeColor: string | null;
+  /** Nulo quando o lançamento não tem hora adicional. */
+  additional?: AdditionalHoursDto | null;
 }
 
 export interface DayTotal {
@@ -37,6 +53,7 @@ export interface WeekDto {
   /** Semana aprovada de um administrador: ele pode reabrir direto da folha. */
   canReopen: boolean;
   totalSeconds: number;
+  additionalTotals?: { seconds: number; weightedSeconds: number; pendingSeconds: number };
   decisions: DecisionDto[];
   days: DayTotal[];
   entries: WeekEntryDto[];

@@ -96,6 +96,7 @@ export function WorkItemGuide(): JSX.Element {
         workItem={workItem}
         activityTypes={activityTypes}
         displayName={session.displayName}
+        requireTime={session.overtime?.requireTimeOfDay ?? false}
       />
 
       <p className="muted">

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Member;
 use App\Services\OrganizationSettingsService;
+use App\Services\OvertimeRuleService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 
@@ -12,7 +14,10 @@ use Illuminate\Http\JsonResponse;
  */
 class MeController extends Controller
 {
-    public function __construct(private readonly OrganizationSettingsService $settings) {}
+    public function __construct(
+        private readonly OrganizationSettingsService $settings,
+        private readonly OvertimeRuleService $overtime,
+    ) {}
 
     public function show(TenantContext $tenantContext): JsonResponse
     {
@@ -21,8 +26,26 @@ class MeController extends Controller
             'organizationName' => $tenantContext->tenant()->devops_organization_name,
             'memberId' => (string) $tenantContext->member()->id,
             'displayName' => $tenantContext->member()->display_name,
+            'hoursRegime' => $tenantContext->member()->hours_regime ?? Member::REGIME_CLT,
             // Regras de lançamento em vigor (incremento, limite diário, janela retroativa, comentário).
             'policy' => $this->settings->currentPolicyFor($tenantContext->tenant()),
+            // O formulário de lançamento exige De/Até quando isto vem verdadeiro.
+            'overtime' => $this->overtimeFor($tenantContext),
         ]);
+    }
+
+    /**
+     * @return array{enabled: bool, requireTimeOfDay: bool, workdayStart: string, workdayEnd: string}
+     */
+    private function overtimeFor(TenantContext $tenantContext): array
+    {
+        $rules = $this->overtime->present($this->overtime->current($tenantContext->tenant()));
+
+        return [
+            'enabled' => $rules['enabled'],
+            'requireTimeOfDay' => $this->overtime->requiresTimeOfDay($tenantContext->tenant(), $tenantContext->member()),
+            'workdayStart' => $rules['workdayStart'],
+            'workdayEnd' => $rules['workdayEnd'],
+        ];
     }
 }

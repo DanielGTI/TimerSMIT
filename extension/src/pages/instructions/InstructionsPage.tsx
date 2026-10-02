@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { StatusBadge } from "../../components/StatusBadge";
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
-import { fetchCurrentSession, type PolicyRules } from "../../lib/api/me";
+import { fetchCurrentSession, type CurrentSession, type PolicyRules } from "../../lib/api/me";
+
+type OvertimeInfo = NonNullable<CurrentSession["overtime"]>;
 
 const SECTIONS = [
   { id: "resumo", label: "Em resumo" },
@@ -10,6 +12,7 @@ const SECTIONS = [
   { id: "timer", label: "Timer" },
   { id: "semana", label: "A semana" },
   { id: "aprovacao", label: "Aprovação" },
+  { id: "adicionais", label: "Horas adicionais" },
   { id: "limites", label: "Regras e limites" },
   { id: "dicas", label: "Para não perder horas" },
   { id: "outras", label: "Relatórios e Configuração" },
@@ -77,12 +80,17 @@ function limitItems(policy: PolicyRules | null): ReactNode {
 export function InstructionsPage(): JSX.Element {
   const client = useMemo(() => createApiClient({ apiBaseUrl: getApiBaseUrl() }), []);
   const [policy, setPolicy] = useState<PolicyRules | null>(null);
+  const [overtime, setOvertime] = useState<OvertimeInfo | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     // Sem acesso ao servidor a página continua útil; só os números dos limites ficam de fora.
     fetchCurrentSession(client)
-      .then((session) => !cancelled && setPolicy(session.policy ?? null))
+      .then((session) => {
+        if (cancelled) return;
+        setPolicy(session.policy ?? null);
+        setOvertime(session.overtime ?? null);
+      })
       .catch(() => undefined);
     return () => {
       cancelled = true;
@@ -294,6 +302,44 @@ export function InstructionsPage(): JSX.Element {
         </ul>
       </Section>
 
+      <Section id="adicionais" title="Horas adicionais: hora extra e banco de horas">
+        <ul>
+          <li>
+            <strong>O que conta como hora adicional:</strong> em dia útil, o que você trabalhar{" "}
+            <strong>
+              fora do expediente
+              {overtime ? ` (${overtime.workdayStart} às ${overtime.workdayEnd})` : ""}
+            </strong>
+            ; em <strong>sábado, domingo e feriado</strong>, o dia todo.
+          </li>
+          <li>
+            Por isso, nos lançamentos manuais, <strong>o horário (De/Até) é obrigatório</strong>: é ele que separa o
+            expediente do que veio depois. O timer já registra o horário sozinho.
+          </li>
+          <li>
+            Cada hora adicional é multiplicada pelo <strong>fator do dia</strong>, definido pelo administrador conforme a
+            convenção. Ex.: 10 horas num sábado com fator 1,5 contam como 15 horas. Das 22h às 5h há também o adicional
+            noturno.
+          </li>
+          <li>
+            <strong>Hora adicional precisa de autorização.</strong> Combine antes com o seu gestor: não é para fazer por
+            conta própria. Ao aprovar a semana, o aprovador valida essas horas ou marca como <em>não autorizada</em>, com
+            o motivo.
+          </li>
+          <li>
+            Depois da aprovação, o administrador decide o destino: <strong>hora extra</strong> (paga),{" "}
+            <strong>banco de horas</strong> (vira folga depois; só para CLT) ou <strong>a pagar</strong> (PJ). Até lá,
+            na sua folha aparece <strong>“Horas adicionais a validar”</strong>.
+          </li>
+          <li>
+            Onde ver: na Folha semanal, embaixo da duração de cada lançamento, e no total da semana (“Horas adicionais”).
+          </li>
+        </ul>
+        {overtime && !overtime.enabled && (
+          <p className="muted">O controle de horas adicionais está desligado nesta organização no momento.</p>
+        )}
+      </Section>
+
       <Section id="limites" title="Regras e limites">
         <p className="muted">Valores desta organização, lidos do sistema:</p>
         <ul>{limitItems(policy)}</ul>
@@ -353,6 +399,12 @@ export function InstructionsPage(): JSX.Element {
           <dd>A data é mais antiga do que a regra permite. Fale com um administrador se for um caso justificado.</dd>
           <dt>“Semana enviada ou aprovada: edição bloqueada.”</dt>
           <dd>Cancele o envio (se estiver Enviada) ou peça a reabertura (se Aprovada).</dd>
+          <dt>“Informe o horário (De/Até)…”</dt>
+          <dd>
+            Com o controle de horas adicionais ligado, todo lançamento manual precisa de horário de início e fim.
+          </dd>
+          <dt>Minha hora adicional aparece como “a validar”.</dt>
+          <dd>É o normal até a semana ser aprovada e o administrador classificar (hora extra, banco ou a pagar).</dd>
           <dt>“Já existe timer ativo para outro item.”</dt>
           <dd>Pare o timer que está correndo antes de iniciar outro.</dd>
           <dt>Não acho meu item na busca.</dt>

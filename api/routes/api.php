@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityTypeController;
+use App\Http\Controllers\AdditionalHoursController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\HealthController;
@@ -52,6 +53,11 @@ Route::middleware('tenant')->group(function () {
         Route::get('/', [SettingsController::class, 'show']);
         Route::put('/organization', [SettingsController::class, 'updateOrganization']);
         Route::put('/policy', [SettingsController::class, 'updatePolicy']);
+        Route::put('/overtime-rules', [SettingsController::class, 'updateOvertimeRules']);
+        Route::post('/holidays', [SettingsController::class, 'storeHoliday']);
+        Route::post('/holidays/national', [SettingsController::class, 'storeNationalHolidays']);
+        Route::delete('/holidays/{holidayId}', [SettingsController::class, 'destroyHoliday'])->whereNumber('holidayId');
+        Route::put('/members/{memberId}/hours-regime', [SettingsController::class, 'updateHoursRegime'])->whereNumber('memberId');
         Route::patch('/projects/{projectId}', [SettingsController::class, 'updateProject'])->whereNumber('projectId');
         Route::post('/activity-types', [SettingsController::class, 'storeActivityType']);
         Route::patch('/activity-types/{typeId}', [SettingsController::class, 'updateActivityType'])->whereNumber('typeId');
@@ -60,6 +66,12 @@ Route::middleware('tenant')->group(function () {
         Route::delete('/role-assignments/{assignmentId}', [SettingsController::class, 'revokeRole'])->whereNumber('assignmentId');
         Route::post('/approver-assignments', [SettingsController::class, 'designateApprover']);
         Route::delete('/approver-assignments/{assignmentId}', [SettingsController::class, 'removeDesignation'])->whereNumber('assignmentId');
+    });
+
+    // Fila do administrador: horas adicionais de semanas aprovadas, a classificar.
+    Route::middleware('admin')->prefix('additional-hours')->group(function () {
+        Route::get('/', [AdditionalHoursController::class, 'index']);
+        Route::post('/classify', [AdditionalHoursController::class, 'classify']);
     });
 
     Route::post('/entries', [TimeEntryController::class, 'store']);
