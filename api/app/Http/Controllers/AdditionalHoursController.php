@@ -105,6 +105,15 @@ class AdditionalHoursController extends Controller
                     }
                 }
 
+                if ($member['overtime']['withoutRequestSeconds'] > 0) {
+                    $seconds = $member['overtime']['withoutRequestSeconds'];
+                    CsvWriter::writeRow($out, [...$person, 'Hora adicional sem pedido aprovado', '', self::clock($seconds), self::decimal($seconds), '', '', '', '']);
+                }
+                if ($member['overtime']['refusedSeconds'] > 0) {
+                    $seconds = $member['overtime']['refusedSeconds'];
+                    CsvWriter::writeRow($out, [...$person, 'Hora a confirmar recusada (não conta)', '', self::clock($seconds), self::decimal($seconds), '', '', '', '']);
+                }
+
                 foreach (self::ALERT_LABELS as $type => $label) {
                     if ($member['alerts'][$type] > 0) {
                         CsvWriter::writeRow($out, [...$person, $label, '', '', '', '', '', '', $member['alerts'][$type]]);

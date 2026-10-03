@@ -1,12 +1,15 @@
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { ActivitySelect } from "./ActivitySelect";
 import { Switch } from "./Switch";
 import type { ActivityTypeDto } from "../lib/api/activityTypes";
 import type { ApiClient } from "../lib/api/client";
+import { ApiError } from "../lib/api/client";
 import { createManualEntry } from "../lib/api/entries";
+import { checkOvertime, shortTime, type OvertimeCheckDto, type OvertimeProfile } from "../lib/api/overtime";
 import type { CurrentWorkItem } from "../lib/devops/workItems";
 import {
   formatDuration,
+  formatHours,
   initials,
   minutesToTime,
   nowAsTime,
@@ -28,14 +31,26 @@ interface ManualEntryFormProps {
   /** Painel lateral: mostra fechar/Cancelar. */
   onCancel?: () => void;
   /** Quem abriu cuida do aviso e de fechar; sem isso, o formulário limpa e mostra o aviso. */
-  onSaved?: (saved: { localDate: string; minutes: number }) => void;
+  onSaved?: (saved: { localDate: string; minutes: number; pendingMinutes?: number }) => void;
   /** De/Até obrigatórios (controle de horas adicionais ligado na organização). */
   requireTime?: boolean;
   /** O projeto cobra o cliente por hora (Configuração → Projetos): mostra "Horas faturáveis". */
   billableEnabled?: boolean;
   /** Duração mínima definida pelo administrador nas regras (1 = sem mínimo). */
   minDurationMinutes?: number;
+  /**
+   * Controle de hora extra (CLT com horas adicionais ligado): confere o
+   * lançamento antes de salvar. Perfil padrão: aviso "sujeita à aprovação".
+   * Perfil restrito: o trecho fora do expediente vira hora extra a confirmar.
+   */
+  overtime?: { profile: OvertimeProfile } | null;
 }
+
+const CHECK_DELAY_MS = 400;
+
+/** "18:00–19:30" ou, sem horário, a duração. */
+const rangeText = (piece: { startTime: string | null; endTime: string | null; seconds: number }): string =>
+  piece.startTime && piece.endTime ? `${shortTime(piece.startTime)}–${shortTime(piece.endTime)}` : formatHours(piece.seconds);
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
 
@@ -73,6 +88,7 @@ export function ManualEntryForm({
   requireTime = false,
   billableEnabled = false,
   minDurationMinutes = 1,
+  overtime = null,
 }: ManualEntryFormProps): JSX.Element {
   const ids = useId();
   const [localDate, setLocalDate] = useState(() => initialDate ?? todayLocalIso());
@@ -88,6 +104,10 @@ export function ManualEntryForm({
   const [endAnchor, setEndAnchor] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [check, setCheck] = useState<OvertimeCheckDto | null>(null);
+  const [checkNonce, setCheckNonce] = useState(0);
+  const [overtimeReason, setOvertimeReason] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
 
   const durationMinutes = parseDuration(durationText);
   const durationInvalid = durationText.trim() !== "" && durationMinutes === null;
@@ -95,12 +115,36 @@ export function ManualEntryForm({
   const sendsStart = startMinutes !== null;
   const pastMidnight = sendsStart && durationMinutes !== null && startMinutes + durationMinutes > MINUTES_PER_DAY;
   const belowMinimum = durationMinutes !== null && durationMinutes > 0 && durationMinutes < minDurationMinutes;
+  const checkStart = sendsStart ? fromText : null;
+  const checkActive = overtime !== null && overtime.profile !== "preapproved";
+  // Perfil restrito com trecho fora do expediente: precisa de motivo e de "Entendi".
+  const needsConfirmation = check !== null && check.pending.length > 0;
+  const confirmationMissing = needsConfirmation && (!acknowledged || overtimeReason.trim() === "");
+
+  // Confere o lançamento no servidor (regra, feriados, pedidos aprovados) enquanto a pessoa preenche.
+  useEffect(() => {
+    if (!checkActive || durationMinutes === null || durationMinutes <= 0 || pastMidnight || localDate === "") {
+      setCheck(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      checkOvertime(client, { date: localDate, startTime: checkStart, durationSeconds: durationMinutes * 60 })
+        .then((result) => !cancelled && setCheck(result))
+        .catch(() => !cancelled && setCheck(null));
+    }, CHECK_DELAY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [client, checkActive, localDate, checkStart, durationMinutes, pastMidnight, checkNonce]);
   const canSave =
     project !== null &&
     workItem !== null &&
     durationMinutes !== null &&
     durationMinutes > 0 &&
     !belowMinimum &&
+    !confirmationMissing &&
     !pastMidnight &&
     (!requireTime || sendsStart) &&
     !busy;
@@ -163,7 +207,7 @@ export function ManualEntryForm({
     setBusy(true);
     setFeedback(null);
     try {
-      await createManualEntry(client, {
+      const result = await createManualEntry(client, {
         projectId: project.id,
         projectName: project.name,
         workItemId: workItem.id,
@@ -176,12 +220,22 @@ export function ManualEntryForm({
         title: workItem.title,
         workItemType: workItem.workItemType,
         ...(workItem.iterationPath ? { iterationPath: workItem.iterationPath } : {}),
+        ...(needsConfirmation ? { overtimeReason: overtimeReason.trim(), overtimeAcknowledged: acknowledged } : {}),
       });
+      const pendingSeconds = (result.pendingOvertime ?? []).reduce((sum, item) => sum + item.secondsPerDay, 0);
       if (onSaved) {
-        onSaved({ localDate, minutes: durationMinutes });
+        onSaved({ localDate, minutes: durationMinutes, ...(pendingSeconds > 0 ? { pendingMinutes: Math.round(pendingSeconds / 60) } : {}) });
         return;
       }
-      setFeedback({ kind: "ok", text: `Lançamento de ${formatDuration(durationMinutes)} registrado.` });
+      setFeedback({
+        kind: "ok",
+        text:
+          pendingSeconds > 0
+            ? `Lançamento registrado. ${formatHours(pendingSeconds)} ficaram como hora extra a confirmar.`
+            : `Lançamento de ${formatDuration(durationMinutes)} registrado.`,
+      });
+      setOvertimeReason("");
+      setAcknowledged(false);
       setDurationText("00:00");
       setFromText(nowAsTime());
       setToText(nowAsTime());
@@ -189,6 +243,8 @@ export function ManualEntryForm({
       setEndAnchor(null);
       setNote("");
     } catch (error) {
+      // A conferência estava desatualizada (ex.: pedido recusado agora): busca de novo.
+      if (error instanceof ApiError && error.fields.includes("overtimeReason")) setCheckNonce((nonce) => nonce + 1);
       setFeedback({ kind: "error", text: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(false);
@@ -309,6 +365,38 @@ export function ManualEntryForm({
         <p className="field__error" role="alert">
           O horário passa da meia-noite. Registre o que ficou para o dia seguinte em outro lançamento.
         </p>
+      )}
+
+      {check && check.profile === "standard" && check.uncoveredSeconds > 0 && (
+        <p className="banner banner--warning" role="note">
+          <strong>Horas extras, sujeitas à aprovação.</strong> {formatHours(check.uncoveredSeconds)} fora do expediente sem
+          hora extra informada e aprovada.
+        </p>
+      )}
+
+      {needsConfirmation && (
+        <div className="overtime-confirm" role="group" aria-label="Hora extra a confirmar">
+          <p>
+            <strong>Hora extra a confirmar.</strong>{" "}
+            {check.entries.length > 0
+              ? `${check.entries.map(rangeText).join(" e ")} entra como lançamento. `
+              : "Nada entra como lançamento agora. "}
+            {check.pending.map(rangeText).join(" e ")} fora do expediente fica como <strong>hora extra a confirmar</strong>: só
+            conta se o aprovador confirmar. Sem confirmação, não são horas a receber.
+          </p>
+          <label htmlFor={`${ids}-ot-reason`}>Motivo da hora extra</label>
+          <textarea
+            id={`${ids}-ot-reason`}
+            className="input"
+            maxLength={500}
+            value={overtimeReason}
+            onChange={(event) => setOvertimeReason(event.target.value)}
+          />
+          <label className="checkbox">
+            <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} /> Entendi:
+            essas horas só contam se forem confirmadas.
+          </label>
+        </div>
       )}
 
       <div className="field">

@@ -30,6 +30,7 @@ class AdditionalHoursClassificationService
         private readonly AdditionalHoursService $additional,
         private readonly AuditService $audit,
         private readonly HourBankService $bank,
+        private readonly OvertimeCoverageService $coverage,
     ) {}
 
     /**
@@ -47,6 +48,7 @@ class AdditionalHoursClassificationService
 
         $evaluation = $this->additional->evaluate($tenant, $entries);
         $snapshots = $this->snapshots($tenant, $entries);
+        $coverage = $this->coverage->coverage($tenant, $entries, $evaluation);
 
         $rows = [];
         foreach ($entries as $entry) {
@@ -77,7 +79,8 @@ class AdditionalHoursClassificationService
                 'workItemTitle' => $snapshot?->title,
                 'note' => $entry->note,
                 'durationSeconds' => $entry->duration_seconds,
-                'additional' => $view,
+                // Pedido aprovado, pré-aprovada, confirmada ou sem pedido (e a sugestão de destino do pedido).
+                'additional' => $view + ['coverage' => $coverage[$entry->id] ?? null],
                 'classifiedAt' => $item['review']?->classified_at?->toIso8601String(),
                 'classificationNote' => $item['review']?->classification_note,
             ];

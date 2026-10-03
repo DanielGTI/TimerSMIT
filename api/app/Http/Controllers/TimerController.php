@@ -89,17 +89,24 @@ class TimerController extends Controller
             'timerId' => ['required', 'integer'],
             'note' => ['nullable', 'string', 'max:2000'],
             'billable' => ['nullable', 'boolean'],
+            'overtimeReason' => ['nullable', 'string', 'max:500'],
+            'overtimeAcknowledged' => ['nullable', 'boolean'],
         ]);
 
-        $entries = $this->timers->stop(
+        $result = $this->timers->stop(
             tenant: $tenantContext->tenant(),
             member: $tenantContext->member(),
             timerId: $data['timerId'],
             note: $data['note'] ?? null,
             billable: $data['billable'] ?? null,
+            overtimeReason: $data['overtimeReason'] ?? null,
+            overtimeAcknowledged: (bool) ($data['overtimeAcknowledged'] ?? false),
         );
 
-        return response()->json($entries->map(fn ($entry) => TimeEntryPresenter::present($entry))->values());
+        // A resposta continua sendo a lista de lançamentos; a hora a confirmar vai no cabeçalho.
+        return response()
+            ->json($result['entries']->map(fn ($entry) => TimeEntryPresenter::present($entry))->values())
+            ->header('X-Pending-Overtime', (string) count($result['pending']));
     }
 
     private function requireIdempotencyKey(Request $request): string

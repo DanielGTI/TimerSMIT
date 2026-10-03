@@ -338,6 +338,19 @@ export function InstructionsPage(): JSX.Element {
             o motivo.
           </li>
           <li>
+            <strong>Informar hora extra:</strong> na Folha semanal, em “Horas extras”, avise o dia (ou período), quantas
+            horas por dia e o motivo. Dá para informar antes de fazer ou depois, para regularizar. O aprovador decide em
+            Aprovações → Horas extras e pode liberar menos horas do que o pedido. Hora extra lançada sem pedido aprovado
+            aparece como <strong>“Horas extras, sujeitas à aprovação”</strong>.
+          </li>
+          <li>
+            Cada pessoa tem um <strong>perfil de hora extra</strong>, definido pelo administrador. Na maioria dos casos é o
+            padrão, descrito acima. Algumas pessoas têm a hora extra <strong>pré-aprovada</strong> e não precisam informar
+            antes. Outras têm a hora extra <strong>restrita</strong>: o trecho fora do expediente sem pedido aprovado não
+            entra como lançamento, vira <strong>hora extra a confirmar</strong> (com motivo e “Entendi”) e só conta se o
+            aprovador confirmar. Recusada, não são horas a receber.
+          </li>
+          <li>
             Depois da aprovação, o administrador decide o destino: <strong>hora extra</strong> (paga),{" "}
             <strong>banco de horas</strong> (vira folga depois; só para CLT) ou <strong>a pagar</strong> (PJ). Até lá,
             na sua folha aparece <strong>“Horas adicionais a validar”</strong>.

@@ -1754,3 +1754,83 @@ a.wi-chip__id:hover {
   font-weight: 700;
   border-top: 2px solid var(--ts-border-strong);
 }
+
+/* ---------- hora extra informada e a confirmar (Fase 4) ---------- */
+
+.additional-tag__coverage {
+  color: var(--ts-muted);
+}
+
+.additional-review__coverage {
+  display: block;
+  color: var(--ts-muted);
+  font-size: 12px;
+}
+
+.additional-review__coverage.is-uncovered {
+  color: #c8501c;
+}
+
+.overtime-confirm {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #c8501c;
+  border-radius: 4px;
+  background: rgba(255, 214, 102, 0.18);
+}
+
+.overtime-confirm p {
+  margin: 0 0 8px;
+}
+
+.overtime-confirm .checkbox {
+  margin-top: 8px;
+}
+
+.overtime-list,
+.overtime-decisions {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.overtime-list > li,
+.overtime-decisions > li {
+  padding: 10px 0;
+  border-top: 1px solid var(--ts-border);
+}
+
+.overtime-list__status,
+.overtime-decision__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.overtime-decision__actions .input:not(.input--compact) {
+  flex: 1 1 220px;
+}
+
+.overtime-decision__allow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.overtime-decision__allow .input {
+  width: 80px;
+}
+
+.overtime-decision .badge {
+  margin-left: 6px;
+}
+
+.overtime-week {
+  margin-top: 16px;
+}
+
+.settings-list--people > li > select {
+  width: auto;
+}

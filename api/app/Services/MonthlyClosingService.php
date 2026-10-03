@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AdditionalHourReview;
 use App\Models\HourBankMovement;
 use App\Models\Member;
+use App\Models\OvertimeRequest;
 use App\Models\OvertimeRule;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
@@ -34,6 +35,7 @@ class MonthlyClosingService
         private readonly AdditionalHoursService $additional,
         private readonly HourBankService $bank,
         private readonly WorkLimitService $limits,
+        private readonly OvertimeCoverageService $coverage,
     ) {}
 
     /**
@@ -54,6 +56,18 @@ class MonthlyClosingService
             ->get();
 
         $evaluation = $this->additional->evaluate($tenant, $entries);
+        $coverage = $this->coverage->coverage($tenant, $entries, $evaluation);
+
+        // Hora extra a confirmar (perfil restrito) recusada no mês: informativo.
+        $refused = OvertimeRequest::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('kind', OvertimeRequest::KIND_CONFIRMATION)
+            ->where('status', OvertimeRequest::STATUS_REJECTED)
+            ->whereBetween('date_from', [$start, $end])
+            ->get(['member_id', 'seconds_per_day'])
+            ->groupBy('member_id')
+            ->map(fn ($rows) => (int) $rows->sum('seconds_per_day'));
+        $withoutRequest = [];
 
         $approved = WeeklySubmission::query()
             ->where('tenant_id', $tenant->id)
@@ -98,6 +112,8 @@ class MonthlyClosingService
             if ($view['denied'] !== null) {
                 $denied[$entry->member_id] = ($denied[$entry->member_id] ?? 0) + 1;
             }
+
+            $withoutRequest[$entry->member_id] = ($withoutRequest[$entry->member_id] ?? 0) + ($coverage[$entry->id]['uncoveredSeconds'] ?? 0);
         }
 
         // Quem tem banco de horas aparece mesmo sem hora adicional no mês (folga, vencimento).
@@ -110,7 +126,7 @@ class MonthlyClosingService
 
         $members = Member::query()
             ->where('tenant_id', $tenant->id)
-            ->whereIn('id', $entries->pluck('member_id')->merge($bankMembers)->unique()->values()->all())
+            ->whereIn('id', $entries->pluck('member_id')->merge($bankMembers)->merge($refused->keys())->unique()->values()->all())
             ->orderBy('display_name')
             ->get();
 
@@ -130,7 +146,12 @@ class MonthlyClosingService
                 $alerts[$alert['type']]++;
             }
 
-            if ($memberLines === [] && $bank === null && array_sum($alerts) === 0) {
+            $overtime = [
+                'withoutRequestSeconds' => $withoutRequest[$member->id] ?? 0,
+                'refusedSeconds' => $refused->get($member->id, 0),
+            ];
+
+            if ($memberLines === [] && $bank === null && array_sum($alerts) === 0 && $overtime['refusedSeconds'] === 0) {
                 continue;
             }
 
@@ -143,6 +164,8 @@ class MonthlyClosingService
                 'bank' => $bank,
                 'alerts' => $alerts,
                 'deniedCount' => $denied[$member->id] ?? 0,
+                // Fase 4: hora adicional sem pedido aprovado e hora a confirmar recusada.
+                'overtime' => $overtime,
             ];
         }
 

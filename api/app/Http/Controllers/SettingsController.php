@@ -134,6 +134,15 @@ class SettingsController extends Controller
         return $this->overview();
     }
 
+    public function updateOvertimeProfile(Request $request, int $memberId): JsonResponse
+    {
+        $data = $request->validate(['profile' => ['required', Rule::in(Member::PROFILES)]]);
+
+        $this->settings->setOvertimeProfile($this->tenantContext->tenant(), $this->tenantContext->member(), $memberId, $data['profile']);
+
+        return $this->overview();
+    }
+
     public function updateProject(Request $request, int $projectId): JsonResponse
     {
         $data = $request->validate([

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ConflictException;
 use App\Models\Member;
+use App\Models\OvertimeRequest;
 use App\Models\Project;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
@@ -13,6 +14,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Um timer ativo por membro por tenant (US1, T015). "Fechar" nunca reabre a
@@ -30,6 +32,8 @@ class TimerService
         private readonly TimeSplitService $splitter,
         private readonly AuditService $audit,
         private readonly WeekLockGuard $weeks,
+        private readonly OvertimeCoverageService $coverage,
+        private readonly OvertimeRequestService $overtimeRequests,
     ) {}
 
     public function start(
@@ -96,7 +100,11 @@ class TimerService
     }
 
     /**
-     * @return Collection<int, TimeEntry>
+     * Perfil restrito: o trecho fora do expediente sem pedido aprovado vira hora
+     * extra a confirmar, não lançamento; sem motivo e ciência, o timer não para
+     * (422 em `overtimeReason`) e a pessoa informa os dois.
+     *
+     * @return array{entries: Collection<int, TimeEntry>, pending: list<OvertimeRequest>}
      */
     public function stop(
         Tenant $tenant,
@@ -104,8 +112,10 @@ class TimerService
         int $timerId,
         ?string $note,
         ?bool $billable,
-    ): Collection {
-        return DB::transaction(function () use ($tenant, $member, $timerId, $note, $billable) {
+        ?string $overtimeReason = null,
+        bool $overtimeAcknowledged = false,
+    ): array {
+        return DB::transaction(function () use ($tenant, $member, $timerId, $note, $billable, $overtimeReason, $overtimeAcknowledged) {
             $timer = TimerSession::query()
                 ->where('tenant_id', $tenant->id)
                 ->where('member_id', $member->id)
@@ -142,41 +152,77 @@ class TimerService
 
             // Cada fatia começa onde a anterior terminou (a primeira, no início do timer).
             $cursor = CarbonImmutable::instance($timer->started_at_utc)->utc();
-
-            $entries = collect($slices)->map(function (array $slice) use ($tenant, $timer, $timezone, &$cursor) {
-                $sliceStart = $cursor;
+            $pieces = [];
+            foreach ($slices as $slice) {
+                $local = $cursor->setTimezone($timezone);
+                $startSeconds = $local->hour * 3600 + $local->minute * 60 + $local->second;
+                $plan = $this->coverage->plan($tenant, $member, $slice['localDate'], $local->format('H:i:s'), $slice['durationSeconds'], $timezone);
+                $pieces[] = ['slice' => $slice, 'start' => $cursor, 'startSeconds' => $startSeconds, 'plan' => $plan];
                 $cursor = $cursor->addSeconds($slice['durationSeconds']);
+            }
 
-                $entry = TimeEntry::query()->create([
-                    'tenant_id' => $tenant->id,
-                    'project_id' => $timer->project_id,
-                    'member_id' => $timer->member_id,
-                    'devops_work_item_id' => $timer->devops_work_item_id,
-                    'timer_session_id' => $timer->id,
-                    'activity_type_id' => $timer->activity_type_id,
-                    'local_date' => $slice['localDate'],
-                    'timezone' => $timezone,
-                    'duration_seconds' => $slice['durationSeconds'],
-                    'started_at_utc' => $sliceStart,
-                    'ended_at_utc' => $cursor,
-                    'source' => TimeEntry::SOURCE_TIMER,
-                    'billable' => $timer->billable ?? true,
-                    'note' => $timer->note,
-                    'revision' => 1,
-                ]);
+            $hasPending = collect($pieces)->contains(fn (array $piece) => $piece['plan']['pending'] !== []);
+            if ($hasPending && (! $overtimeAcknowledged || trim((string) $overtimeReason) === '')) {
+                throw ValidationException::withMessages(['overtimeReason' => TimeEntryService::RESTRICTED_MESSAGE]);
+            }
 
-                $this->audit->record(
-                    tenant: $tenant,
-                    action: 'time_entry.created',
-                    subjectType: TimeEntry::class,
-                    subjectId: $entry->id,
-                    actor: $timer->member,
-                    project: $timer->project,
-                    context: ['source' => 'timer', 'timerSessionId' => $timer->id],
-                );
+            $entries = collect();
+            $pending = [];
+            foreach ($pieces as $piece) {
+                $slice = $piece['slice'];
+                $parts = $piece['plan']['pending'] === []
+                    ? [['start' => $piece['startSeconds'], 'seconds' => $slice['durationSeconds'], 'utc' => $piece['start']]]
+                    : array_map(fn (array $part) => $part + ['utc' => CarbonImmutable::parse($slice['localDate'], $timezone)->startOfDay()->addSeconds($part['start'])->utc()], $piece['plan']['normal']);
 
-                return $entry;
-            });
+                foreach ($parts as $part) {
+                    $entry = TimeEntry::query()->create([
+                        'tenant_id' => $tenant->id,
+                        'project_id' => $timer->project_id,
+                        'member_id' => $timer->member_id,
+                        'devops_work_item_id' => $timer->devops_work_item_id,
+                        'timer_session_id' => $timer->id,
+                        'activity_type_id' => $timer->activity_type_id,
+                        'local_date' => $slice['localDate'],
+                        'timezone' => $timezone,
+                        'duration_seconds' => $part['seconds'],
+                        'started_at_utc' => $part['utc'],
+                        'ended_at_utc' => $part['utc']->addSeconds($part['seconds']),
+                        'source' => TimeEntry::SOURCE_TIMER,
+                        'billable' => $timer->billable ?? true,
+                        'note' => $timer->note,
+                        'revision' => 1,
+                    ]);
+
+                    $this->audit->record(
+                        tenant: $tenant,
+                        action: 'time_entry.created',
+                        subjectType: TimeEntry::class,
+                        subjectId: $entry->id,
+                        actor: $timer->member,
+                        project: $timer->project,
+                        context: ['source' => 'timer', 'timerSessionId' => $timer->id],
+                    );
+
+                    $entries->push($entry);
+                }
+
+                foreach ($piece['plan']['pending'] as $part) {
+                    $pending[] = $this->overtimeRequests->createConfirmation($tenant, $member, [
+                        'localDate' => $slice['localDate'],
+                        'startTime' => TimeEntryService::clock($part['start']),
+                        'endTime' => TimeEntryService::clock($part['end']),
+                        'seconds' => $part['seconds'],
+                        'projectId' => $timer->project_id,
+                        'workItemId' => $timer->devops_work_item_id,
+                        'activityTypeId' => $timer->activity_type_id,
+                        'note' => $timer->note,
+                        'billable' => (bool) ($timer->billable ?? false),
+                        'timezone' => $timezone,
+                        'source' => TimeEntry::SOURCE_TIMER,
+                        'reason' => (string) $overtimeReason,
+                    ]);
+                }
+            }
 
             $this->audit->record(
                 tenant: $tenant,
@@ -185,10 +231,10 @@ class TimerService
                 subjectId: $timer->id,
                 actor: $member,
                 project: $timer->project,
-                context: ['entryCount' => $entries->count()],
+                context: ['entryCount' => $entries->count(), 'pendingOvertimeCount' => count($pending)],
             );
 
-            return $entries;
+            return ['entries' => $entries, 'pending' => $pending];
         });
     }
 }

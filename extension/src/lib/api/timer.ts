@@ -56,6 +56,9 @@ export interface StopTimerInput {
   timerId: string;
   note?: string;
   billable?: boolean;
+  /** Perfil restrito: motivo e ciência do trecho que fica como hora extra a confirmar. */
+  overtimeReason?: string;
+  overtimeAcknowledged?: boolean;
 }
 
 export function stopTimer(client: ApiClient, input: StopTimerInput): Promise<TimeEntryDto[]> {

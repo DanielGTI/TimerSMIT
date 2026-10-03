@@ -27,7 +27,12 @@ class TimeEntryService
         private readonly AuditService $audit,
         private readonly WeekLockGuard $weeks,
         private readonly OvertimeRuleService $overtime,
+        private readonly OvertimeCoverageService $coverage,
+        private readonly OvertimeRequestService $overtimeRequests,
     ) {}
+
+    /** Recado do perfil restrito quando falta o motivo/ciência da hora extra a confirmar. */
+    public const RESTRICTED_MESSAGE = 'Pelo seu perfil, a hora fora do expediente sem pedido aprovado vira hora extra a confirmar: ela só conta se o aprovador confirmar. Informe o motivo e marque que entendeu.';
 
     public function createManual(
         Tenant $tenant,
@@ -40,7 +45,9 @@ class TimeEntryService
         ?bool $billable,
         ?string $note,
         ?string $startTime = null,
-    ): TimeEntry {
+        ?string $overtimeReason = null,
+        bool $overtimeAcknowledged = false,
+    ): array {
         $policy = $this->effectivePolicy($tenant, $project);
         $commentRequired = $policy->comment_required ?? false;
         $dailyLimitSeconds = ($policy->daily_limit_hours ?? 24) * 3600;
@@ -74,7 +81,8 @@ class TimeEntryService
 
         return DB::transaction(function () use (
             $tenant, $member, $project, $devopsWorkItemId, $localDate, $durationSeconds,
-            $activityTypeId, $billable, $note, $timezone, $dailyLimitSeconds, $window,
+            $activityTypeId, $billable, $note, $timezone, $dailyLimitSeconds, $window, $startTime,
+            $overtimeReason, $overtimeAcknowledged,
         ) {
             // Trava a linha do membro (e confere se a semana aceita edição).
             // Sem isso, duas requisições simultâneas leem o mesmo total do
@@ -93,35 +101,65 @@ class TimeEntryService
                 throw ValidationException::withMessages(['durationSeconds' => 'Limite diário de horas excedido para esta data.']);
             }
 
-            $entry = TimeEntry::query()->create([
-                'tenant_id' => $tenant->id,
-                'project_id' => $project->id,
-                'member_id' => $member->id,
-                'devops_work_item_id' => $devopsWorkItemId,
-                'timer_session_id' => null,
-                'activity_type_id' => $activityTypeId,
-                'local_date' => $localDate,
-                'timezone' => $timezone,
-                'duration_seconds' => $durationSeconds,
-                'started_at_utc' => $window[0] ?? null,
-                'ended_at_utc' => $window[1] ?? null,
-                'source' => TimeEntry::SOURCE_MANUAL,
-                'billable' => $billable ?? true,
+            // Perfil restrito: o trecho fora do expediente sem pedido aprovado não vira
+            // lançamento; vira hora extra a confirmar (com motivo e ciência da pessoa).
+            $plan = $this->coverage->plan($tenant, $member, $localDate, $startTime, $durationSeconds, $timezone);
+
+            if ($plan['pending'] !== [] && (! $overtimeAcknowledged || trim((string) $overtimeReason) === '')) {
+                throw ValidationException::withMessages(['overtimeReason' => self::RESTRICTED_MESSAGE]);
+            }
+
+            $entries = [];
+            foreach ($plan['pending'] === [] ? [null] : $plan['normal'] as $piece) {
+                $times = $piece === null
+                    ? ['started_at_utc' => $window[0] ?? null, 'ended_at_utc' => $window[1] ?? null]
+                    : $this->pieceTimes($localDate, $piece, $timezone);
+
+                $entry = TimeEntry::query()->create($times + [
+                    'tenant_id' => $tenant->id,
+                    'project_id' => $project->id,
+                    'member_id' => $member->id,
+                    'devops_work_item_id' => $devopsWorkItemId,
+                    'timer_session_id' => null,
+                    'activity_type_id' => $activityTypeId,
+                    'local_date' => $localDate,
+                    'timezone' => $timezone,
+                    'duration_seconds' => $piece['seconds'] ?? $durationSeconds,
+                    'source' => TimeEntry::SOURCE_MANUAL,
+                    'billable' => $billable ?? true,
+                    'note' => $note,
+                    'revision' => 1,
+                ]);
+
+                $this->audit->record(
+                    tenant: $tenant,
+                    action: 'time_entry.created',
+                    subjectType: TimeEntry::class,
+                    subjectId: $entry->id,
+                    actor: $member,
+                    project: $project,
+                    context: ['source' => 'manual'],
+                );
+
+                $entries[] = $entry;
+            }
+
+            $pending = array_map(fn (array $piece) => $this->overtimeRequests->createConfirmation($tenant, $member, [
+                'localDate' => $localDate,
+                'startTime' => $piece['start'] === null ? null : self::clock($piece['start']),
+                'endTime' => $piece['end'] === null ? null : self::clock($piece['end']),
+                'seconds' => $piece['seconds'],
+                'projectId' => $project->id,
+                'workItemId' => $devopsWorkItemId,
+                'activityTypeId' => $activityTypeId,
                 'note' => $note,
-                'revision' => 1,
-            ]);
+                'billable' => (bool) ($billable ?? false),
+                'timezone' => $timezone,
+                'source' => TimeEntry::SOURCE_MANUAL,
+                'reason' => (string) $overtimeReason,
+            ]), $plan['pending']);
 
-            $this->audit->record(
-                tenant: $tenant,
-                action: 'time_entry.created',
-                subjectType: TimeEntry::class,
-                subjectId: $entry->id,
-                actor: $member,
-                project: $project,
-                context: ['source' => 'manual'],
-            );
-
-            return $entry;
+            return ['entries' => $entries, 'pending' => $pending];
         });
     }
 
@@ -182,6 +220,16 @@ class TimeEntryService
                 && $this->overtime->requiresTimeOfDay($tenant, $member)
             ) {
                 throw ValidationException::withMessages(['startTime' => 'Informe o horário (De/Até): ele é necessário para separar o expediente das horas adicionais.']);
+            }
+
+            // Perfil restrito: a edição não pode levar o lançamento para fora do expediente sem pedido.
+            if (isset($changes['durationSeconds']) || array_key_exists('startTime', $changes)) {
+                $newStart = array_key_exists('startTime', $changes) ? $changes['startTime'] : $entry->localStartTime();
+                $plan = $this->coverage->plan($tenant, $member, substr((string) $entry->local_date, 0, 10), $newStart, $newDuration, $entry->timezone ?: 'UTC', $entry->id);
+
+                if ($plan['pending'] !== []) {
+                    throw ValidationException::withMessages(['startTime' => 'Pelo seu perfil, hora fora do expediente sem pedido aprovado só entra como hora extra a confirmar. Mantenha este lançamento dentro do expediente e lance o restante pelo “Adicionar tempo”.']);
+                }
             }
 
             $times = [];
@@ -364,6 +412,31 @@ class TimeEntryService
             'billable' => $entry->billable,
             'note' => $entry->note,
         ];
+    }
+
+    /**
+     * Início e fim em UTC de um trecho (segundos desde 00:00 local); sem início, sem horário.
+     *
+     * @param  array{start: ?int, end: ?int, seconds: int}  $piece
+     * @return array{started_at_utc: ?CarbonImmutable, ended_at_utc: ?CarbonImmutable}
+     */
+    public function pieceTimes(string $localDate, array $piece, string $timezone): array
+    {
+        if ($piece['start'] === null) {
+            return ['started_at_utc' => null, 'ended_at_utc' => null];
+        }
+
+        $start = CarbonImmutable::parse(substr($localDate, 0, 10), $timezone)->startOfDay()->addSeconds($piece['start']);
+
+        return ['started_at_utc' => $start->utc(), 'ended_at_utc' => $start->addSeconds($piece['seconds'])->utc()];
+    }
+
+    /** Segundos desde 00:00 em "HH:MM" (ou "HH:MM:SS" quando há segundos). */
+    public static function clock(int $seconds): string
+    {
+        $text = sprintf('%02d:%02d', intdiv($seconds, 3600), intdiv($seconds % 3600, 60));
+
+        return $seconds % 60 === 0 ? $text : $text.sprintf(':%02d', $seconds % 60);
     }
 
     /**

@@ -28,6 +28,7 @@ class ApprovalService
         private readonly AuditService $audit,
         private readonly AdditionalHoursService $additional,
         private readonly HourBankService $bank,
+        private readonly OvertimeRequestService $overtimeRequests,
     ) {}
 
     /**
@@ -158,6 +159,11 @@ class ApprovalService
             $self = $submission->member_id === $decider->id;
 
             if (! $rejecting) {
+                // Hora extra a confirmar desta semana: decidida antes (vira lançamento ou não).
+                if ($this->overtimeRequests->pendingConfirmations($tenant, $submission->member_id, substr((string) $submission->week_start_date, 0, 10)) > 0) {
+                    throw new ConflictException('Há horas extras a confirmar nesta semana. Confirme ou recuse cada uma antes de aprovar.');
+                }
+
                 $this->recordUnauthorized($tenant, $decider, $submission, $unauthorized, $now);
             }
 

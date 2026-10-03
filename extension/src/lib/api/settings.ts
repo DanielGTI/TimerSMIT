@@ -1,4 +1,5 @@
 import type { ApiClient } from "./client";
+import type { OvertimeProfile } from "./overtime";
 
 export type Role = "member" | "approver" | "manager" | "admin";
 
@@ -64,6 +65,8 @@ export interface SettingsMemberDto {
   /** Situação na última sincronização com o Azure DevOps: `null` = nunca sincronizada. */
   directoryActive: boolean | null;
   hoursRegime: HoursRegime;
+  /** Perfil de hora extra (só vale para CLT). */
+  overtimeProfile?: OvertimeProfile;
   roles: Array<{ id: string; role: Role; projectId: string | null; projectName: string | null }>;
 }
 
@@ -123,6 +126,9 @@ export const removeHoliday = (client: ApiClient, holidayId: string) => send(clie
 
 export const setHoursRegime = (client: ApiClient, memberId: string, regime: HoursRegime) =>
   send(client, "PUT", `/members/${memberId}/hours-regime`, { regime });
+
+export const setOvertimeProfile = (client: ApiClient, memberId: string, profile: OvertimeProfile) =>
+  send(client, "PUT", `/members/${memberId}/overtime-profile`, { profile });
 
 export const setProjectEnabled = (client: ApiClient, projectId: string, enabled: boolean) =>
   send(client, "PATCH", `/projects/${projectId}`, { enabled });

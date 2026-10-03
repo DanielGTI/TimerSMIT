@@ -28,6 +28,8 @@ class MeController extends Controller
             'memberId' => (string) $tenantContext->member()->id,
             'displayName' => $tenantContext->member()->display_name,
             'hoursRegime' => $tenantContext->member()->hours_regime ?? Member::REGIME_CLT,
+            // Perfil de hora extra (Fase 4): pré-aprovada, padrão ou restrita.
+            'overtimeProfile' => $tenantContext->member()->overtimeProfile(),
             // Regras de lançamento em vigor (incremento, limite diário, janela retroativa, comentário).
             'policy' => $this->settings->currentPolicyFor($tenantContext->tenant()),
             // Projetos (id do Azure DevOps) que cobram por hora: só neles o lançamento mostra "faturável".

@@ -32,6 +32,8 @@ class TimesheetService
         private readonly ApproverResolver $approvers,
         private readonly AdditionalHoursService $additional,
         private readonly WorkLimitService $limits,
+        private readonly OvertimeCoverageService $coverage,
+        private readonly OvertimeRequestService $overtimeRequests,
     ) {}
 
     /**
@@ -54,7 +56,13 @@ class TimesheetService
         $submission = $this->submissionFor($tenant, $member, $weekStart);
         $snapshots = $this->latestSnapshots($tenant, $entries);
         $evaluation = $this->additional->evaluate($tenant, $entries);
-        $additional = $entries->mapWithKeys(fn (TimeEntry $entry) => [$entry->id => $this->additional->present($evaluation[$entry->id])]);
+        // Situação de cada hora adicional: coberta por pedido, pré-aprovada, confirmada ou sujeita à aprovação.
+        $coverage = $this->coverage->coverage($tenant, $entries, $evaluation);
+        $additional = $entries->mapWithKeys(function (TimeEntry $entry) use ($evaluation, $coverage) {
+            $view = $this->additional->present($evaluation[$entry->id]);
+
+            return [$entry->id => $view === null ? null : $view + ['coverage' => $coverage[$entry->id] ?? null]];
+        });
         $totals = $entries->groupBy('local_date')->map(fn (Collection $day) => (int) $day->sum('duration_seconds'));
 
         return [
@@ -91,6 +99,9 @@ class TimesheetService
             // Avisos de limite de jornada (2h extras/dia, semanal, 11h de descanso); não bloqueiam
             // nada e só vão para administradores — a própria pessoa não os vê.
             'alerts' => $withAlerts ? $this->limits->alerts($tenant, $member, $weekStart, WeekCalendar::endOf($weekStart)) : [],
+            // Perfil de hora extra da pessoa e as horas a confirmar desta semana (perfil restrito).
+            'overtimeProfile' => $member->overtimeProfile(),
+            'overtimeConfirmations' => $this->overtimeRequests->weekConfirmations($tenant, $member, $weekStart),
             'entries' => $entries->map(function (TimeEntry $entry) use ($snapshots, $additional) {
                 $snapshot = $snapshots->get($entry->project_id.':'.$entry->devops_work_item_id);
 

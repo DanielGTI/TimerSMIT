@@ -1,4 +1,5 @@
 import type { ApiClient } from "./client";
+import type { OvertimeItemDto } from "./overtime";
 import type { TimeEntryDto } from "./timer";
 
 export interface CreateManualEntryInput {
@@ -15,10 +16,19 @@ export interface CreateManualEntryInput {
   title?: string;
   workItemType?: string;
   iterationPath?: string;
+  /** Perfil restrito: motivo e ciência da hora extra a confirmar. */
+  overtimeReason?: string;
+  overtimeAcknowledged?: boolean;
 }
 
-export function createManualEntry(client: ApiClient, input: CreateManualEntryInput): Promise<TimeEntryDto> {
-  return client.request<TimeEntryDto>("/api/entries", {
+/** Perfil restrito: o que entrou e o que ficou a confirmar (só quando houve separação). */
+export interface ManualEntryResult extends Partial<TimeEntryDto> {
+  entries?: TimeEntryDto[];
+  pendingOvertime?: OvertimeItemDto[];
+}
+
+export function createManualEntry(client: ApiClient, input: CreateManualEntryInput): Promise<ManualEntryResult> {
+  return client.request<ManualEntryResult>("/api/entries", {
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify(input),

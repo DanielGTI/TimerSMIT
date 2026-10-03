@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useState } from "react";
+import { coverageLabel } from "../../components/AdditionalTag";
 import {
   CLASSIFICATION_LABELS,
   DAY_TYPE_LABELS,
@@ -8,6 +9,7 @@ import {
   type AdditionalHoursItemDto,
   type Classification,
 } from "../../lib/api/additionalHours";
+import { DESTINATION_LABELS } from "../../lib/api/overtime";
 import { formatHours, todayLocalIso } from "../../lib/time/format";
 import { addDays } from "../../lib/time/weeks";
 import { REGIME_LABELS } from "./OvertimeSection";
@@ -223,6 +225,10 @@ export function AdditionalHoursSection({ settings, client }: SectionProps): JSX.
                     </td>
                     <td>
                       {CLASSIFICATION_LABELS[item.additional.status]}
+                      {item.additional.coverage && <span className="muted block">{coverageLabel(item.additional.coverage)}</span>}
+                      {item.additional.coverage?.suggestedDestination && (
+                        <span className="muted block">Sugestão do pedido: {DESTINATION_LABELS[item.additional.coverage.suggestedDestination]}</span>
+                      )}
                       {item.additional.denied && (
                         <span className="field__error block">Não autorizada pelo aprovador: {item.additional.denied.reason}</span>
                       )}

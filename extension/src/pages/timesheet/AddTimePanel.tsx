@@ -3,6 +3,7 @@ import { ManualEntryForm } from "../../components/ManualEntryForm";
 import { WorkItemPicker } from "../../components/WorkItemPicker";
 import type { ActivityTypeDto } from "../../lib/api/activityTypes";
 import type { ApiClient } from "../../lib/api/client";
+import type { OvertimeProfile } from "../../lib/api/overtime";
 import type { WorkItemDetails } from "../../lib/devops/workItemSearch";
 
 export interface AddTimeResources {
@@ -11,6 +12,8 @@ export interface AddTimeResources {
   requireTime: boolean;
   /** Duração mínima do lançamento manual (regras da organização). */
   minDurationMinutes?: number;
+  /** Controle de hora extra da pessoa (CLT com horas adicionais ligado); null fora disso. */
+  overtime?: { profile: OvertimeProfile } | null;
   /** Projetos que usam "faturável" (id do Azure DevOps). */
   billableProjectIds: string[];
 }
@@ -22,7 +25,7 @@ interface AddTimePanelProps {
   resources: AddTimeResources | null;
   resourcesError: string | null;
   onClose: () => void;
-  onSaved: (saved: { localDate: string; minutes: number }) => void;
+  onSaved: (saved: { localDate: string; minutes: number; pendingMinutes?: number }) => void;
 }
 
 /**
@@ -67,6 +70,7 @@ export function AddTimePanel({ client, date, resources, resourcesError, onClose,
             displayName={resources.displayName}
             requireTime={resources.requireTime}
             minDurationMinutes={resources.minDurationMinutes}
+            overtime={resources.overtime ?? null}
             billableEnabled={selected?.projectId ? resources.billableProjectIds.includes(selected.projectId) : false}
             initialDate={date}
             workItemField={<WorkItemPicker selected={selected} onSelect={setSelected} autoFocus />}

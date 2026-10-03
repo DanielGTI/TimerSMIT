@@ -6,6 +6,7 @@ import { reopenApproval } from "../../lib/api/approvals";
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
 import { fetchCurrentSession } from "../../lib/api/me";
+import { overtimeControl } from "../../lib/api/overtime";
 import {
   fetchMonth,
   fetchWeek,
@@ -21,6 +22,7 @@ import { AddTimePanel, type AddTimeResources } from "./AddTimePanel";
 import { EntryList } from "./EntryList";
 import { MonthCalendar } from "./MonthCalendar";
 import { MyHourBank } from "./MyHourBank";
+import { MyOvertime } from "./MyOvertime";
 import { WeekGrid } from "./WeekGrid";
 
 const errorText = (failure: unknown): string => (failure instanceof Error ? failure.message : String(failure));
@@ -121,6 +123,7 @@ export function TimesheetPage(): JSX.Element {
             activityTypes,
             requireTime: session.overtime?.requireTimeOfDay ?? false,
             minDurationMinutes: session.policy?.minDurationMinutes ?? 1,
+            overtime: overtimeControl(session),
             billableProjectIds: session.billableProjectIds ?? [],
           }),
       )
@@ -210,10 +213,14 @@ export function TimesheetPage(): JSX.Element {
     }
   }
 
-  function handleAddTimeSaved({ localDate, minutes }: { localDate: string; minutes: number }) {
+  function handleAddTimeSaved({ localDate, minutes, pendingMinutes }: { localDate: string; minutes: number; pendingMinutes?: number }) {
     setAddingOn(null);
     goToWeek(mondayOf(localDate));
-    setNotice(`Lançamento de ${formatDuration(minutes)} registrado em ${dayMonth(localDate)}.`);
+    setNotice(
+      pendingMinutes
+        ? `Lançamento registrado em ${dayMonth(localDate)}. ${formatDuration(pendingMinutes)} fora do expediente ficaram como hora extra a confirmar: só contam se o aprovador confirmar.`
+        : `Lançamento de ${formatDuration(minutes)} registrado em ${dayMonth(localDate)}.`,
+    );
     reload();
   }
 
@@ -408,6 +415,8 @@ export function TimesheetPage(): JSX.Element {
         onPickDay={(date) => goToWeek(mondayOf(date))}
         onAddTime={handleAddTime}
       />
+
+      <MyOvertime client={client} reloadTick={reloadTick} onChanged={reload} />
 
       <MyHourBank client={client} />
 

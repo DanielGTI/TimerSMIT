@@ -19,7 +19,16 @@ vi.mock("../src/lib/api/approvals", () => ({
   reopenApproval: (...args: unknown[]) => reopenApproval(...args),
 }));
 
+const fetchPendingOvertime = vi.fn();
+const decideOvertime = vi.fn();
+vi.mock("../src/lib/api/overtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/api/overtime")>()),
+  fetchPendingOvertime: (...args: unknown[]) => fetchPendingOvertime(...args),
+  decideOvertime: (...args: unknown[]) => decideOvertime(...args),
+}));
+
 import type { ApprovalDetailDto } from "../src/lib/api/approvals";
+import type { OvertimeItemDto } from "../src/lib/api/overtime";
 import type { WeekDto } from "../src/lib/api/timesheet";
 import { ApprovalsPage } from "../src/pages/approvals/ApprovalsPage";
 
@@ -103,6 +112,8 @@ describe("ApprovalsPage", () => {
     fetchPendingApprovals.mockReset().mockResolvedValue([pendingItem]);
     fetchDecidedApprovals.mockReset().mockResolvedValue([]);
     fetchApproval.mockReset().mockResolvedValue(detail());
+    fetchPendingOvertime.mockReset().mockResolvedValue([]);
+    decideOvertime.mockReset();
     decideApproval.mockReset();
     reopenApproval.mockReset();
   });
@@ -288,5 +299,77 @@ describe("ApprovalsPage", () => {
 
     const history = screen.getByRole("list", { name: "Histórico de decisões" });
     expect(within(history).getByText(/Faltou o dia 29/)).toBeInTheDocument();
+  });
+
+  it("hora extra a confirmar da semana bloqueia a aprovação até ser decidida", async () => {
+    const confirmation: OvertimeItemDto = {
+      id: "40",
+      kind: "confirmation",
+      dateFrom: "2026-09-29",
+      dateTo: "2026-09-29",
+      secondsPerDay: 5400,
+      startTime: "18:00",
+      endTime: "19:30",
+      reason: "Deploy",
+      suggestedDestination: null,
+      afterTheFact: true,
+      status: "pending",
+      approvedSecondsPerDay: null,
+      decidedBy: null,
+      decidedAt: null,
+      decisionNote: null,
+      projectName: "SMIT LEARN IA",
+      workItemId: 15835,
+      note: null,
+      createdAt: null,
+    };
+    fetchApproval.mockResolvedValue(detail({ week: { ...week, overtimeConfirmations: [confirmation] } }));
+    decideOvertime.mockResolvedValue({ ...confirmation, status: "approved" });
+    await openFirstWeek();
+
+    const block = screen.getByRole("region", { name: "Horas extras a confirmar da semana" });
+    expect(block).toHaveTextContent("18:00–19:30");
+    fireEvent.click(screen.getByRole("button", { name: "Aprovar semana" }));
+    expect(screen.getByRole("note")).toHaveTextContent("Há 1 hora(s) extra(s) a confirmar nesta semana");
+    expect(screen.getByRole("button", { name: "Confirmar aprovação" })).toBeDisabled();
+
+    fireEvent.click(within(block).getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(decideOvertime).toHaveBeenCalledWith(expect.anything(), "40", { approve: true }));
+  });
+
+  it("a aba Horas extras lista o que espera a decisão de quem está logado", async () => {
+    fetchPendingOvertime.mockResolvedValue([
+      {
+        id: "41",
+        kind: "request",
+        dateFrom: "2026-10-06",
+        dateTo: "2026-10-08",
+        secondsPerDay: 7200,
+        startTime: null,
+        endTime: null,
+        reason: "Virada da release",
+        suggestedDestination: "bank",
+        afterTheFact: false,
+        status: "pending",
+        approvedSecondsPerDay: null,
+        decidedBy: null,
+        decidedAt: null,
+        decisionNote: null,
+        projectName: null,
+        workItemId: null,
+        note: null,
+        createdAt: null,
+        person: { id: "3", displayName: "Carla Colaboradora" },
+        weekStatus: null,
+      },
+    ]);
+    render(<ApprovalsPage />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Horas extras (1)" }));
+    const list = screen.getByRole("list", { name: "Horas extras para decidir" });
+    expect(list).toHaveTextContent("Carla Colaboradora");
+    expect(list).toHaveTextContent("06/10/2026 a 08/10/2026");
+    expect(list).toHaveTextContent("Sugestão: Banco de horas");
+    expect(within(list).getByRole("button", { name: "Aprovar" })).toBeEnabled();
   });
 });

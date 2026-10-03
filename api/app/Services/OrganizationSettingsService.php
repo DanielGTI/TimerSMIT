@@ -80,6 +80,7 @@ class OrganizationSettingsService
                 'name' => $member->display_name,
                 'directoryActive' => $member->directory_active,
                 'hoursRegime' => $member->hours_regime ?? Member::REGIME_CLT,
+                'overtimeProfile' => $member->overtime_profile ?? Member::PROFILE_STANDARD,
                 'roles' => ($roles->get($member->id) ?? collect())->map(fn (RoleAssignment $role) => [
                     'id' => (string) $role->id,
                     'role' => $role->role,
@@ -247,6 +248,21 @@ class OrganizationSettingsService
         $member->update(['hours_regime' => $regime]);
 
         $this->audit->record($tenant, 'settings.hours_regime_updated', Member::class, $member->id, $actor, null, ['before' => $before, 'after' => $regime]);
+    }
+
+    /** Perfil de hora extra (pré-aprovada, padrão, restrita); só tem efeito para CLT. */
+    public function setOvertimeProfile(Tenant $tenant, Member $actor, int $memberId, string $profile): void
+    {
+        $member = Member::query()->where('tenant_id', $tenant->id)->findOrFail($memberId);
+        $before = $member->overtime_profile ?? Member::PROFILE_STANDARD;
+
+        if ($before === $profile) {
+            return;
+        }
+
+        $member->update(['overtime_profile' => $profile]);
+
+        $this->audit->record($tenant, 'settings.overtime_profile_updated', Member::class, $member->id, $actor, null, ['before' => $before, 'after' => $profile]);
     }
 
     // ---------- atividades ----------

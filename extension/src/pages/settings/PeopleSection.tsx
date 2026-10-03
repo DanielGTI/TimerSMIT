@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { grantRole, revokeRole, syncPeople, type Role, type SettingsMemberDto } from "../../lib/api/settings";
+import { OVERTIME_PROFILE_HINTS, OVERTIME_PROFILE_LABELS, type OvertimeProfile } from "../../lib/api/overtime";
+import { grantRole, revokeRole, setOvertimeProfile, syncPeople, type Role, type SettingsMemberDto } from "../../lib/api/settings";
 import { fetchActiveDirectoryPeople } from "../../lib/devops/directory";
 import { ORGANIZATION_SCOPE, ROLE_LABELS, type SectionProps } from "./sections";
 
@@ -47,6 +48,11 @@ export function PeopleSection({ settings, client, busy, run }: SectionProps): JS
           Quem abre a extensão pela primeira vez aparece aqui sem acesso. Membro permite lançar horas; gestor vê as
           horas de todos nos projetos que gerencia; administrador configura a organização.
         </p>
+        <p className="muted">
+          <strong>Hora extra</strong> (só CLT): <strong>Pré-aprovada</strong>: {OVERTIME_PROFILE_HINTS.preapproved.toLowerCase()}{" "}
+          <strong>Padrão</strong>: {OVERTIME_PROFILE_HINTS.standard.toLowerCase()} <strong>Restrita</strong>:{" "}
+          {OVERTIME_PROFILE_HINTS.restricted.toLowerCase()}
+        </p>
 
         <div className="toolbar">
           <span className="muted">
@@ -61,7 +67,15 @@ export function PeopleSection({ settings, client, busy, run }: SectionProps): JS
 
         <ul className="settings-list settings-list--people">
           {active.map((member) => (
-            <PersonRow key={member.id} member={member} busy={busy} onRevoke={(id, name) => void run(() => revokeRole(client, id), `Papel removido de ${name}.`)} />
+            <PersonRow
+              key={member.id}
+              member={member}
+              busy={busy}
+              onRevoke={(id, name) => void run(() => revokeRole(client, id), `Papel removido de ${name}.`)}
+              onProfile={(profile) =>
+                void run(() => setOvertimeProfile(client, member.id, profile), `${member.name}: hora extra ${OVERTIME_PROFILE_LABELS[profile].toLowerCase()}.`)
+              }
+            />
           ))}
         </ul>
 
@@ -132,14 +146,32 @@ function PersonRow({
   member,
   busy,
   onRevoke,
+  onProfile,
 }: {
   member: SettingsMemberDto;
   busy: boolean;
   onRevoke: (assignmentId: string, memberName: string) => void;
+  /** Perfil de hora extra; só para CLT ativo. */
+  onProfile?: (profile: OvertimeProfile) => void;
 }): JSX.Element {
   return (
     <li>
       <strong>{member.name}</strong>
+      {onProfile && member.hoursRegime === "clt" && (
+        <select
+          className="input input--compact"
+          aria-label={`Hora extra de ${member.name}`}
+          value={member.overtimeProfile ?? "standard"}
+          disabled={busy}
+          onChange={(event) => onProfile(event.target.value as OvertimeProfile)}
+        >
+          {(Object.keys(OVERTIME_PROFILE_LABELS) as OvertimeProfile[]).map((profile) => (
+            <option key={profile} value={profile}>
+              Hora extra: {OVERTIME_PROFILE_LABELS[profile]}
+            </option>
+          ))}
+        </select>
+      )}
       <span className="chips">
         {member.roles.length === 0 && <span className="badge badge--rejected">Sem acesso</span>}
         {member.roles.map((assignment) => (

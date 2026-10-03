@@ -8,6 +8,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Campos com erro de validação (422), para a tela reagir a um campo específico. */
+    readonly fields: string[] = [],
   ) {
     super(message);
     this.name = "ApiError";
@@ -29,7 +31,7 @@ async function toApiError(path: string, response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as { message?: string; errors?: Record<string, string[]> };
     const firstFieldError = Object.values(body.errors ?? {}).flat()[0];
-    return new ApiError(firstFieldError ?? body.message ?? generic, response.status);
+    return new ApiError(firstFieldError ?? body.message ?? generic, response.status, Object.keys(body.errors ?? {}));
   } catch {
     return new ApiError(generic, response.status);
   }

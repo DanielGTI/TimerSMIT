@@ -100,6 +100,8 @@ export interface ClosingMemberDto {
   } | null;
   alerts: { daily_extra: number; weekly_hours: number; rest: number };
   deniedCount: number;
+  /** Hora adicional sem pedido aprovado e hora a confirmar recusada (informativo). */
+  overtime?: { withoutRequestSeconds: number; refusedSeconds: number };
 }
 
 export interface ClosingDto {

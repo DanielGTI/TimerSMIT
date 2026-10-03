@@ -1,4 +1,5 @@
 import type { ApiClient } from "./client";
+import type { OvertimeItemDto, OvertimeProfile } from "./overtime";
 import type { TimeEntryDto } from "./timer";
 
 export type WeekStatus = "open" | "submitted" | "rejected" | "approved";
@@ -15,6 +16,19 @@ export interface AdditionalHoursDto {
   status: AdditionalStatus;
   /** O aprovador marcou como não autorizada (a hora continua registrada). */
   denied: { reason: string } | null;
+  /** Hora extra informada x lançada (só CLT): coberta, pré-aprovada, confirmada ou sujeita à aprovação. */
+  coverage?: CoverageDto | null;
+}
+
+export interface CoverageDto {
+  kind: "preapproved" | "confirmed" | "request" | "partial" | "none";
+  coveredSeconds: number;
+  uncoveredSeconds: number;
+  requestId: string | null;
+  afterTheFact: boolean | null;
+  suggestedDestination: "overtime" | "bank" | null;
+  /** Há hora extra informada para o dia, ainda sem decisão. */
+  requestPending: boolean;
 }
 
 export interface WeekEntryDto extends TimeEntryDto {
@@ -74,6 +88,10 @@ export interface WeekDto {
   decisions: DecisionDto[];
   days: DayTotal[];
   entries: WeekEntryDto[];
+  /** Perfil de hora extra da pessoa (Fase 4). */
+  overtimeProfile?: OvertimeProfile;
+  /** Horas extras a confirmar desta semana (perfil restrito). */
+  overtimeConfirmations?: OvertimeItemDto[];
 }
 
 export interface MonthDto {

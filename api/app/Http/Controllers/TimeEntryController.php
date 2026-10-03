@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\ActivityTypeService;
+use App\Services\OvertimeRequestService;
 use App\Services\TimeEntryService;
 use App\Services\WorkItemAccessService;
 use App\Support\TenantContext;
@@ -20,6 +21,7 @@ class TimeEntryController extends Controller
     public function __construct(
         private readonly TimeEntryService $entries,
         private readonly WorkItemAccessService $access,
+        private readonly OvertimeRequestService $overtimeRequests,
     ) {}
 
     public function store(Request $request, TenantContext $tenantContext): JsonResponse
@@ -43,6 +45,9 @@ class TimeEntryController extends Controller
             'title' => ['nullable', 'string'],
             'workItemType' => ['nullable', 'string'],
             'iterationPath' => ['nullable', 'string', 'max:500'],
+            // Perfil restrito: motivo e ciência da hora extra a confirmar.
+            'overtimeReason' => ['nullable', 'string', 'max:500'],
+            'overtimeAcknowledged' => ['nullable', 'boolean'],
         ]);
 
         $project = $this->access->authorize(
@@ -56,7 +61,7 @@ class TimeEntryController extends Controller
             iterationPath: $data['iterationPath'] ?? null,
         );
 
-        $entry = $this->entries->createManual(
+        $result = $this->entries->createManual(
             tenant: $tenant,
             member: $member,
             project: $project,
@@ -67,9 +72,20 @@ class TimeEntryController extends Controller
             billable: $data['billable'] ?? null,
             note: $data['note'] ?? null,
             startTime: $data['startTime'] ?? null,
+            overtimeReason: $data['overtimeReason'] ?? null,
+            overtimeAcknowledged: (bool) ($data['overtimeAcknowledged'] ?? false),
         );
 
-        return response()->json(TimeEntryPresenter::present($entry), 201);
+        $first = $result['entries'][0] ?? null;
+        $body = $first ? TimeEntryPresenter::present($first) : ['id' => null];
+
+        // Perfil restrito com trecho fora do expediente: o que entrou e o que ficou a confirmar.
+        if ($result['pending'] !== []) {
+            $body['entries'] = array_map(fn ($entry) => TimeEntryPresenter::present($entry), $result['entries']);
+            $body['pendingOvertime'] = array_map(fn ($request) => $this->overtimeRequests->present($request), $result['pending']);
+        }
+
+        return response()->json($body, 201);
     }
 
     public function update(Request $request, TenantContext $tenantContext, int $entryId): JsonResponse

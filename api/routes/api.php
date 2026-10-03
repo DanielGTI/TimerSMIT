@@ -9,6 +9,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HourBankController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MeController;
+use App\Http\Controllers\OvertimeController;
 use App\Http\Controllers\ProjectHoursController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
@@ -45,6 +46,14 @@ Route::middleware('tenant')->group(function () {
 
     Route::get('/me/hour-bank', [HourBankController::class, 'mine']);
 
+    // Fase 4: hora extra informada (pessoa) e decisão (aprovador designado ou administrador).
+    Route::get('/me/overtime', [OvertimeController::class, 'mine']);
+    Route::post('/me/overtime', [OvertimeController::class, 'inform']);
+    Route::post('/me/overtime/{requestId}/cancel', [OvertimeController::class, 'cancel'])->whereNumber('requestId');
+    Route::get('/me/overtime-check', [OvertimeController::class, 'check']);
+    Route::get('/overtime/pending', [OvertimeController::class, 'pending']);
+    Route::post('/overtime/{requestId}/decision', [OvertimeController::class, 'decide'])->whereNumber('requestId');
+
     Route::get('/approvals', [ApprovalController::class, 'index']);
     Route::get('/approvals/{submissionId}', [ApprovalController::class, 'show'])->whereNumber('submissionId');
     Route::post('/approvals/{submissionId}/decision', [ApprovalController::class, 'decide'])->whereNumber('submissionId');
@@ -64,6 +73,7 @@ Route::middleware('tenant')->group(function () {
         Route::post('/holidays/national', [SettingsController::class, 'storeNationalHolidays']);
         Route::delete('/holidays/{holidayId}', [SettingsController::class, 'destroyHoliday'])->whereNumber('holidayId');
         Route::put('/members/{memberId}/hours-regime', [SettingsController::class, 'updateHoursRegime'])->whereNumber('memberId');
+        Route::put('/members/{memberId}/overtime-profile', [SettingsController::class, 'updateOvertimeProfile'])->whereNumber('memberId');
         Route::patch('/projects/{projectId}', [SettingsController::class, 'updateProject'])->whereNumber('projectId');
         Route::post('/activity-types', [SettingsController::class, 'storeActivityType']);
         Route::patch('/activity-types/{typeId}', [SettingsController::class, 'updateActivityType'])->whereNumber('typeId');

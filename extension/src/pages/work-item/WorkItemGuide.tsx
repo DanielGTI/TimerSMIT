@@ -3,6 +3,7 @@ import { fetchActivityTypes, type ActivityTypeDto } from "../../lib/api/activity
 import { createApiClient } from "../../lib/api/client";
 import { getApiBaseUrl } from "../../lib/api/config";
 import { fetchCurrentSession, type CurrentSession } from "../../lib/api/me";
+import { overtimeControl } from "../../lib/api/overtime";
 import { fetchActiveTimer, type TimerDto } from "../../lib/api/timer";
 import { getWebContext } from "../../lib/devops/sdk";
 import { getCurrentWorkItem, type CurrentWorkItem } from "../../lib/devops/workItems";
@@ -98,6 +99,7 @@ export function WorkItemGuide(): JSX.Element {
         displayName={session.displayName}
         requireTime={session.overtime?.requireTimeOfDay ?? false}
         minDurationMinutes={session.policy?.minDurationMinutes ?? 1}
+        overtime={overtimeControl(session)}
         billableEnabled={session.billableProjectIds?.includes(project.id) ?? false}
       />
 

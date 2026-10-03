@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivitySelect } from "../../components/ActivitySelect";
 import type { ActivityTypeDto } from "../../lib/api/activityTypes";
-import type { ApiClient } from "../../lib/api/client";
+import { ApiError, type ApiClient } from "../../lib/api/client";
 import { startTimer, stopTimer, type TimerDto } from "../../lib/api/timer";
 import type { CurrentWorkItem } from "../../lib/devops/workItems";
 import { formatElapsed } from "../../lib/time/format";
@@ -27,6 +27,10 @@ export function TimerPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Perfil restrito: o servidor pediu motivo e ciência do trecho fora do expediente.
+  const [overtimeAsk, setOvertimeAsk] = useState<string | null>(null);
+  const [overtimeReason, setOvertimeReason] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -58,10 +62,29 @@ export function TimerPanel({
   const handleStop = () =>
     run(async () => {
       if (!timer) return;
-      const entries = await stopTimer(client, { timerId: timer.id });
-      const totalSeconds = entries.reduce((sum, entry) => sum + entry.durationSeconds, 0);
-      onTimerChange(null);
-      setNotice(`Timer parado: ${formatElapsed(totalSeconds)} registrados.`);
+      const withOvertime = overtimeAsk !== null;
+      try {
+        const entries = await stopTimer(client, {
+          timerId: timer.id,
+          ...(withOvertime ? { overtimeReason: overtimeReason.trim(), overtimeAcknowledged: acknowledged } : {}),
+        });
+        const totalSeconds = entries.reduce((sum, entry) => sum + entry.durationSeconds, 0);
+        onTimerChange(null);
+        setOvertimeAsk(null);
+        setOvertimeReason("");
+        setAcknowledged(false);
+        setNotice(
+          withOvertime
+            ? `Timer parado: ${formatElapsed(totalSeconds)} registrados. O trecho fora do expediente ficou como hora extra a confirmar: só conta se o aprovador confirmar.`
+            : `Timer parado: ${formatElapsed(totalSeconds)} registrados.`,
+        );
+      } catch (failure) {
+        if (failure instanceof ApiError && failure.fields.includes("overtimeReason")) {
+          setOvertimeAsk(failure.message);
+          return;
+        }
+        throw failure;
+      }
     });
 
   const isForThisWorkItem = timer !== null && timer.workItemId === workItem.id;
@@ -98,8 +121,32 @@ export function TimerPanel({
           <p className="muted">
             Atividade: {activityTypes.find((type) => type.id === timer.activityTypeId)?.name ?? "Não definido"}
           </p>
-          <button type="button" className="btn btn--danger" disabled={busy} onClick={() => void handleStop()}>
-            Parar timer
+          {overtimeAsk && (
+            <div className="overtime-confirm" role="group" aria-label="Hora extra a confirmar">
+              <p>
+                <strong>Hora extra a confirmar.</strong> {overtimeAsk}
+              </p>
+              <label htmlFor="timer-ot-reason">Motivo da hora extra</label>
+              <textarea
+                id="timer-ot-reason"
+                className="input"
+                maxLength={500}
+                value={overtimeReason}
+                onChange={(event) => setOvertimeReason(event.target.value)}
+              />
+              <label className="checkbox">
+                <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />{" "}
+                Entendi: essas horas só contam se forem confirmadas.
+              </label>
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn--danger"
+            disabled={busy || (overtimeAsk !== null && (!acknowledged || overtimeReason.trim() === ""))}
+            onClick={() => void handleStop()}
+          >
+            {overtimeAsk ? "Parar e enviar para confirmação" : "Parar timer"}
           </button>
         </>
       )}

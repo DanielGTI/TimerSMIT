@@ -19,9 +19,12 @@ import { formatWeekRange } from "../../lib/time/weeks";
 import { EntryList } from "../timesheet/EntryList";
 import { WeekAlerts } from "../../components/WeekAlerts";
 import { AdditionalHoursReview, type Denials } from "./AdditionalHoursReview";
+import { OvertimeDecision } from "./OvertimeDecision";
+import { fetchPendingOvertime, type PendingOvertimeDto } from "../../lib/api/overtime";
+import { overtimeStatusText } from "../timesheet/MyOvertime";
 import { WeekGrid } from "../timesheet/WeekGrid";
 
-type View = "pending" | "decided";
+type View = "pending" | "decided" | "overtime";
 type Mode = "idle" | "approve" | "reject" | "reopen";
 
 const errorText = (failure: unknown): string => (failure instanceof Error ? failure.message : String(failure));
@@ -48,6 +51,8 @@ export function ApprovalsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [pendingOvertime, setPendingOvertime] = useState<PendingOvertimeDto[] | null>(null);
+  const [overtimeError, setOvertimeError] = useState<string | null>(null);
 
   const reload = useCallback(() => setTick((value) => value + 1), []);
 
@@ -61,6 +66,23 @@ export function ApprovalsPage(): JSX.Element {
         setDecided(decidedItems);
       })
       .catch((failure: unknown) => !cancelled && setError(errorText(failure)));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, tick]);
+
+  // Horas extras informadas e a confirmar, aguardando a decisão de quem está logado.
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchPendingOvertime(client)
+      .then((items) => {
+        if (cancelled) return;
+        setPendingOvertime(items);
+        setOvertimeError(null);
+      })
+      .catch((failure: unknown) => !cancelled && setOvertimeError(errorText(failure)));
 
     return () => {
       cancelled = true;
@@ -153,6 +175,8 @@ export function ApprovalsPage(): JSX.Element {
     return act(() => reopenApproval(client, detail!.submission.id, reason.trim()), "Semana reaberta para edição.");
   };
 
+  const pendingConfirmations = (detail?.week.overtimeConfirmations ?? []).filter((item) => item.status === "pending").length;
+
   const cancel = () => {
     setMode("idle");
     setReason("");
@@ -170,6 +194,7 @@ export function ApprovalsPage(): JSX.Element {
             tabs={[
               { id: "pending", label: `Pendentes${pending ? ` (${pending.length})` : ""}` },
               { id: "decided", label: "Decididas por mim" },
+              { id: "overtime", label: `Horas extras${pendingOvertime ? ` (${pendingOvertime.length})` : ""}` },
             ]}
             value={view}
             onChange={setView}
@@ -182,7 +207,43 @@ export function ApprovalsPage(): JSX.Element {
           </p>
         )}
 
-        <div className="split">
+        {view === "overtime" && (
+          <div className="overtime-inbox">
+            <p className="muted">
+              Horas extras informadas pelas pessoas (antes ou depois de fazer) e horas a confirmar de quem tem hora extra
+              restrita. Hora a confirmar só vira lançamento se você confirmar.
+            </p>
+            {notice && (
+              <p className="notice" role="status">
+                {notice}
+              </p>
+            )}
+            {overtimeError && (
+              <p className="alert" role="alert">
+                {overtimeError}
+              </p>
+            )}
+            {pendingOvertime === null && !overtimeError && <p className="muted">Carregando…</p>}
+            {pendingOvertime?.length === 0 && <p className="muted">Nenhuma hora extra aguardando sua decisão.</p>}
+            {pendingOvertime && pendingOvertime.length > 0 && (
+              <ul className="overtime-decisions" aria-label="Horas extras para decidir">
+                {pendingOvertime.map((item) => (
+                  <OvertimeDecision
+                    key={item.id}
+                    client={client}
+                    item={item}
+                    onDecided={(message) => {
+                      setNotice(message);
+                      reload();
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <div className="split" hidden={view === "overtime"}>
           <nav className="split__list" aria-label="Semanas">
             {view === "pending" && pending === null && <p className="muted">Carregando…</p>}
             {view === "pending" && pending?.length === 0 && (
@@ -246,6 +307,36 @@ export function ApprovalsPage(): JSX.Element {
                 <h3>Lançamentos</h3>
                 <EntryList client={client} entries={detail.week.entries} editable={false} onChanged={reload} />
 
+                {(detail.week.overtimeConfirmations ?? []).length > 0 && (
+                  <section className="overtime-week" aria-label="Horas extras a confirmar da semana">
+                    <h3>Horas extras a confirmar</h3>
+                    <p className="muted">
+                      Fora do expediente, sem hora extra aprovada antes. Só viram lançamento se você confirmar; decida cada
+                      uma antes de aprovar a semana.
+                    </p>
+                    <ul className="overtime-decisions">
+                      {detail.week.overtimeConfirmations!.map((item) =>
+                        item.status === "pending" && detail.submission.status !== "approved" ? (
+                          <OvertimeDecision
+                            key={item.id}
+                            client={client}
+                            item={item}
+                            onDecided={(message) => {
+                              setNotice(message);
+                              reload();
+                            }}
+                          />
+                        ) : (
+                          <li key={item.id} className="muted">
+                            {item.dateFrom.split("-").reverse().join("/")} · {item.startTime?.slice(0, 5)}–{item.endTime?.slice(0, 5)} ·{" "}
+                            {formatHours(item.secondsPerDay)} · {overtimeStatusText(item)}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </section>
+                )}
+
                 {detail.week.decisions.length > 0 && <h3>Histórico</h3>}
                 <DecisionHistory decisions={detail.week.decisions} />
 
@@ -278,8 +369,14 @@ export function ApprovalsPage(): JSX.Element {
                 {mode === "approve" && (
                   <div className="confirm-box" role="group" aria-label="Confirmar aprovação">
                     <p>Depois de aprovada, a semana e seus lançamentos ficam bloqueados.</p>
+                    {pendingConfirmations > 0 && (
+                      <p className="banner banner--warning" role="note">
+                        Há {pendingConfirmations} hora(s) extra(s) a confirmar nesta semana. Confirme ou recuse cada uma acima antes
+                        de aprovar.
+                      </p>
+                    )}
                     <AdditionalHoursReview entries={detail.week.entries} denials={denials} onChange={setDenials} disabled={busy} />
-                    <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void approve()}>
+                    <button type="button" className="btn btn--primary" disabled={busy || pendingConfirmations > 0} onClick={() => void approve()}>
                       Confirmar aprovação
                     </button>
                     <button type="button" className="btn" disabled={busy} onClick={cancel}>

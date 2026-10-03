@@ -1,3 +1,4 @@
+import { coverageLabel } from "../../components/AdditionalTag";
 import { DAY_TYPE_LABELS } from "../../lib/api/additionalHours";
 import type { WeekEntryDto } from "../../lib/api/timesheet";
 import { formatHours } from "../../lib/time/format";
@@ -55,6 +56,15 @@ export function AdditionalHoursReview({ entries, denials, onChange, disabled }: 
                   {entry.startTime && entry.endTime ? `${entry.startTime}–${entry.endTime} · ` : ""}#{entry.workItemId}{" "}
                   {entry.workItemTitle ?? ""} · {DAY_TYPE_LABELS[entry.additional!.dayType]} ·{" "}
                   {formatHours(entry.additional!.seconds)} (→ {formatHours(entry.additional!.weightedSeconds)})
+                  {entry.additional!.coverage && (
+                    <span
+                      className={
+                        entry.additional!.coverage.uncoveredSeconds > 0 ? "additional-review__coverage is-uncovered" : "additional-review__coverage"
+                      }
+                    >
+                      {coverageLabel(entry.additional!.coverage)}
+                    </span>
+                  )}
                 </span>
               </label>
               {denied && (

@@ -188,7 +188,14 @@ class AdditionalHoursTest extends TestCase
         $entries = collect($response->json('entries'))->keyBy('id');
         $this->assertNull($entries[(string) $inside->id]['additional']);
         $this->assertSame(
-            ['seconds' => 7200, 'weightedSeconds' => 10800, 'nightSeconds' => 0, 'dayType' => 'weekday', 'status' => 'pending', 'denied' => null],
+            [
+                'seconds' => 7200, 'weightedSeconds' => 10800, 'nightSeconds' => 0, 'dayType' => 'weekday', 'status' => 'pending', 'denied' => null,
+                // Sem pedido aprovado: hora extra sujeita à aprovação (Fase 4).
+                'coverage' => [
+                    'kind' => 'none', 'coveredSeconds' => 0, 'uncoveredSeconds' => 7200, 'requestId' => null,
+                    'afterTheFact' => null, 'suggestedDestination' => null, 'requestPending' => false,
+                ],
+            ],
             $entries[(string) $evening->id]['additional'],
         );
         $this->assertSame(54000, $entries[(string) $saturday->id]['additional']['weightedSeconds']); // 10h × 1,5 = 15h

@@ -211,15 +211,21 @@ paths:
                 timerId: { type: string }
                 note: { type: string, maxLength: 2000 }
                 billable: { type: boolean }
+                overtimeReason: { type: string, maxLength: 500, description: 'Perfil restrito: motivo do trecho fora do expediente sem pedido aprovado.' }
+                overtimeAcknowledged: { type: boolean, description: 'Perfil restrito: a pessoa marcou que entendeu que a hora só conta se for confirmada.' }
       responses:
         '200':
-          description: Timer fechado; uma ou mais fatias diárias geradas.
+          description: >-
+            Timer fechado; uma ou mais fatias diárias geradas. Perfil restrito: o
+            trecho fora do expediente sem pedido aprovado não vira lançamento, vira
+            hora extra a confirmar; o cabeçalho `X-Pending-Overtime` diz quantas.
           content:
             application/json:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Entry' }
         '409': { description: Timer já fechado por outra operação ou semana bloqueada }
+        '422': { description: 'Perfil restrito sem `overtimeReason`/`overtimeAcknowledged` (o timer continua ativo)' }
   /entries:
     post:
       operationId: createManualEntry
@@ -244,13 +250,19 @@ paths:
                 note: { type: string, maxLength: 2000 }
                 title: { type: string }
                 workItemType: { type: string }
+                overtimeReason: { type: string, maxLength: 500, description: 'Perfil restrito: motivo da hora extra a confirmar.' }
+                overtimeAcknowledged: { type: boolean, description: 'Perfil restrito: ciência de que a hora só conta se confirmada.' }
       responses:
         '201':
-          description: Entrada criada.
+          description: >-
+            Entrada criada. Perfil restrito com trecho fora do expediente sem
+            pedido aprovado: o corpo é o primeiro lançamento (ou `id: null`, se
+            nada entrou) mais `entries` (o que entrou) e `pendingOvertime` (as
+            horas extras a confirmar, OvertimeItem).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Entry' }
-        '422': { description: Regra de duração/data/comentário violada }
+        '422': { description: 'Regra de duração/data/comentário violada, ou perfil restrito sem `overtimeReason`/`overtimeAcknowledged`' }
   /entries/{entryId}:
     patch:
       operationId: updateEntry
@@ -589,6 +601,23 @@ paths:
             schema: { type: object, required: [regime], properties: { regime: { type: string, enum: [clt, pj, none] } } }
       responses:
         '200': { description: Visão atualizada }
+  /settings/members/{memberId}/overtime-profile:
+    put:
+      operationId: setOvertimeProfile
+      description: >-
+        Perfil de hora extra (só tem efeito para CLT): preapproved (hora extra
+        sem pedido e sem aviso), standard (sem pedido aprovado, fica sujeita à
+        aprovação) ou restricted (o trecho fora do expediente sem pedido
+        aprovado vira hora extra a confirmar). Auditado.
+      parameters:
+        - { name: memberId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [profile], properties: { profile: { type: string, enum: [preapproved, standard, restricted] } } }
+      responses:
+        '200': { description: 'Visão atualizada (members[].overtimeProfile)' }
   /settings/projects/{projectId}:
     patch:
       operationId: setProjectEnabled
@@ -821,6 +850,98 @@ paths:
         - { name: approvedOnly, in: query, schema: { type: boolean } }
       responses:
         '200': { description: Planilha, content: { application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {} } }
+  /me/overtime:
+    get:
+      operationId: getMyOvertime
+      description: >-
+        Fase 4. `applies` (CLT com o controle de horas adicionais ligado),
+        `profile` e `items`: horas extras informadas e a confirmar da pessoa
+        (pendentes e as dos últimos 90 dias).
+      responses:
+        '200': { description: '{ applies, profile, items: OvertimeItem[] }' }
+    post:
+      operationId: informOvertime
+      description: >-
+        "Informar hora extra": antes de fazer ou depois (`afterTheFact`), por
+        um dia ou período de até 31 dias, com horas por dia, horário previsto
+        opcional (informativo), motivo e sugestão de destino. Só CLT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dateFrom, secondsPerDay, reason]
+              properties:
+                dateFrom: { type: string, format: date }
+                dateTo: { type: string, format: date }
+                secondsPerDay: { type: integer, minimum: 60, maximum: 86400 }
+                startTime: { type: string, example: '18:00' }
+                endTime: { type: string, example: '20:00' }
+                reason: { type: string, maxLength: 1000 }
+                suggestedDestination: { type: string, enum: [overtime, bank] }
+      responses:
+        '201': { description: OvertimeItem criado (pending) }
+        '422': { description: 'Não é CLT/controle desligado, período inválido ou maior que 31 dias, horário incompleto' }
+  /me/overtime/{requestId}/cancel:
+    post:
+      operationId: cancelOvertime
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OvertimeItem cancelado }
+        '409': { description: Já decidido }
+  /me/overtime-check:
+    get:
+      operationId: checkOvertime
+      description: >-
+        O que acontece se o lançamento for salvo: hora adicional, quanto o
+        pedido aprovado do dia ainda cobre (`coveredSeconds`) e o que fica sem
+        cobertura (`uncoveredSeconds`). Perfil restrito: `entries` (o que entra
+        como lançamento) e `pending` (o que vira hora extra a confirmar).
+      parameters:
+        - { name: date, in: query, required: true, schema: { type: string, format: date } }
+        - { name: startTime, in: query, schema: { type: string, example: '17:00' } }
+        - { name: durationSeconds, in: query, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entryId, in: query, schema: { type: integer }, description: 'Na edição: o lançamento que está sendo alterado (não conta no que o dia já gastou).' }
+      responses:
+        '200': { description: '{ applies, profile, additionalSeconds, coveredSeconds, uncoveredSeconds, entries[], pending[] }' }
+  /overtime/pending:
+    get:
+      operationId: getPendingOvertime
+      description: >-
+        Horas extras informadas e a confirmar aguardando a decisão de quem
+        chama: aprovador designado da pessoa ou administrador (ninguém decide a
+        própria, salvo administrador). Hora a confirmar traz `weekStatus`.
+      responses:
+        '200': { description: 'OvertimeItem[] com person e weekStatus' }
+  /overtime/{requestId}/decision:
+    post:
+      operationId: decideOvertime
+      description: >-
+        Aprovar ou recusar (recusa exige `note`). Informada: pode liberar menos
+        horas por dia (`approvedSecondsPerDay`). A confirmar: confirmada vira
+        lançamento (com a regra de quando foi registrada); recusada não conta
+        em lugar nenhum. A semana com hora a confirmar pendente não pode ser
+        aprovada (409 na decisão da semana).
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approve]
+              properties:
+                approve: { type: boolean }
+                approvedSecondsPerDay: { type: integer, minimum: 60, maximum: 86400 }
+                note: { type: string, maxLength: 1000 }
+      responses:
+        '200': { description: OvertimeItem decidido }
+        '403': { description: Não decide os pedidos desta pessoa }
+        '409': { description: Já decidido, ou semana da hora a confirmar já aprovada }
+        '422': { description: Recusa sem motivo }
   /me/hour-bank:
     get:
       operationId: getMyHourBank

@@ -190,7 +190,18 @@ export function ClosingSection({ client }: SectionProps): JSX.Element {
                       <span className="field__error block">A classificar: {formatHours(member.totals.pending.seconds)}</span>
                     )}
                     {member.deniedCount > 0 && <span className="muted block">{member.deniedCount} não autorizada(s) pelo aprovador</span>}
-                    {member.totals.unapproved.seconds === 0 && member.totals.pending.seconds === 0 && member.deniedCount === 0 && "—"}
+                    {(member.overtime?.withoutRequestSeconds ?? 0) > 0 && (
+                      <span className="muted block">Sem hora extra aprovada antes: {formatHours(member.overtime!.withoutRequestSeconds)}</span>
+                    )}
+                    {(member.overtime?.refusedSeconds ?? 0) > 0 && (
+                      <span className="muted block">Hora a confirmar recusada (não conta): {formatHours(member.overtime!.refusedSeconds)}</span>
+                    )}
+                    {member.totals.unapproved.seconds === 0 &&
+                      member.totals.pending.seconds === 0 &&
+                      member.deniedCount === 0 &&
+                      !member.overtime?.withoutRequestSeconds &&
+                      !member.overtime?.refusedSeconds &&
+                      "—"}
                   </td>
                   <td>
                     <Alerts alerts={member.alerts} />

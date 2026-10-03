@@ -67,6 +67,37 @@ class AdditionalHoursCalculator
         return new AdditionalHoursResult($total, $night, $weighted, $dayType);
     }
 
+    /**
+     * Trechos adicionais do lançamento, em segundos desde 00:00 local. Em
+     * sábado, domingo e feriado é o lançamento inteiro; sem horário nesses
+     * dias, `parts` é nulo (só a duração é conhecida). Mesmas regras de
+     * `calculate`, sem os fatores.
+     *
+     * @return array{seconds: int, parts: list<array{0: int, 1: int}>|null}
+     */
+    public function additionalParts(TimeEntry $entry, ?OvertimeRule $rule, bool $isHoliday, string $regime): array
+    {
+        if ($rule === null || ! $rule->enabled || $regime === Member::REGIME_NONE || $entry->duration_seconds <= 0) {
+            return ['seconds' => 0, 'parts' => []];
+        }
+
+        $interval = $this->localInterval($entry);
+
+        if ($this->dayType($entry->local_date, $isHoliday) !== AdditionalHoursResult::WEEKDAY) {
+            return $interval === null
+                ? ['seconds' => (int) $entry->duration_seconds, 'parts' => null]
+                : ['seconds' => $interval[1] - $interval[0], 'parts' => [$interval]];
+        }
+
+        if ($interval === null) {
+            return ['seconds' => 0, 'parts' => []];
+        }
+
+        $parts = $this->outsideWorkday($interval, $this->seconds($rule->workday_start), $this->seconds($rule->workday_end));
+
+        return ['seconds' => array_sum(array_map(fn (array $part) => $part[1] - $part[0], $parts)), 'parts' => $parts];
+    }
+
     public function dayType(string $localDate, bool $isHoliday): string
     {
         if ($isHoliday) {
