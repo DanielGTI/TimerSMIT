@@ -8,6 +8,7 @@ import { AdditionalHoursSection } from "./AdditionalHoursSection";
 import { ApproversSection } from "./ApproversSection";
 import { ClosingSection } from "./ClosingSection";
 import { HourBankSection } from "./HourBankSection";
+import { ImportSection } from "./ImportSection";
 import { PeopleSection } from "./PeopleSection";
 import { ProjectHoursSection } from "./ProjectHoursSection";
 import { ProjectsSection } from "./ProjectsSection";
@@ -15,7 +16,7 @@ import { OvertimeSection } from "./OvertimeSection";
 import { RulesSection } from "./RulesSection";
 import type { SectionProps } from "./sections";
 
-type Tab = "rules" | "overtime" | "additional" | "bank" | "closing" | "projectHours" | "projects" | "activities" | "people" | "approvers";
+type Tab = "rules" | "overtime" | "additional" | "bank" | "closing" | "projectHours" | "projects" | "activities" | "people" | "approvers" | "import";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "rules", label: "Regras" },
@@ -28,6 +29,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "activities", label: "Atividades" },
   { id: "people", label: "Pessoas e papéis" },
   { id: "approvers", label: "Aprovadores" },
+  { id: "import", label: "Importar 7pace" },
 ];
 
 const errorText = (failure: unknown): string => (failure instanceof Error ? failure.message : String(failure));
@@ -119,6 +121,7 @@ export function SettingsPage(): JSX.Element {
       {tab === "activities" && <ActivitiesSection {...section} />}
       {tab === "people" && <PeopleSection {...section} />}
       {tab === "approvers" && <ApproversSection {...section} />}
+      {tab === "import" && <ImportSection {...section} />}
     </div>
   );
 }

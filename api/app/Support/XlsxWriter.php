@@ -57,6 +57,14 @@ final class XlsxWriter
         return $this;
     }
 
+    /** Número puro (ex.: data serial do Excel). */
+    public function number(int $row, int $col, float $value, int $style = self::PLAIN): self
+    {
+        $this->cells[$row][$col] = ['type' => 'number', 'value' => $value, 'style' => $style];
+
+        return $this;
+    }
+
     /** Célula vazia, só com o estilo (borda). */
     public function blank(int $row, int $col, int $style = self::DURATION): self
     {
@@ -145,7 +153,7 @@ XML);
                 $ref = self::column($col).$row;
                 $xml .= match ($cell['type']) {
                     'text' => '<c r="'.$ref.'" s="'.$cell['style'].'" t="inlineStr"><is><t xml:space="preserve">'.self::escape((string) $cell['value']).'</t></is></c>',
-                    'number' => '<c r="'.$ref.'" s="'.$cell['style'].'"><v>'.self::number((float) $cell['value']).'</v></c>',
+                    'number' => '<c r="'.$ref.'" s="'.$cell['style'].'"><v>'.self::formatNumber((float) $cell['value']).'</v></c>',
                     default => '<c r="'.$ref.'" s="'.$cell['style'].'"/>',
                 };
             }
@@ -205,7 +213,7 @@ XML);
         return $name;
     }
 
-    private static function number(float $value): string
+    private static function formatNumber(float $value): string
     {
         return rtrim(rtrim(sprintf('%.10F', $value), '0'), '.') ?: '0';
     }

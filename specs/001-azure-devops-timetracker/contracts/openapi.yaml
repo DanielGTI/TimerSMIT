@@ -476,6 +476,33 @@ paths:
       responses:
         '200': { description: Visão atualizada }
         '422': { description: Valor inválido }
+  /settings/import/7pace:
+    post:
+      operationId: importSevenPace
+      description: >-
+        Só administradores. Importa o relatório "Times Explorer" do 7pace
+        (.xlsx em base64). Com `dryRun` só simula. Pessoas casam pelo nome (ou
+        pelo começo do nome, se único) ou por `personMap` ("none" deixa de
+        fora); projetos pelo nome ou pelo GUID em `projectIds` (criados se
+        faltarem). Nada é duplicado (`import_ref` por linha), o que já está
+        lançado no mesmo horário é pulado e semanas enviadas/aprovadas não
+        recebem lançamentos. Auditado (`import.seven_pace`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file, dryRun]
+              properties:
+                file: { type: string, description: Planilha .xlsx em base64 (até 10 MB). }
+                dryRun: { type: boolean }
+                personMap: { type: object, additionalProperties: { type: string } }
+                projectIds: { type: object, additionalProperties: { type: string, format: uuid } }
+      responses:
+        '200': { description: '`{ rows, totalSeconds, from, to, people[], projects[], activities[], toImport, toImportSeconds, skipped, warnings[], imported }`' }
+        '403': { description: Não é administrador }
+        '422': { description: Arquivo inválido ou GUID inválido }
   /settings/overtime-rules:
     put:
       operationId: updateOvertimeRules

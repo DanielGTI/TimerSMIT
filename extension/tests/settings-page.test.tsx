@@ -141,6 +141,7 @@ describe("SettingsPage", () => {
       "Atividades",
       "Pessoas e papéis",
       "Aprovadores",
+      "Importar 7pace",
     ]);
     expect(screen.getByLabelText("Limite diário (horas)")).toHaveValue(24);
     expect(screen.getByLabelText("Janela retroativa (dias)")).toHaveValue(30);

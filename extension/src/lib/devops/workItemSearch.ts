@@ -212,3 +212,35 @@ const TYPE_COLORS: Record<string, string> = {
 export function workItemTypeColor(workItemType: string): string {
   return TYPE_COLORS[workItemType.toLowerCase()] ?? "#808080";
 }
+
+/**
+ * GUID de cada projeto no Azure DevOps a partir de um work item dele (o
+ * endereço do item traz o GUID do projeto). Serve à importação do 7pace, que
+ * só traz o nome do projeto. Só entra o projeto cujo nome bate com o do item.
+ */
+export async function resolveProjectIds(
+  samples: Array<{ name: string; workItemId: number }>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Record<string, string>> {
+  if (samples.length === 0) return {};
+
+  const { base, token } = await devopsContext();
+  const page = await readJson<{ value?: Array<WorkItemResponse | null> }>(
+    await fetchImpl(workItemsUrl(base, samples.map((sample) => sample.workItemId), ["System.TeamProject"]), {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    }),
+  );
+
+  const resolved: Record<string, string> = {};
+  for (const item of page.value ?? []) {
+    if (!item) continue;
+    const sample = samples.find((candidate) => candidate.workItemId === item.id);
+    const project = String(item.fields?.["System.TeamProject"] ?? "");
+    const guid = item.url ? GUID.exec(item.url)?.[1] : undefined;
+    if (sample && guid && project.toLocaleLowerCase("pt-BR") === sample.name.toLocaleLowerCase("pt-BR")) {
+      resolved[sample.name] = guid.toLowerCase();
+    }
+  }
+
+  return resolved;
+}

@@ -6,6 +6,7 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HourBankController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\ProjectHoursController;
 use App\Http\Controllers\ReportController;
@@ -66,6 +67,7 @@ Route::middleware('tenant')->group(function () {
         Route::post('/activity-types', [SettingsController::class, 'storeActivityType']);
         Route::patch('/activity-types/{typeId}', [SettingsController::class, 'updateActivityType'])->whereNumber('typeId');
         Route::post('/people/sync', [SettingsController::class, 'syncPeople']);
+        Route::post('/import/7pace', [ImportController::class, 'sevenPace']);
         Route::post('/role-assignments', [SettingsController::class, 'grantRole']);
         Route::delete('/role-assignments/{assignmentId}', [SettingsController::class, 'revokeRole'])->whereNumber('assignmentId');
         Route::post('/approver-assignments', [SettingsController::class, 'designateApprover']);

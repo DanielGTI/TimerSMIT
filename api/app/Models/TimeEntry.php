@@ -34,6 +34,7 @@ class TimeEntry extends Model
         'billable',
         'note',
         'revision',
+        'import_ref',
     ];
 
     protected static function booted(): void
