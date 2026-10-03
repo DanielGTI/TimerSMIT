@@ -963,8 +963,33 @@ textarea.input {
   border-bottom: 0;
 }
 
+/* Pessoas: colunas fixas (nome, hora extra, papéis) para o seletor ficar alinhado em todas as linhas. */
 .settings-list--people > li {
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 240px minmax(0, 1fr);
+  align-items: center;
+}
+
+.settings-list--people > li > select {
+  grid-column: 2;
+  width: 100%;
+}
+
+.settings-list--people > li > .chips {
+  grid-column: 3;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .settings-list--people > li {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-list--people > li > select,
+  .settings-list--people > li > .chips {
+    grid-column: 1;
+    justify-content: flex-start;
+  }
 }
 
 .chips {
@@ -1829,8 +1854,4 @@ a.wi-chip__id:hover {
 
 .overtime-week {
   margin-top: 16px;
-}
-
-.settings-list--people > li > select {
-  width: auto;
 }
