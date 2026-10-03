@@ -16,6 +16,8 @@ export interface CurrentSession {
   organizationName: string;
   memberId: string;
   displayName: string;
+  /** Administrador da organização (só para a tela; o servidor confere o papel em cada rota). */
+  isAdmin?: boolean;
   hoursRegime?: "clt" | "pj" | "none";
   /** Perfil de hora extra: pré-aprovada, padrão ou restrita. */
   overtimeProfile?: OvertimeProfile;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Member;
 use App\Models\Project;
+use App\Services\ApproverResolver;
 use App\Services\OrganizationSettingsService;
 use App\Services\OvertimeRuleService;
 use App\Support\TenantContext;
@@ -18,6 +19,7 @@ class MeController extends Controller
     public function __construct(
         private readonly OrganizationSettingsService $settings,
         private readonly OvertimeRuleService $overtime,
+        private readonly ApproverResolver $approvers,
     ) {}
 
     public function show(TenantContext $tenantContext): JsonResponse
@@ -27,6 +29,8 @@ class MeController extends Controller
             'organizationName' => $tenantContext->tenant()->devops_organization_name,
             'memberId' => (string) $tenantContext->member()->id,
             'displayName' => $tenantContext->member()->display_name,
+            // Só muda o que a tela mostra (ex.: Instruções); o servidor confere o papel em cada rota.
+            'isAdmin' => $this->approvers->isAdmin($tenantContext->member()),
             'hoursRegime' => $tenantContext->member()->hours_regime ?? Member::REGIME_CLT,
             // Perfil de hora extra (Fase 4): pré-aprovada, padrão ou restrita.
             'overtimeProfile' => $tenantContext->member()->overtimeProfile(),

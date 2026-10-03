@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "timersmit-timetracker-dev",
   "publisher": "TrackerSMIT",
-  "version": "0.18.1",
+  "version": "0.18.2",
   "name": "Controle de horas (dev)",
   "description": "Extensão de desenvolvimento — registro e aprovação de horas integrados ao Azure DevOps.",
   "public": false,

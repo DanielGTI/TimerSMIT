@@ -12,7 +12,8 @@ const SECTIONS = [
   { id: "timer", label: "Timer" },
   { id: "semana", label: "A semana" },
   { id: "aprovacao", label: "Aprovação" },
-  { id: "adicionais", label: "Horas adicionais" },
+  // Só para administradores: regras de hora extra, perfis, classificação e banco de horas.
+  { id: "adicionais", label: "Horas adicionais", adminOnly: true },
   { id: "limites", label: "Regras e limites" },
   { id: "dicas", label: "Para não perder horas" },
   { id: "outras", label: "Relatórios e Configuração" },
@@ -88,6 +89,7 @@ export function InstructionsPage(): JSX.Element {
   const client = useMemo(() => createApiClient({ apiBaseUrl: getApiBaseUrl() }), []);
   const [policy, setPolicy] = useState<PolicyRules | null>(null);
   const [overtime, setOvertime] = useState<OvertimeInfo | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +99,7 @@ export function InstructionsPage(): JSX.Element {
         if (cancelled) return;
         setPolicy(session.policy ?? null);
         setOvertime(session.overtime ?? null);
+        setIsAdmin(session.isAdmin === true);
       })
       .catch(() => undefined);
     return () => {
@@ -113,7 +116,7 @@ export function InstructionsPage(): JSX.Element {
           você não perder nada.
         </p>
         <nav aria-label="Seções desta página" className="guide-index">
-          {SECTIONS.map((section) => (
+          {SECTIONS.filter((section) => !("adminOnly" in section) || isAdmin).map((section) => (
             <a key={section.id} href={`#${section.id}`} className="btn btn--chip">
               {section.label}
             </a>
@@ -313,62 +316,64 @@ export function InstructionsPage(): JSX.Element {
         </ul>
       </Section>
 
-      <Section id="adicionais" title="Horas adicionais: hora extra e banco de horas">
-        <ul>
-          <li>
-            <strong>O que conta como hora adicional:</strong> em dia útil, o que você trabalhar{" "}
-            <strong>
-              fora do expediente
-              {overtime ? ` (${overtime.workdayStart} às ${overtime.workdayEnd})` : ""}
-            </strong>
-            ; em <strong>sábado, domingo e feriado</strong>, o dia todo.
-          </li>
-          <li>
-            Por isso, nos lançamentos manuais, <strong>o horário (De/Até) é obrigatório</strong>: é ele que separa o
-            expediente do que veio depois. O timer já registra o horário sozinho.
-          </li>
-          <li>
-            Cada hora adicional é multiplicada pelo <strong>fator do dia</strong>, definido pelo administrador conforme a
-            convenção. Ex.: 10 horas num sábado com fator 1,5 contam como 15 horas. Das 22h às 5h há também o adicional
-            noturno.
-          </li>
-          <li>
-            <strong>Hora adicional precisa de autorização.</strong> Combine antes com o seu gestor: não é para fazer por
-            conta própria. Ao aprovar a semana, o aprovador valida essas horas ou marca como <em>não autorizada</em>, com
-            o motivo.
-          </li>
-          <li>
-            <strong>Informar hora extra:</strong> na Folha semanal, em “Horas extras”, avise o dia (ou período), quantas
-            horas por dia e o motivo. Dá para informar antes de fazer ou depois, para regularizar. O aprovador decide em
-            Aprovações → Horas extras e pode liberar menos horas do que o pedido. Hora extra lançada sem pedido aprovado
-            aparece como <strong>“Horas extras, sujeitas à aprovação”</strong>.
-          </li>
-          <li>
-            Cada pessoa tem um <strong>perfil de hora extra</strong>, definido pelo administrador. Na maioria dos casos é o
-            padrão, descrito acima. Algumas pessoas têm a hora extra <strong>pré-aprovada</strong> e não precisam informar
-            antes. Outras têm a hora extra <strong>restrita</strong>: o trecho fora do expediente sem pedido aprovado não
-            entra como lançamento, vira <strong>hora extra a confirmar</strong> (com motivo e “Entendi”) e só conta se o
-            aprovador confirmar. Recusada, não são horas a receber.
-          </li>
-          <li>
-            Depois da aprovação, o administrador decide o destino: <strong>hora extra</strong> (paga),{" "}
-            <strong>banco de horas</strong> (vira folga depois; só para CLT) ou <strong>a pagar</strong> (PJ). Até lá,
-            na sua folha aparece <strong>“Horas adicionais a validar”</strong>.
-          </li>
-          <li>
-            Onde ver: na Folha semanal, embaixo da duração de cada lançamento, e no total da semana (“Horas adicionais”).
-          </li>
-          <li>
-            <strong>Banco de horas:</strong> o saldo fica no fim da Folha semanal, com o extrato. As horas entram quando o
-            administrador as manda para o banco e saem nas folgas que ele lança. Cada crédito{" "}
-            <strong>vence no prazo do acordo</strong> (em geral 6 meses), e uma folga usa primeiro o que vence antes. O que
-            vencer sem uso é pago como hora extra. Quer folgar? Combine com o gestor; quem lança a folga é o administrador.
-          </li>
-        </ul>
-        {overtime && !overtime.enabled && (
-          <p className="muted">O controle de horas adicionais está desligado nesta organização no momento.</p>
-        )}
-      </Section>
+      {isAdmin && (
+        <Section id="adicionais" title="Horas adicionais: hora extra e banco de horas">
+          <ul>
+            <li>
+              <strong>O que conta como hora adicional:</strong> em dia útil, o que você trabalhar{" "}
+              <strong>
+                fora do expediente
+                {overtime ? ` (${overtime.workdayStart} às ${overtime.workdayEnd})` : ""}
+              </strong>
+              ; em <strong>sábado, domingo e feriado</strong>, o dia todo.
+            </li>
+            <li>
+              Por isso, nos lançamentos manuais, <strong>o horário (De/Até) é obrigatório</strong>: é ele que separa o
+              expediente do que veio depois. O timer já registra o horário sozinho.
+            </li>
+            <li>
+              Cada hora adicional é multiplicada pelo <strong>fator do dia</strong>, definido pelo administrador conforme a
+              convenção. Ex.: 10 horas num sábado com fator 1,5 contam como 15 horas. Das 22h às 5h há também o adicional
+              noturno.
+            </li>
+            <li>
+              <strong>Hora adicional precisa de autorização.</strong> Combine antes com o seu gestor: não é para fazer por
+              conta própria. Ao aprovar a semana, o aprovador valida essas horas ou marca como <em>não autorizada</em>, com
+              o motivo.
+            </li>
+            <li>
+              <strong>Informar hora extra:</strong> na Folha semanal, em “Horas extras”, avise o dia (ou período), quantas
+              horas por dia e o motivo. Dá para informar antes de fazer ou depois, para regularizar. O aprovador decide em
+              Aprovações → Horas extras e pode liberar menos horas do que o pedido. Hora extra lançada sem pedido aprovado
+              aparece como <strong>“Horas extras, sujeitas à aprovação”</strong>.
+            </li>
+            <li>
+              Cada pessoa tem um <strong>perfil de hora extra</strong>, definido pelo administrador. Na maioria dos casos é o
+              padrão, descrito acima. Algumas pessoas têm a hora extra <strong>pré-aprovada</strong> e não precisam informar
+              antes. Outras têm a hora extra <strong>restrita</strong>: o trecho fora do expediente sem pedido aprovado não
+              entra como lançamento, vira <strong>hora extra a confirmar</strong> (com motivo e “Entendi”) e só conta se o
+              aprovador confirmar. Recusada, não são horas a receber.
+            </li>
+            <li>
+              Depois da aprovação, o administrador decide o destino: <strong>hora extra</strong> (paga),{" "}
+              <strong>banco de horas</strong> (vira folga depois; só para CLT) ou <strong>a pagar</strong> (PJ). Até lá,
+              na sua folha aparece <strong>“Horas adicionais a validar”</strong>.
+            </li>
+            <li>
+              Onde ver: na Folha semanal, embaixo da duração de cada lançamento, e no total da semana (“Horas adicionais”).
+            </li>
+            <li>
+              <strong>Banco de horas:</strong> o saldo fica no fim da Folha semanal, com o extrato. As horas entram quando o
+              administrador as manda para o banco e saem nas folgas que ele lança. Cada crédito{" "}
+              <strong>vence no prazo do acordo</strong> (em geral 6 meses), e uma folga usa primeiro o que vence antes. O que
+              vencer sem uso é pago como hora extra. Quer folgar? Combine com o gestor; quem lança a folga é o administrador.
+            </li>
+          </ul>
+          {overtime && !overtime.enabled && (
+            <p className="muted">O controle de horas adicionais está desligado nesta organização no momento.</p>
+          )}
+        </Section>
+      )}
 
       <Section id="limites" title="Regras e limites">
         <p className="muted">Valores desta organização, lidos do sistema:</p>

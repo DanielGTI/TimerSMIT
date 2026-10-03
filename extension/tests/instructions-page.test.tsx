@@ -60,7 +60,8 @@ describe("InstructionsPage", () => {
 
     const index = screen.getByRole("navigation", { name: "Seções desta página" });
     const links = within(index).getAllByRole("link");
-    expect(links).toHaveLength(10);
+    // Sem "Horas adicionais": só administradores veem essa seção.
+    expect(links).toHaveLength(9);
     for (const link of links) {
       const id = link.getAttribute("href")!.slice(1);
       expect(document.getElementById(id), `seção #${id}`).not.toBeNull();
@@ -98,5 +99,21 @@ describe("InstructionsPage", () => {
     expect(await screen.findByText(/Os valores desta organização estão carregando/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Como funciona a aprovação" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("horas adicionais (hora extra, perfis, banco) só aparecem para administradores", async () => {
+    fetchCurrentSession.mockResolvedValue(session());
+    render(<InstructionsPage />);
+    await screen.findByRole("heading", { level: 2, name: "Regras e limites" });
+    await Promise.resolve();
+    expect(screen.queryByRole("heading", { level: 2, name: "Horas adicionais: hora extra e banco de horas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Horas adicionais" })).not.toBeInTheDocument();
+
+    cleanup();
+    fetchCurrentSession.mockResolvedValue({ ...session(), isAdmin: true });
+    render(<InstructionsPage />);
+    expect(await screen.findByRole("heading", { level: 2, name: "Horas adicionais: hora extra e banco de horas" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Horas adicionais" })).toHaveAttribute("href", "#adicionais");
+    expect(screen.getByText(/perfil de hora extra/)).toBeInTheDocument();
   });
 });

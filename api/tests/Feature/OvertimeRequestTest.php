@@ -212,7 +212,10 @@ class OvertimeRequestTest extends TestCase
 
         $this->profile('preapproved');
         $this->getJson('/api/settings', $this->headers($this->admin))->assertJsonPath('members.0.overtimeProfile', 'preapproved');
-        $this->getJson('/api/me', $this->headers())->assertJsonPath('overtimeProfile', 'preapproved');
+        $this->getJson('/api/me', $this->headers())
+            ->assertJsonPath('overtimeProfile', 'preapproved')
+            ->assertJsonPath('isAdmin', false);
+        $this->getJson('/api/me', $this->headers($this->admin))->assertJsonPath('isAdmin', true);
         $this->assertTrue(AuditEvent::query()->where('action', 'settings.overtime_profile_updated')->exists());
 
         $this->getJson('/api/me/overtime-check?date=2026-10-07&startTime=18:00&durationSeconds=7200', $this->headers())
