@@ -52,6 +52,7 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'durationIncrementMinutes' => ['required', 'integer', Rule::in([1, 5, 10, 15, 30, 60])],
+            'minDurationMinutes' => ['sometimes', 'integer', 'between:1,480'],
             'dailyLimitHours' => ['required', 'integer', 'between:1,24'],
             'retroactiveWindowDays' => ['required', 'integer', 'between:0,365'],
             'commentRequired' => ['required', 'boolean'],

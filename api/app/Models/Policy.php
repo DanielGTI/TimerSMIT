@@ -15,6 +15,7 @@ class Policy extends Model
         'project_id',
         'version',
         'duration_increment_minutes',
+        'min_duration_minutes',
         'daily_limit_hours',
         'retroactive_window_days',
         'comment_required',

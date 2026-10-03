@@ -52,6 +52,7 @@ class TimeEntryService
         }
 
         $this->assertIncrement($policy, $durationSeconds);
+        $this->assertMinimum($policy, $durationSeconds);
 
         // Sem horário não dá para saber o que foi fora do expediente (hora adicional).
         if ($startTime === null && $this->overtime->requiresTimeOfDay($tenant, $member)) {
@@ -151,6 +152,7 @@ class TimeEntryService
             if ($entry->source === TimeEntry::SOURCE_MANUAL) {
                 if (isset($changes['durationSeconds'])) {
                     $this->assertIncrement($policy, $newDuration);
+                    $this->assertMinimum($policy, $newDuration);
                 }
 
                 if (($policy->comment_required ?? false) && trim((string) $newNote) === '') {
@@ -441,6 +443,16 @@ class TimeEntryService
 
         if ($minutes > 1 && $durationSeconds % ($minutes * 60) !== 0) {
             throw ValidationException::withMessages(['durationSeconds' => "A duração deve ser múltipla de {$minutes} minutos."]);
+        }
+    }
+
+    /** Duração mínima do lançamento manual (padrão: 1 minuto, ou seja, sem mínimo). */
+    private function assertMinimum(?Policy $policy, int $durationSeconds): void
+    {
+        $minutes = $policy->min_duration_minutes ?? 1;
+
+        if ($minutes > 1 && $durationSeconds < $minutes * 60) {
+            throw ValidationException::withMessages(['durationSeconds' => "A duração mínima de um lançamento é de {$minutes} minutos."]);
         }
     }
 

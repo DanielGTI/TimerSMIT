@@ -33,6 +33,8 @@ interface ManualEntryFormProps {
   requireTime?: boolean;
   /** O projeto cobra o cliente por hora (Configuração → Projetos): mostra "Horas faturáveis". */
   billableEnabled?: boolean;
+  /** Duração mínima definida pelo administrador nas regras (1 = sem mínimo). */
+  minDurationMinutes?: number;
 }
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
@@ -70,6 +72,7 @@ export function ManualEntryForm({
   onSaved,
   requireTime = false,
   billableEnabled = false,
+  minDurationMinutes = 1,
 }: ManualEntryFormProps): JSX.Element {
   const ids = useId();
   const [localDate, setLocalDate] = useState(() => initialDate ?? todayLocalIso());
@@ -81,6 +84,8 @@ export function ManualEntryForm({
   const [billable, setBillable] = useState(false);
   // O horário só é enviado se a pessoa mexeu em De/Até — os valores iniciais são só "agora".
   const [timeInformed, setTimeInformed] = useState(false);
+  // Lançando à noite: o intervalo sugerido passa a terminar neste horário (ver placeRange).
+  const [endAnchor, setEndAnchor] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
@@ -89,36 +94,55 @@ export function ManualEntryForm({
   const startMinutes = timeInformed || requireTime ? timeToMinutes(fromText) : null;
   const sendsStart = startMinutes !== null;
   const pastMidnight = sendsStart && durationMinutes !== null && startMinutes + durationMinutes > MINUTES_PER_DAY;
+  const belowMinimum = durationMinutes !== null && durationMinutes > 0 && durationMinutes < minDurationMinutes;
   const canSave =
     project !== null &&
     workItem !== null &&
     durationMinutes !== null &&
     durationMinutes > 0 &&
+    !belowMinimum &&
     !pastMidnight &&
     (!requireTime || sendsStart) &&
     !busy;
 
+  /**
+   * Ajusta De/Até à duração: o fim anda a partir do início. Se o horário
+   * ainda é o "agora" sugerido e o fim passaria da meia-noite (lançando à
+   * noite), o intervalo passa a terminar no "Até" e começa antes dele.
+   */
+  function placeRange(minutes: number) {
+    const from = timeToMinutes(fromText);
+    if (from === null) return;
+    const anchored = !timeInformed && endAnchor !== null;
+    if (!anchored && from + minutes <= END_OF_DAY) {
+      setToText(minutesToTime(from + minutes));
+      return;
+    }
+    if (timeInformed || minutes > END_OF_DAY) return;
+
+    const anchor = endAnchor ?? timeToMinutes(toText) ?? from;
+    const end = Math.max(anchor, minutes);
+    setEndAnchor(anchor);
+    setFromText(minutesToTime(end - minutes));
+    setToText(minutesToTime(end));
+  }
+
   function applyDuration(minutes: number) {
     setDurationText(formatDuration(minutes));
-    const from = timeToMinutes(fromText);
-    if (from !== null && from + minutes <= END_OF_DAY) {
-      setToText(minutesToTime(from + minutes));
-    }
+    placeRange(minutes);
   }
 
   function handleDurationChange(text: string) {
     setDurationText(text);
     const minutes = parseDuration(text);
-    const from = timeToMinutes(fromText);
-    if (minutes !== null && from !== null && from + minutes <= END_OF_DAY) {
-      setToText(minutesToTime(from + minutes));
-    }
+    if (minutes !== null) placeRange(minutes);
   }
 
   function handleRangeChange(nextFrom: string, nextTo: string) {
     setFromText(nextFrom);
     setToText(nextTo);
     setTimeInformed(true);
+    setEndAnchor(null);
     const from = timeToMinutes(nextFrom);
     const to = timeToMinutes(nextTo);
     if (from !== null && to !== null && to >= from) {
@@ -162,6 +186,7 @@ export function ManualEntryForm({
       setFromText(nowAsTime());
       setToText(nowAsTime());
       setTimeInformed(false);
+      setEndAnchor(null);
       setNote("");
     } catch (error) {
       setFeedback({ kind: "error", text: error instanceof Error ? error.message : String(error) });
@@ -230,6 +255,9 @@ export function ManualEntryForm({
           </div>
         </div>
         {durationInvalid && <p className="field__error">Use o formato HH:MM (ex.: 01:30).</p>}
+        {belowMinimum && (
+          <p className="field__error">A duração mínima de um lançamento é de {minDurationMinutes} minutos.</p>
+        )}
       </div>
 
       <div className="field-row">
@@ -267,6 +295,7 @@ export function ManualEntryForm({
               className="btn btn--small"
               onClick={() => {
                 setTimeInformed(false);
+                setEndAnchor(null);
                 setFromText(nowAsTime());
                 setToText(nowAsTime());
               }}

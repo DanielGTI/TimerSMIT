@@ -97,6 +97,7 @@ export function WorkItemGuide(): JSX.Element {
         activityTypes={activityTypes}
         displayName={session.displayName}
         requireTime={session.overtime?.requireTimeOfDay ?? false}
+        minDurationMinutes={session.policy?.minDurationMinutes ?? 1}
         billableEnabled={session.billableProjectIds?.includes(project.id) ?? false}
       />
 

@@ -4,6 +4,8 @@ export type Role = "member" | "approver" | "manager" | "admin";
 
 export interface PolicyDto {
   durationIncrementMinutes: number;
+  /** Duração mínima do lançamento manual (1 = sem mínimo). */
+  minDurationMinutes?: number;
   dailyLimitHours: number;
   retroactiveWindowDays: number;
   commentRequired: boolean;
@@ -92,7 +94,7 @@ export interface SettingsDto {
 
 export type PolicyInput = Pick<
   PolicyDto,
-  "durationIncrementMinutes" | "dailyLimitHours" | "retroactiveWindowDays" | "commentRequired"
+  "durationIncrementMinutes" | "minDurationMinutes" | "dailyLimitHours" | "retroactiveWindowDays" | "commentRequired"
 >;
 
 const send = (client: ApiClient, method: string, path: string, body?: unknown) =>

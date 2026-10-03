@@ -164,6 +164,7 @@ describe("SettingsPage", () => {
     await openTab("Regras");
 
     fireEvent.change(screen.getByLabelText("Incremento de duração"), { target: { value: "15" } });
+    fireEvent.change(screen.getByLabelText("Duração mínima (minutos)"), { target: { value: "15" } });
     fireEvent.change(screen.getByLabelText("Limite diário (horas)"), { target: { value: "8" } });
     fireEvent.click(screen.getByRole("switch", { name: /Comentário obrigatório/ }));
     fireEvent.click(screen.getByRole("button", { name: "Salvar regras" }));
@@ -171,6 +172,7 @@ describe("SettingsPage", () => {
     await waitFor(() =>
       expect(api.updatePolicy).toHaveBeenCalledWith(expect.anything(), {
         durationIncrementMinutes: 15,
+        minDurationMinutes: 15,
         dailyLimitHours: 8,
         retroactiveWindowDays: 30,
         commentRequired: true,

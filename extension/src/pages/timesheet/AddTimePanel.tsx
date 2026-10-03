@@ -9,6 +9,8 @@ export interface AddTimeResources {
   displayName: string;
   activityTypes: ActivityTypeDto[];
   requireTime: boolean;
+  /** Duração mínima do lançamento manual (regras da organização). */
+  minDurationMinutes?: number;
   /** Projetos que usam "faturável" (id do Azure DevOps). */
   billableProjectIds: string[];
 }
@@ -64,6 +66,7 @@ export function AddTimePanel({ client, date, resources, resourcesError, onClose,
             activityTypes={resources.activityTypes}
             displayName={resources.displayName}
             requireTime={resources.requireTime}
+            minDurationMinutes={resources.minDurationMinutes}
             billableEnabled={selected?.projectId ? resources.billableProjectIds.includes(selected.projectId) : false}
             initialDate={date}
             workItemField={<WorkItemPicker selected={selected} onSelect={setSelected} autoFocus />}

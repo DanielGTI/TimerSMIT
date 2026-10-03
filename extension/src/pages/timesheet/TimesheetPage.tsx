@@ -120,6 +120,7 @@ export function TimesheetPage(): JSX.Element {
             displayName: session.displayName,
             activityTypes,
             requireTime: session.overtime?.requireTimeOfDay ?? false,
+            minDurationMinutes: session.policy?.minDurationMinutes ?? 1,
             billableProjectIds: session.billableProjectIds ?? [],
           }),
       )

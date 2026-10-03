@@ -16,10 +16,11 @@ const activityTypes = [
   { id: "9", name: "Suporte ao Cliente", color: "#F87878", defaultBillable: true },
 ];
 
-function renderForm(requireTime = false, billableEnabled = true) {
+function renderForm(requireTime = false, billableEnabled = true, minDurationMinutes?: number) {
   return render(
     <ManualEntryForm
       requireTime={requireTime}
+      minDurationMinutes={minDurationMinutes}
       billableEnabled={billableEnabled}
       client={client}
       project={{ id: "project-guid-1", name: "SMIT LEARN IA" }}
@@ -232,7 +233,7 @@ describe("ManualEntryForm", () => {
     });
 
     it("sem mexer em De/Até, envia o horário inicial (agora) em vez de omitir", async () => {
-      // Hora fixa: perto da meia-noite, "agora + 30 min" passaria do dia e o Salvar ficaria bloqueado.
+      // Hora fixa: perto da meia-noite o intervalo sugerido termina no "agora" em vez de começar nele.
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date(2026, 9, 2, 10, 0, 0));
       try {
@@ -256,5 +257,53 @@ describe("ManualEntryForm", () => {
 
       expect(saveButton()).toBeDisabled();
     });
+    it("lançando à noite, a duração não esbarra na meia-noite: o intervalo termina no horário sugerido", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 9, 2, 23, 39, 0));
+      try {
+        createManualEntry.mockResolvedValue({});
+        renderForm(true);
+
+        fireEvent.change(durationInput(), { target: { value: "00:30" } });
+        expect(screen.getByLabelText("De")).toHaveValue("23:09");
+        expect(toInput()).toHaveValue("23:39");
+        expect(saveButton()).toBeEnabled();
+
+        fireEvent.click(screen.getByRole("button", { name: "+1h" }));
+        expect(screen.getByLabelText("De")).toHaveValue("22:09");
+        expect(toInput()).toHaveValue("23:39");
+
+        fireEvent.change(durationInput(), { target: { value: "00:10" } });
+        expect(screen.getByLabelText("De")).toHaveValue("23:29");
+        expect(toInput()).toHaveValue("23:39");
+
+        fireEvent.click(saveButton());
+        await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+        expect(createManualEntry.mock.calls[0][1]).toMatchObject({ startTime: "23:29", durationSeconds: 600 });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("De/Até escolhidos pela pessoa que passam da meia-noite continuam recusados", () => {
+      renderForm(true);
+      fireEvent.change(screen.getByLabelText("De"), { target: { value: "23:50" } });
+      fireEvent.change(durationInput(), { target: { value: "00:30" } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent("passa da meia-noite");
+      expect(saveButton()).toBeDisabled();
+    });
+  });
+
+  it("respeita a duração mínima definida pelo administrador", () => {
+    renderForm(false, true, 15);
+
+    fireEvent.change(durationInput(), { target: { value: "00:10" } });
+    expect(screen.getByText("A duração mínima de um lançamento é de 15 minutos.")).toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+
+    fireEvent.change(durationInput(), { target: { value: "00:15" } });
+    expect(screen.queryByText(/duração mínima/)).not.toBeInTheDocument();
+    expect(saveButton()).toBeEnabled();
   });
 });

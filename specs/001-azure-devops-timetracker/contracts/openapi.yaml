@@ -458,8 +458,9 @@ paths:
       operationId: updatePolicy
       description: >-
         Nova versão das regras de lançamento, válida a partir de agora (as
-        versões anteriores ficam guardadas). Incremento e comentário obrigatório
-        valem para lançamento manual; limite diário e janela retroativa para
+        versões anteriores ficam guardadas). Incremento, duração mínima e
+        comentário obrigatório valem para lançamento manual (a correção do
+        administrador pelo relatório não passa por eles); limite diário e janela retroativa para
         qualquer lançamento/edição. Timer guarda segundos exatos.
       requestBody:
         required: true
@@ -470,6 +471,7 @@ paths:
               required: [durationIncrementMinutes, dailyLimitHours, retroactiveWindowDays, commentRequired]
               properties:
                 durationIncrementMinutes: { type: integer, enum: [1, 5, 10, 15, 30, 60] }
+                minDurationMinutes: { type: integer, minimum: 1, maximum: 480, description: 'Duração mínima do lançamento manual; 1 = sem mínimo. Ausente mantém o valor em vigor.' }
                 dailyLimitHours: { type: integer, minimum: 1, maximum: 24 }
                 retroactiveWindowDays: { type: integer, minimum: 0, maximum: 365 }
                 commentRequired: { type: boolean }

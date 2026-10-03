@@ -41,6 +41,7 @@ function limitItems(policy: PolicyRules | null): ReactNode {
   }
 
   const stepped = policy.durationIncrementMinutes > 1;
+  const minimum = policy.minDurationMinutes ?? 1;
 
   return (
     <>
@@ -62,6 +63,12 @@ function limitItems(policy: PolicyRules | null): ReactNode {
           ? `Ex.: ${policy.durationIncrementMinutes} e ${policy.durationIncrementMinutes * 2} minutos passam; valores no meio, não.`
           : "Qualquer duração maior que zero é aceita."}
       </li>
+      {minimum > 1 && (
+        <li>
+          <strong>Duração mínima: {plural(minimum, "minuto", "minutos")}.</strong> Lançamentos manuais mais curtos são
+          recusados. O timer grava o tempo exato.
+        </li>
+      )}
       <li>
         <strong>{policy.commentRequired ? "Comentário obrigatório" : "Comentário opcional"}</strong> nos lançamentos
         manuais

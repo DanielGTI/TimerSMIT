@@ -3,6 +3,8 @@ import type { ApiClient } from "./client";
 /** Regras de lançamento em vigor na organização (as mesmas que o servidor aplica). */
 export interface PolicyRules {
   durationIncrementMinutes: number;
+  /** Duração mínima do lançamento manual (1 = sem mínimo). */
+  minDurationMinutes?: number;
   dailyLimitHours: number;
   retroactiveWindowDays: number;
   commentRequired: boolean;

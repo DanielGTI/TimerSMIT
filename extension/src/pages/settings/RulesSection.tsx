@@ -12,6 +12,7 @@ export function RulesSection({ settings, client, busy, run }: SectionProps): JSX
 
   const [timezone, setTimezone] = useState(organization.timezone);
   const [increment, setIncrement] = useState(policy.durationIncrementMinutes);
+  const [minDuration, setMinDuration] = useState(policy.minDurationMinutes ?? 1);
   const [dailyLimit, setDailyLimit] = useState(policy.dailyLimitHours);
   const [retroactive, setRetroactive] = useState(policy.retroactiveWindowDays);
   const [commentRequired, setCommentRequired] = useState(policy.commentRequired);
@@ -31,6 +32,7 @@ export function RulesSection({ settings, client, busy, run }: SectionProps): JSX
       () =>
         updatePolicy(client, {
           durationIncrementMinutes: increment,
+          minDurationMinutes: minDuration,
           dailyLimitHours: dailyLimit,
           retroactiveWindowDays: retroactive,
           commentRequired,
@@ -82,6 +84,22 @@ export function RulesSection({ settings, client, busy, run }: SectionProps): JSX
             </select>
           </div>
           <div className="field">
+            <label htmlFor={`${ids}-min`}>Duração mínima (minutos)</label>
+            <input
+              id={`${ids}-min`}
+              className="input"
+              type="number"
+              min={1}
+              max={480}
+              value={minDuration}
+              aria-describedby={`${ids}-min-hint`}
+              onChange={(e) => setMinDuration(Number(e.target.value))}
+            />
+            <span id={`${ids}-min-hint`} className="muted">
+              1 = sem mínimo. Vale para lançamentos manuais; o timer grava o tempo exato.
+            </span>
+          </div>
+          <div className="field">
             <label htmlFor={`${ids}-daily`}>Limite diário (horas)</label>
             <input
               id={`${ids}-daily`}
@@ -111,7 +129,11 @@ export function RulesSection({ settings, client, busy, run }: SectionProps): JSX
           <Switch label="Comentário obrigatório nos lançamentos manuais" checked={commentRequired} onChange={setCommentRequired} />
         </div>
 
-        <button type="submit" className="btn btn--primary" disabled={busy}>
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={busy || !Number.isInteger(minDuration) || minDuration < 1 || minDuration > 480}
+        >
           Salvar regras
         </button>
       </form>

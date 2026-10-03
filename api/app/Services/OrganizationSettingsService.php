@@ -32,6 +32,7 @@ class OrganizationSettingsService
     /** Padrões usados enquanto a organização não cadastrou política (iguais aos da migração). */
     public const POLICY_DEFAULTS = [
         'durationIncrementMinutes' => 1,
+        'minDurationMinutes' => 1,
         'dailyLimitHours' => 24,
         'retroactiveWindowDays' => 30,
         'commentRequired' => false,
@@ -117,7 +118,7 @@ class OrganizationSettingsService
     }
 
     /**
-     * @param  array{durationIncrementMinutes: int, dailyLimitHours: int, retroactiveWindowDays: int, commentRequired: bool}  $values
+     * @param  array{durationIncrementMinutes: int, minDurationMinutes?: int, dailyLimitHours: int, retroactiveWindowDays: int, commentRequired: bool}  $values
      */
     public function updatePolicy(Tenant $tenant, Member $actor, array $values): Policy
     {
@@ -133,6 +134,8 @@ class OrganizationSettingsService
                 'project_id' => null,
                 'version' => $version,
                 'duration_increment_minutes' => $values['durationIncrementMinutes'],
+                // Sem o campo (cliente antigo), mantém o mínimo em vigor.
+                'min_duration_minutes' => $values['minDurationMinutes'] ?? $before['minDurationMinutes'],
                 'daily_limit_hours' => $values['dailyLimitHours'],
                 'retroactive_window_days' => $values['retroactiveWindowDays'],
                 'comment_required' => $values['commentRequired'],
@@ -542,6 +545,7 @@ class OrganizationSettingsService
 
         return [
             'durationIncrementMinutes' => $policy->duration_increment_minutes,
+            'minDurationMinutes' => $policy->min_duration_minutes ?? 1,
             'dailyLimitHours' => $policy->daily_limit_hours,
             'retroactiveWindowDays' => $policy->retroactive_window_days,
             'commentRequired' => $policy->comment_required,
