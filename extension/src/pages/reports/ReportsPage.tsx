@@ -11,10 +11,12 @@ import {
   type ReportDto,
   type ReportFilters,
   type ReportOptionsDto,
+  type ReportRowDto,
 } from "../../lib/api/reports";
 import { getHostContext } from "../../lib/devops/sdk";
 import { saveBlob } from "../../lib/download";
 import { todayLocalIso } from "../../lib/time/format";
+import { EntryEditPanel } from "./EntryEditPanel";
 import { periodPresets } from "./periods";
 import { ReportFilterForm } from "./ReportFilterForm";
 import { ReportGrid } from "./ReportGrid";
@@ -53,6 +55,10 @@ export function ReportsPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Correção pelo administrador: lançamento aberto no painel e recarga depois de salvar.
+  const [editing, setEditing] = useState<ReportRowDto | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReportOptions(client)
@@ -76,7 +82,7 @@ export function ReportsPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [client, applied, page]);
+  }, [client, applied, page, reloadKey]);
 
   // A grade detalhada só é buscada quando a aba é aberta (e a cada filtro novo).
   useEffect(() => {
@@ -96,7 +102,7 @@ export function ReportsPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [client, applied, view]);
+  }, [client, applied, view, reloadKey]);
 
   // Nome da organização, só para montar o link do work item na grade.
   useEffect(() => {
@@ -112,6 +118,7 @@ export function ReportsPage(): JSX.Element {
       return;
     }
     setError(null);
+    setNotice(null);
     setPage(1);
     setApplied(draft);
   }
@@ -163,6 +170,11 @@ export function ReportsPage(): JSX.Element {
         {view === "detail" &&
           (detail ? (
             <>
+              {notice && (
+                <p className="notice" role="status">
+                  {notice}
+                </p>
+              )}
               {detail.truncated && (
                 <p className="banner" role="status">
                   O período tem {detail.totals.entryCount} lançamentos e a grade mostra só os primeiros {detail.rows.length}. Reduza o
@@ -174,12 +186,34 @@ export function ReportsPage(): JSX.Element {
                 showPerson={detail.scope.canFilterByMember}
                 organization={organization}
                 showBillable={options?.billableInUse ?? false}
+                onEdit={
+                  detail.canEditEntries
+                    ? (row) => {
+                        setNotice(null);
+                        setEditing(row);
+                      }
+                    : undefined
+                }
               />
             </>
           ) : (
             !error && <p className="muted">Carregando…</p>
           ))}
       </section>
+
+      {editing && (
+        <EntryEditPanel
+          client={client}
+          row={editing}
+          options={options}
+          onClose={() => setEditing(null)}
+          onSaved={(message) => {
+            setEditing(null);
+            setNotice(message);
+            setReloadKey((key) => key + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

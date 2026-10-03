@@ -1183,6 +1183,52 @@ textarea.input {
   font-size: 20px;
 }
 
+/* ---------- correção de lançamento pelo administrador (relatório) ---------- */
+
+.entry-edit .field-row {
+  flex-wrap: wrap;
+}
+
+.entry-edit .field-row .input--short {
+  width: 118px;
+}
+
+.entry-edit__current {
+  margin: 0;
+}
+
+.entry-edit__current .btn {
+  margin-top: 6px;
+}
+
+.entry-edit__actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.entry-edit__spacer {
+  flex: 1;
+}
+
+.grid-edit {
+  width: 1%;
+  padding-right: 0;
+}
+
+.btn--edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.btn--edit svg {
+  width: 15px;
+  height: 15px;
+}
+
 /* ---------- busca de work item ---------- */
 
 .wi-picker {

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityTypeController;
 use App\Http\Controllers\AdditionalHoursController;
+use App\Http\Controllers\AdminTimeEntryController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\HealthController;
@@ -94,6 +95,12 @@ Route::middleware('tenant')->group(function () {
         Route::get('/{memberId}', [HourBankController::class, 'show'])->whereNumber('memberId');
         Route::post('/{memberId}/movements', [HourBankController::class, 'store'])->whereNumber('memberId');
         Route::delete('/movements/{movementId}', [HourBankController::class, 'destroy'])->whereNumber('movementId');
+    });
+
+    // Correção de lançamentos de qualquer pessoa (relatório detalhado).
+    Route::middleware('admin')->prefix('admin/entries')->group(function () {
+        Route::patch('/{entryId}', [AdminTimeEntryController::class, 'update'])->whereNumber('entryId');
+        Route::delete('/{entryId}', [AdminTimeEntryController::class, 'destroy'])->whereNumber('entryId');
     });
 
     Route::post('/entries', [TimeEntryController::class, 'store']);

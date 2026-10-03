@@ -163,6 +163,33 @@ interface ReportGridProps {
   organization: string | null;
   /** Algum projeto usa "faturável"; se não, a coluna nem aparece para escolher. */
   showBillable?: boolean;
+  /** Administrador: lápis no começo de cada linha para corrigir o lançamento. */
+  onEdit?: (row: ReportRowDto) => void;
+}
+
+/** Semana enviada ou aprovada não aceita correção (precisa voltar a ficar aberta). */
+const LOCKED_WEEKS = new Set(["submitted", "approved"]);
+
+function PencilIcon(): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L5.4 13.6 1.5 14.5l.9-3.9 9.3-9.3zM3.3 11.1l-.4 1.9 1.9-.4 7.6-7.6-1.5-1.5-7.6 7.6z"
+      />
+    </svg>
+  );
+}
+
+function LockIcon(): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H3.5A1.5 1.5 0 0 0 2 7.5v6A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5v-6A1.5 1.5 0 0 0 12.5 6h-1V4.5A3.5 3.5 0 0 0 8 1zm2 5H6V4.5a2 2 0 1 1 4 0V6z"
+      />
+    </svg>
+  );
 }
 
 /**
@@ -171,7 +198,7 @@ interface ReportGridProps {
  * Trabalha sobre as linhas já trazidas pelo servidor (mesmo escopo e filtros
  * da tela de resumo e do CSV); os filtros daqui só refinam o que já veio.
  */
-export function ReportGrid({ rows, showPerson, organization, showBillable = false }: ReportGridProps): JSX.Element {
+export function ReportGrid({ rows, showPerson, organization, showBillable = false, onEdit }: ReportGridProps): JSX.Element {
   const available = useMemo(
     () => COLUMNS.filter((column) => (showPerson || column.key !== "person") && (showBillable || column.key !== "billable")),
     [showPerson, showBillable],
@@ -185,6 +212,7 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
   const [limit, setLimit] = useState(PAGE_OF_ROWS);
 
   const columns = available.filter((column) => visible.has(column.key));
+  const span = Math.max(1, columns.length + (onEdit ? 1 : 0));
 
   const filtered = useMemo(() => {
     const active = Object.entries(filters).filter(([, text]) => text && text.trim() !== "");
@@ -333,6 +361,11 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
           <caption className="sr-only">Lançamentos detalhados</caption>
           <thead>
             <tr>
+              {onEdit && (
+                <th scope="col" className="grid-edit">
+                  <span className="sr-only">Editar</span>
+                </th>
+              )}
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -347,6 +380,7 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
               ))}
             </tr>
             <tr className="filter-row">
+              {onEdit && <td className="grid-edit" />}
               {columns.map((column) => (
                 <td key={column.key}>
                   <input
@@ -365,7 +399,7 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
           <tbody>
             {display.length === 0 && (
               <tr>
-                <td colSpan={Math.max(1, columns.length)} className="muted">
+                <td colSpan={span} className="muted">
                   Nenhum lançamento para esses filtros.
                 </td>
               </tr>
@@ -373,7 +407,7 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
             {display.map((node) =>
               node.kind === "group" ? (
                 <tr key={node.path} className="group-row">
-                  <th colSpan={Math.max(1, columns.length)} scope="rowgroup" style={{ paddingLeft: 10 + node.depth * 22 }}>
+                  <th colSpan={span} scope="rowgroup" style={{ paddingLeft: 10 + node.depth * 22 }}>
                     <button
                       type="button"
                       className="group-toggle"
@@ -389,6 +423,30 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
                 </tr>
               ) : (
                 <tr key={node.row.id}>
+                  {onEdit && (
+                    <td className="grid-edit">
+                      {LOCKED_WEEKS.has(node.row.weekStatus) ? (
+                        <span
+                          className="btn--edit muted"
+                          role="img"
+                          aria-label={`Semana ${WEEK_STATUS_LABELS[node.row.weekStatus].toLocaleLowerCase("pt-BR")}: edição bloqueada`}
+                          title={`Semana ${WEEK_STATUS_LABELS[node.row.weekStatus].toLocaleLowerCase("pt-BR")}: para corrigir, a semana precisa voltar a ficar aberta (a pessoa recolhe o envio, o aprovador rejeita ou o administrador reabre em Aprovações).`}
+                        >
+                          <LockIcon />
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn--small btn--ghost btn--edit"
+                          aria-label={`Editar lançamento de ${node.row.memberName} em ${brDate(node.row.localDate)} (${formatHours(node.row.durationSeconds)})`}
+                          title="Editar lançamento"
+                          onClick={() => onEdit(node.row)}
+                        >
+                          <PencilIcon />
+                        </button>
+                      )}
+                    </td>
+                  )}
                   {columns.map((column) => (
                     <td key={column.key} className={column.numeric ? "num" : undefined}>
                       {column.render ? column.render(node.row, organization) : column.text(node.row) || <span className="muted">–</span>}

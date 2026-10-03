@@ -8,6 +8,7 @@ use App\Models\Policy;
 use App\Models\Project;
 use App\Models\Tenant;
 use App\Models\TimeEntry;
+use App\Support\WeekCalendar;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -209,6 +210,158 @@ class TimeEntryService
 
             return $entry;
         });
+    }
+
+    /**
+     * Correção de lançamento de qualquer pessoa pelo administrador (relatório
+     * detalhado). Pode mudar data, horário, duração, work item, atividade,
+     * comentário e faturável. Não passa pela janela retroativa, pelo
+     * incremento nem pelo comentário obrigatório (é correção, não lançamento
+     * novo), mas vale o que mantém os dados coerentes: semana aberta (na data
+     * antiga e na nova), limite diário da pessoa e intervalo dentro do dia.
+     *
+     * @param  array{localDate?: string, startTime?: ?string, durationSeconds?: int, activityTypeId?: ?int, note?: ?string, billable?: bool, workItemId?: int}  $changes
+     */
+    public function adminUpdate(
+        Tenant $tenant,
+        Member $admin,
+        int $entryId,
+        int $expectedRevision,
+        array $changes,
+        ?Project $project = null,
+    ): TimeEntry {
+        return DB::transaction(function () use ($tenant, $admin, $entryId, $expectedRevision, $changes, $project) {
+            $entry = $this->lockEntryForAdmin($tenant, $entryId, [$changes['localDate'] ?? null]);
+
+            if ($entry->revision !== $expectedRevision) {
+                throw new ConflictException('Este lançamento mudou desde que o relatório foi carregado. Atualize e tente de novo.');
+            }
+
+            $member = $entry->member;
+            $project ??= $entry->project;
+            $localDate = $changes['localDate'] ?? substr((string) $entry->local_date, 0, 10);
+            $duration = $changes['durationSeconds'] ?? $entry->duration_seconds;
+            $startTime = array_key_exists('startTime', $changes) ? $changes['startTime'] : $entry->localStartTime();
+
+            if ($duration <= 0) {
+                throw ValidationException::withMessages(['durationSeconds' => 'Duração deve ser maior que zero.']);
+            }
+
+            if (
+                array_key_exists('startTime', $changes)
+                && $changes['startTime'] === null
+                && $entry->started_at_utc !== null
+                && $this->overtime->requiresTimeOfDay($tenant, $member)
+            ) {
+                throw ValidationException::withMessages(['startTime' => 'Informe o horário (De/Até): ele é necessário para separar o expediente das horas adicionais.']);
+            }
+
+            $others = (int) TimeEntry::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('member_id', $member->id)
+                ->where('local_date', $localDate)
+                ->where('id', '!=', $entry->id)
+                ->sum('duration_seconds');
+
+            $policy = $this->effectivePolicy($tenant, $project);
+            if ($others + $duration > ($policy->daily_limit_hours ?? 24) * 3600) {
+                throw ValidationException::withMessages(['durationSeconds' => 'Limite diário de horas excedido para esta pessoa nesta data.']);
+            }
+
+            $times = $startTime === null
+                ? ['started_at_utc' => null, 'ended_at_utc' => null]
+                : $this->windowColumns($localDate, $startTime, $duration, $entry->timezone);
+
+            $before = $this->auditView($entry);
+
+            $entry->update($times + [
+                'local_date' => $localDate,
+                'week_start_date' => WeekCalendar::startOf($localDate),
+                'project_id' => $project->id,
+                'devops_work_item_id' => $changes['workItemId'] ?? $entry->devops_work_item_id,
+                'duration_seconds' => $duration,
+                'activity_type_id' => array_key_exists('activityTypeId', $changes) ? $changes['activityTypeId'] : $entry->activity_type_id,
+                'note' => array_key_exists('note', $changes) ? $changes['note'] : $entry->note,
+                'billable' => $changes['billable'] ?? $entry->billable,
+                'revision' => $entry->revision + 1,
+            ]);
+
+            $this->audit->record(
+                tenant: $tenant,
+                action: 'time_entry.admin_updated',
+                subjectType: TimeEntry::class,
+                subjectId: $entry->id,
+                actor: $admin,
+                project: $project,
+                context: [
+                    'memberId' => $member->id,
+                    'changes' => array_keys($changes),
+                    'before' => $before,
+                    'after' => $this->auditView($entry->refresh()),
+                ],
+            );
+
+            return $entry;
+        });
+    }
+
+    /** Exclusão de lançamento de qualquer pessoa pelo administrador (semana aberta). */
+    public function adminDelete(Tenant $tenant, Member $admin, int $entryId): void
+    {
+        DB::transaction(function () use ($tenant, $admin, $entryId) {
+            $entry = $this->lockEntryForAdmin($tenant, $entryId);
+
+            $before = $this->auditView($entry);
+            $entry->delete();
+
+            $this->audit->record(
+                tenant: $tenant,
+                action: 'time_entry.admin_deleted',
+                subjectType: TimeEntry::class,
+                subjectId: $entry->id,
+                actor: $admin,
+                project: $entry->project,
+                context: ['memberId' => $entry->member_id, 'before' => $before],
+            );
+        });
+    }
+
+    /**
+     * Lançamento de qualquer pessoa do tenant, travado, com a semana da data
+     * atual (e da nova, se mudar) conferida.
+     *
+     * @param  array<int, ?string>  $extraDates
+     */
+    private function lockEntryForAdmin(Tenant $tenant, int $entryId, array $extraDates = []): TimeEntry
+    {
+        $entry = TimeEntry::query()->where('tenant_id', $tenant->id)->whereKey($entryId)->first();
+
+        if (! $entry) {
+            abort(404);
+        }
+
+        try {
+            $this->weeks->assertEditable($tenant, $entry->member, array_filter([$entry->local_date, ...$extraDates]));
+        } catch (ConflictException) {
+            throw new ConflictException('A semana deste lançamento (ou a da nova data) foi enviada ou aprovada. Para corrigir, ela precisa voltar a ficar aberta: a pessoa recolhe o envio, o aprovador rejeita ou o administrador reabre em Aprovações.');
+        }
+
+        return TimeEntry::query()->whereKey($entry->id)->lockForUpdate()->firstOrFail();
+    }
+
+    /** @return array<string, mixed> */
+    private function auditView(TimeEntry $entry): array
+    {
+        return [
+            'localDate' => $entry->local_date,
+            'startTime' => $entry->localStartTime(),
+            'durationSeconds' => $entry->duration_seconds,
+            'projectId' => $entry->project_id,
+            'workItemId' => $entry->devops_work_item_id,
+            'activityTypeId' => $entry->activity_type_id,
+            'billable' => $entry->billable,
+            'note' => $entry->note,
+        ];
     }
 
     /**

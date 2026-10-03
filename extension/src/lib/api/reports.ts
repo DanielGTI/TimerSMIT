@@ -33,6 +33,8 @@ export interface ReportRowDto {
   billable: boolean;
   source: "timer" | "manual";
   note: string | null;
+  /** Revisão do lançamento (If-Match da correção pelo administrador). */
+  revision?: number;
   weekStatus: WeekStatus;
 }
 
@@ -60,6 +62,8 @@ export interface ReportDetailDto {
   rows: ReportRowDto[];
   /** Verdadeiro quando o período tem mais linhas do que o servidor devolve de uma vez. */
   truncated: boolean;
+  /** Administrador: pode corrigir lançamentos de qualquer pessoa na grade. */
+  canEditEntries?: boolean;
 }
 
 export interface ReportOptionsDto {
@@ -67,7 +71,7 @@ export interface ReportOptionsDto {
   /** Algum projeto usa "faturável"; se não, a tela esconde filtro, totais e coluna. */
   billableInUse?: boolean;
   members: Array<{ id: string; name: string }>;
-  projects: Array<{ id: string; name: string }>;
+  projects: Array<{ id: string; name: string; usesBillable?: boolean }>;
   activityTypes: Array<{ id: string; name: string; color: string | null; enabled: boolean }>;
 }
 

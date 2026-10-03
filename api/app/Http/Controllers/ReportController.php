@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\WeeklySubmission;
+use App\Services\ApproverResolver;
 use App\Services\AuditService;
 use App\Services\TimeReportService;
 use App\Support\CsvWriter;
@@ -32,6 +33,7 @@ class ReportController extends Controller
     public function __construct(
         private readonly TimeReportService $reports,
         private readonly AuditService $audit,
+        private readonly ApproverResolver $approvers,
     ) {}
 
     public function options(TenantContext $tenantContext): JsonResponse
@@ -73,7 +75,10 @@ class ReportController extends Controller
         $scope = $this->reports->scopeFor($tenant, $tenantContext->member());
         $this->reports->assertFiltersAllowed($tenant, $scope, $filters);
 
-        return response()->json($this->reports->detail($tenant, $scope, $filters, self::DETAIL_ROW_LIMIT));
+        return response()->json($this->reports->detail($tenant, $scope, $filters, self::DETAIL_ROW_LIMIT) + [
+            // Administrador corrige lançamentos de qualquer pessoa direto na grade.
+            'canEditEntries' => $this->approvers->isAdmin($tenantContext->member()),
+        ]);
     }
 
     public function csv(Request $request, TenantContext $tenantContext): StreamedResponse

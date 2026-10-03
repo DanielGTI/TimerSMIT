@@ -218,8 +218,12 @@ class TimeReportService
             'members' => $memberQuery->orderBy('display_name')->get(['id', 'display_name'])
                 ->map(fn (Member $member) => ['id' => (string) $member->id, 'name' => $member->display_name])->all(),
             'projects' => Project::query()->where('tenant_id', $tenant->id)->whereIn('id', $projectIds)->orderBy('devops_project_name')
-                ->get(['id', 'devops_project_name'])
-                ->map(fn (Project $project) => ['id' => (string) $project->id, 'name' => $project->devops_project_name])->all(),
+                ->get(['id', 'devops_project_name', 'uses_billable'])
+                ->map(fn (Project $project) => [
+                    'id' => (string) $project->id,
+                    'name' => $project->devops_project_name,
+                    'usesBillable' => (bool) $project->uses_billable,
+                ])->all(),
             'activityTypes' => ActivityType::query()->where('tenant_id', $tenant->id)->orderBy('name')->get()
                 ->map(fn (ActivityType $type) => ['id' => (string) $type->id, 'name' => $type->name, 'color' => $type->color, 'enabled' => $type->is_enabled])->all(),
         ];
@@ -301,6 +305,7 @@ class TimeReportService
                 DB::raw(self::BILLABLE.' as billable'),
                 'time_entries.source',
                 'time_entries.note',
+                'time_entries.revision',
                 'time_entries.devops_work_item_id',
                 'time_entries.project_id',
                 'time_entries.member_id',
@@ -368,6 +373,7 @@ class TimeReportService
             'billable' => (bool) $row->billable,
             'source' => $row->source,
             'note' => $row->note,
+            'revision' => (int) $row->revision,
             'weekStatus' => $row->week_status ?? WeeklySubmission::STATUS_OPEN,
         ];
     }

@@ -883,6 +883,55 @@ paths:
       responses:
         '200': { description: Extrato atualizado }
         '409': { description: As horas do ajuste já foram usadas }
+  /admin/entries/{entryId}:
+    patch:
+      operationId: adminUpdateEntry
+      description: >-
+        Só administrador. Corrige o lançamento de qualquer pessoa da
+        organização (relatório detalhado): data, horário, duração, work item
+        (com o projeto do Azure DevOps), atividade, comentário e faturável. Só
+        vai o que muda. Semana enviada ou aprovada (na data atual ou na nova)
+        responde 409; vale o limite diário da pessoa e o intervalo dentro do
+        dia, mas não a janela retroativa, o incremento nem o comentário
+        obrigatório. Auditado como `time_entry.admin_updated` (antes e depois).
+      parameters:
+        - { name: entryId, in: path, required: true, schema: { type: string } }
+        - { name: If-Match, in: header, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                localDate: { type: string, format: date }
+                startTime: { type: [string, 'null'], pattern: '^\d{2}:\d{2}$', description: 'null apaga o horário' }
+                durationSeconds: { type: integer, minimum: 1, maximum: 86400 }
+                activityTypeId: { type: [integer, 'null'] }
+                note: { type: [string, 'null'], maxLength: 2000 }
+                billable: { type: boolean }
+                workItemId: { type: integer, minimum: 1 }
+                projectId: { type: string, description: 'GUID do projeto no Azure DevOps; obrigatório com workItemId' }
+                projectName: { type: string, description: 'Obrigatório com workItemId' }
+                title: { type: string }
+                workItemType: { type: string }
+                iterationPath: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Lançamento corrigido (Entry) }
+        '403': { description: Não é administrador }
+        '404': { description: Lançamento inexistente ou de outra organização }
+        '409': { description: Semana enviada/aprovada ou revisão divergente }
+        '422': { description: Limite diário, horário passando da meia-noite ou dado inválido }
+    delete:
+      operationId: adminDeleteEntry
+      description: Só administrador. Exclui o lançamento de qualquer pessoa (semana aberta). Auditado como `time_entry.admin_deleted`.
+      parameters:
+        - { name: entryId, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Excluído }
+        '403': { description: Não é administrador }
+        '404': { description: Lançamento inexistente ou de outra organização }
+        '409': { description: Semana enviada ou aprovada }
   /reports/time/detail:
     get:
       operationId: getReportDetail
@@ -893,7 +942,8 @@ paths:
         retrato mais recente do work item) e `startTime`/`endTime` (hora local
         HH:MM; nulos em lançamento manual). `truncated: true` quando o filtro
         tem mais linhas do que o limite; `totals` continua sendo o do filtro
-        inteiro.
+        inteiro. Cada linha traz `revision` (If-Match da correção) e a resposta
+        traz `canEditEntries` (true para administrador).
       parameters:
         - { name: from, in: query, required: true, schema: { type: string, format: date } }
         - { name: to, in: query, required: true, schema: { type: string, format: date } }
@@ -903,14 +953,14 @@ paths:
         - { name: billable, in: query, schema: { type: string, enum: ['0', '1', 'true', 'false'] } }
         - { name: status, in: query, schema: { type: string, enum: [open, submitted, rejected, approved] } }
       responses:
-        '200': { description: 'Objeto com scope, totals, rows e truncated' }
+        '200': { description: 'Objeto com scope, totals, rows, truncated e canEditEntries' }
         '403': { description: Filtro fora do escopo da pessoa }
   /reports/options:
     get:
       operationId: getReportOptions
       description: Opções dos filtros (pessoas, projetos, atividades) limitadas ao escopo de quem pergunta.
       responses:
-        '200': { description: 'Opções + `scope` ({ level: all|projects|self, canFilterByMember })' }
+        '200': { description: 'Opções + `scope` ({ level: all|projects|self, canFilterByMember }); cada projeto traz `usesBillable`.' }
   /reports/time:
     get:
       operationId: getTimeReport

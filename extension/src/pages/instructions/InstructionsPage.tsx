@@ -388,6 +388,8 @@ export function InstructionsPage(): JSX.Element {
             <strong>Relatórios:</strong> você sempre vê as <em>suas</em> horas. Gestores veem as dos projetos que
             gerenciam e administradores, as da organização. Há filtros (período, pessoa, projeto, atividade, estado
             da semana e work item), agrupamento em grade e <strong>Exportar CSV</strong> com os filtros aplicados.
+            Na aba <strong>Detalhada</strong>, administradores corrigem ou excluem um lançamento lançado errado pelo
+            lápis no começo da linha (só em semana aberta; a correção fica registrada na auditoria).
           </li>
           <li>
             <strong>Configuração</strong> (só administradores): regras e fuso, horas extras e feriados, classificação
