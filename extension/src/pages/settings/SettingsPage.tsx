@@ -9,12 +9,13 @@ import { ApproversSection } from "./ApproversSection";
 import { ClosingSection } from "./ClosingSection";
 import { HourBankSection } from "./HourBankSection";
 import { PeopleSection } from "./PeopleSection";
+import { ProjectHoursSection } from "./ProjectHoursSection";
 import { ProjectsSection } from "./ProjectsSection";
 import { OvertimeSection } from "./OvertimeSection";
 import { RulesSection } from "./RulesSection";
 import type { SectionProps } from "./sections";
 
-type Tab = "rules" | "overtime" | "additional" | "bank" | "closing" | "projects" | "activities" | "people" | "approvers";
+type Tab = "rules" | "overtime" | "additional" | "bank" | "closing" | "projectHours" | "projects" | "activities" | "people" | "approvers";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "rules", label: "Regras" },
@@ -22,6 +23,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "additional", label: "Horas adicionais" },
   { id: "bank", label: "Banco de horas" },
   { id: "closing", label: "Fechamento do mês" },
+  { id: "projectHours", label: "Horas por projeto" },
   { id: "projects", label: "Projetos" },
   { id: "activities", label: "Atividades" },
   { id: "people", label: "Pessoas e papéis" },
@@ -112,6 +114,7 @@ export function SettingsPage(): JSX.Element {
       {tab === "additional" && <AdditionalHoursSection {...section} />}
       {tab === "bank" && <HourBankSection {...section} />}
       {tab === "closing" && <ClosingSection {...section} />}
+      {tab === "projectHours" && <ProjectHoursSection {...section} />}
       {tab === "projects" && <ProjectsSection {...section} />}
       {tab === "activities" && <ActivitiesSection {...section} />}
       {tab === "people" && <PeopleSection {...section} />}

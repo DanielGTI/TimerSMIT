@@ -1,5 +1,5 @@
 import { Switch } from "../../components/Switch";
-import { setProjectEnabled } from "../../lib/api/settings";
+import { setProjectCountsAsIdle, setProjectEnabled } from "../../lib/api/settings";
 import type { SectionProps } from "./sections";
 
 export function ProjectsSection({ settings, client, busy, run }: SectionProps): JSX.Element {
@@ -8,7 +8,9 @@ export function ProjectsSection({ settings, client, busy, run }: SectionProps): 
       <h2>Projetos</h2>
       <p className="muted">
         Os projetos aparecem aqui quando alguém abre um work item deles. Desabilitado, o projeto não aceita novos
-        lançamentos nem timers; o que já foi lançado continua nos relatórios.
+        lançamentos nem timers; o que já foi lançado continua nos relatórios. “Conta como hora ociosa”: no relatório
+        Horas por projeto, as horas do projeto (ex.: estudo interno) não contam como produtivas e entram em Horas
+        Ociosas.
       </p>
 
       {settings.projects.length === 0 ? (
@@ -17,7 +19,21 @@ export function ProjectsSection({ settings, client, busy, run }: SectionProps): 
         <ul className="settings-list">
           {settings.projects.map((project) => (
             <li key={project.id}>
-              <span>{project.name}</span>
+              <span className="settings-list__grow">{project.name}</span>
+              <Switch
+                label={`${project.name} conta como hora ociosa`}
+                text="Conta como hora ociosa"
+                checked={project.countsAsIdle ?? false}
+                disabled={busy}
+                onChange={(countsAsIdle) =>
+                  void run(
+                    () => setProjectCountsAsIdle(client, project.id, countsAsIdle),
+                    countsAsIdle
+                      ? `As horas de ${project.name} passam a contar como ociosas.`
+                      : `As horas de ${project.name} voltam a contar como produtivas.`,
+                  )
+                }
+              />
               <Switch
                 label={`${project.name} habilitado`}
                 text="Habilitado"

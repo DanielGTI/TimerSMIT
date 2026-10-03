@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HourBankController;
 use App\Http\Controllers\MeController;
+use App\Http\Controllers\ProjectHoursController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TimeEntryController;
@@ -77,6 +78,12 @@ Route::middleware('tenant')->group(function () {
         Route::post('/classify', [AdditionalHoursController::class, 'classify']);
         Route::get('/closing', [AdditionalHoursController::class, 'closing']);
         Route::get('/closing.csv', [AdditionalHoursController::class, 'closingCsv']);
+    });
+
+    // Horas do mês por projeto e pessoa (centro de custo), na tela e em Excel.
+    Route::middleware('admin')->group(function () {
+        Route::get('/project-hours', [ProjectHoursController::class, 'index']);
+        Route::get('/project-hours.xlsx', [ProjectHoursController::class, 'xlsx']);
     });
 
     // Banco de horas de todos: saldos, extrato, folgas, pagamentos e ajustes.

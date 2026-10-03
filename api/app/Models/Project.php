@@ -15,12 +15,14 @@ class Project extends Model
         'devops_project_id',
         'devops_project_name',
         'is_enabled',
+        'counts_as_idle',
     ];
 
     protected function casts(): array
     {
         return [
             'is_enabled' => 'boolean',
+            'counts_as_idle' => 'boolean',
         ];
     }
 

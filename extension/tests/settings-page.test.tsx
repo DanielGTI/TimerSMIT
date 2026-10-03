@@ -132,6 +132,7 @@ describe("SettingsPage", () => {
       "Horas adicionais",
       "Banco de horas",
       "Fechamento do mês",
+      "Horas por projeto",
       "Projetos",
       "Atividades",
       "Pessoas e papéis",

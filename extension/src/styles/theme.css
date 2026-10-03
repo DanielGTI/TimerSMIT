@@ -1674,3 +1674,37 @@ a.wi-chip__id:hover {
 .nowrap {
   white-space: nowrap;
 }
+
+.settings-list__grow {
+  flex: 1 1 auto;
+}
+
+/* Horas por projeto: projetos nas linhas, pessoas nas colunas. */
+.project-hours th,
+.project-hours td {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.project-hours th:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+
+.project-hours thead th {
+  white-space: normal;
+  min-width: 110px;
+}
+
+.project-hours__idle td,
+.project-hours__idle th {
+  background: rgba(255, 214, 102, 0.22);
+  font-weight: 600;
+}
+
+.project-hours__total td,
+.project-hours__total th {
+  background: var(--ts-surface);
+  font-weight: 700;
+  border-top: 2px solid var(--ts-border-strong);
+}

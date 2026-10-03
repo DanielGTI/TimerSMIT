@@ -69,6 +69,7 @@ class OrganizationSettingsService
                 'id' => (string) $project->id,
                 'name' => $project->devops_project_name,
                 'enabled' => $project->is_enabled,
+                'countsAsIdle' => (bool) $project->counts_as_idle,
             ])->all(),
             'activityTypes' => ActivityType::query()->where('tenant_id', $tenant->id)->orderBy('name')->get()
                 ->map(fn (ActivityType $type) => $this->presentActivityType($type))->all(),
@@ -158,6 +159,20 @@ class OrganizationSettingsService
         $project->update(['is_enabled' => $enabled]);
 
         $this->audit->record($tenant, $enabled ? 'settings.project_enabled' : 'settings.project_disabled', Project::class, $project->id, $actor, $project);
+    }
+
+    /** No relatório mensal por projeto, as horas deste projeto entram em "Horas Ociosas". */
+    public function setProjectCountsAsIdle(Tenant $tenant, Member $actor, int $projectId, bool $countsAsIdle): void
+    {
+        $project = Project::query()->where('tenant_id', $tenant->id)->findOrFail($projectId);
+
+        if ((bool) $project->counts_as_idle === $countsAsIdle) {
+            return;
+        }
+
+        $project->update(['counts_as_idle' => $countsAsIdle]);
+
+        $this->audit->record($tenant, 'settings.project_idle_changed', Project::class, $project->id, $actor, $project, ['countsAsIdle' => $countsAsIdle]);
     }
 
     // ---------- horas adicionais: feriados e regime ----------
