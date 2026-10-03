@@ -25,6 +25,9 @@ use Illuminate\Support\LazyCollection;
  */
 class TimeReportService
 {
+    /** Faturável de fato: marcado no lançamento E o projeto usa a marcação (ver Project::uses_billable). */
+    private const BILLABLE = '(time_entries.billable and projects.uses_billable)';
+
     public function scopeFor(Tenant $tenant, Member $member): ReportScope
     {
         $projectIds = RoleAssignment::query()
@@ -67,7 +70,7 @@ class TimeReportService
 
         $totals = (clone $base)->toBase()->selectRaw(
             'coalesce(sum(time_entries.duration_seconds), 0) as total_seconds, '.
-            'coalesce(sum(case when time_entries.billable then time_entries.duration_seconds else 0 end), 0) as billable_seconds, '.
+            'coalesce(sum(case when '.self::BILLABLE.' then time_entries.duration_seconds else 0 end), 0) as billable_seconds, '.
             'count(*) as entry_count'
         )->first();
 
@@ -134,7 +137,7 @@ class TimeReportService
 
         $totals = (clone $base)->toBase()->selectRaw(
             'coalesce(sum(time_entries.duration_seconds), 0) as total_seconds, '.
-            'coalesce(sum(case when time_entries.billable then time_entries.duration_seconds else 0 end), 0) as billable_seconds, '.
+            'coalesce(sum(case when '.self::BILLABLE.' then time_entries.duration_seconds else 0 end), 0) as billable_seconds, '.
             'count(*) as entry_count'
         )->first();
 
@@ -210,6 +213,8 @@ class TimeReportService
 
         return [
             'scope' => ['level' => $scope->level(), 'canFilterByMember' => $scope->canSeeOthers()],
+            // Nenhum projeto cobra por hora: a tela esconde filtro, totais e coluna de faturável.
+            'billableInUse' => Project::query()->where('tenant_id', $tenant->id)->where('uses_billable', true)->exists(),
             'members' => $memberQuery->orderBy('display_name')->get(['id', 'display_name'])
                 ->map(fn (Member $member) => ['id' => (string) $member->id, 'name' => $member->display_name])->all(),
             'projects' => Project::query()->where('tenant_id', $tenant->id)->whereIn('id', $projectIds)->orderBy('devops_project_name')
@@ -261,7 +266,7 @@ class TimeReportService
             $query->where('time_entries.activity_type_id', $filters['activityTypeId']);
         }
         if (isset($filters['billable'])) {
-            $query->where('time_entries.billable', $filters['billable']);
+            $query->whereRaw(($filters['billable'] ? '' : 'not ').self::BILLABLE);
         }
         if (isset($filters['status'])) {
             $query->whereRaw("coalesce(weekly_submissions.status, 'open') = ?", [$filters['status']]);
@@ -293,7 +298,7 @@ class TimeReportService
                 'time_entries.id',
                 'time_entries.local_date',
                 'time_entries.duration_seconds',
-                'time_entries.billable',
+                DB::raw(self::BILLABLE.' as billable'),
                 'time_entries.source',
                 'time_entries.note',
                 'time_entries.devops_work_item_id',

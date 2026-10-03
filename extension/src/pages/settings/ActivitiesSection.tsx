@@ -3,7 +3,7 @@ import { Switch } from "../../components/Switch";
 import { createActivityType, updateActivityType, type SettingsActivityDto } from "../../lib/api/settings";
 import type { SectionProps } from "./sections";
 
-function ActivityRow({ activity, client, busy, run }: SectionProps & { activity: SettingsActivityDto }): JSX.Element {
+function ActivityRow({ activity, settings, client, busy, run }: SectionProps & { activity: SettingsActivityDto }): JSX.Element {
   const [name, setName] = useState(activity.name);
   const [color, setColor] = useState(activity.color ?? "#cccccc");
 
@@ -35,15 +35,17 @@ function ActivityRow({ activity, client, busy, run }: SectionProps & { activity:
       >
         Salvar
       </button>
-      <Switch
-        label={`${activity.name}: faturável por padrão`}
-        text="Faturável"
-        checked={activity.defaultBillable}
-        disabled={busy}
-        onChange={(defaultBillable) =>
-          void run(() => updateActivityType(client, activity.id, { defaultBillable }), `Atividade ${activity.name} atualizada.`)
-        }
-      />
+      {settings.projects.some((project) => project.usesBillable) && (
+        <Switch
+          label={`${activity.name}: faturável por padrão`}
+          text="Faturável"
+          checked={activity.defaultBillable}
+          disabled={busy}
+          onChange={(defaultBillable) =>
+            void run(() => updateActivityType(client, activity.id, { defaultBillable }), `Atividade ${activity.name} atualizada.`)
+          }
+        />
+      )}
       <Switch
         label={`${activity.name} habilitada`}
         text="Habilitada"
@@ -100,7 +102,9 @@ export function ActivitiesSection(props: SectionProps): JSX.Element {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <Switch label="Faturável por padrão" checked={billable} onChange={setBillable} />
+          {settings.projects.some((project) => project.usesBillable) && (
+            <Switch label="Faturável por padrão" checked={billable} onChange={setBillable} />
+          )}
           <button type="submit" className="btn btn--primary" disabled={busy || name.trim() === ""}>
             Criar
           </button>

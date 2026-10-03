@@ -64,6 +64,8 @@ export interface ReportDetailDto {
 
 export interface ReportOptionsDto {
   scope: ReportDto["scope"];
+  /** Algum projeto usa "faturável"; se não, a tela esconde filtro, totais e coluna. */
+  billableInUse?: boolean;
   members: Array<{ id: string; name: string }>;
   projects: Array<{ id: string; name: string }>;
   activityTypes: Array<{ id: string; name: string; color: string | null; enabled: boolean }>;

@@ -183,11 +183,15 @@ export function InstructionsPage(): JSX.Element {
             já está no campo.
           </li>
           <li>
-            <strong>De / Até (opcional):</strong> informe se quiser registrar o horário; ele aparece nos relatórios. Sem
-            preencher, vale só a data e a duração. O horário não pode passar da meia-noite.
+            <strong>De / Até:</strong>{" "}
+            {overtime?.requireTimeOfDay
+              ? "obrigatório: é o horário que separa o expediente das horas adicionais."
+              : "opcional; sem preencher, vale só a data e a duração."}{" "}
+            O horário não pode passar da meia-noite.
           </li>
           <li>
-            <strong>Atividade e faturável:</strong> escolha a atividade; ela já sugere se é faturável, e você pode mudar.
+            <strong>Atividade:</strong> escolha a atividade. Só em projetos que cobram o cliente por hora aparece também
+            “Horas faturáveis”.
           </li>
         </ul>
       </Section>
@@ -382,8 +386,8 @@ export function InstructionsPage(): JSX.Element {
         <ul>
           <li>
             <strong>Relatórios:</strong> você sempre vê as <em>suas</em> horas. Gestores veem as dos projetos que
-            gerenciam e administradores, as da organização. Há filtros (período, pessoa, projeto, atividade, faturável,
-            estado da semana e work item), agrupamento em grade e <strong>Exportar CSV</strong> com os filtros aplicados.
+            gerenciam e administradores, as da organização. Há filtros (período, pessoa, projeto, atividade, estado
+            da semana e work item), agrupamento em grade e <strong>Exportar CSV</strong> com os filtros aplicados.
           </li>
           <li>
             <strong>Configuração</strong> (só administradores): regras e fuso, horas extras e feriados, classificação

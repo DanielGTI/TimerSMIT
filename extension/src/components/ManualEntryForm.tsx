@@ -31,6 +31,8 @@ interface ManualEntryFormProps {
   onSaved?: (saved: { localDate: string; minutes: number }) => void;
   /** De/Até obrigatórios (controle de horas adicionais ligado na organização). */
   requireTime?: boolean;
+  /** O projeto cobra o cliente por hora (Configuração → Projetos): mostra "Horas faturáveis". */
+  billableEnabled?: boolean;
 }
 
 type Feedback = { kind: "ok" | "error"; text: string } | null;
@@ -67,6 +69,7 @@ export function ManualEntryForm({
   onCancel,
   onSaved,
   requireTime = false,
+  billableEnabled = false,
 }: ManualEntryFormProps): JSX.Element {
   const ids = useId();
   const [localDate, setLocalDate] = useState(() => initialDate ?? todayLocalIso());
@@ -126,7 +129,7 @@ export function ManualEntryForm({
   function handleActivityChange(id: string | null) {
     setActivityId(id);
     const chosen = activityTypes.find((type) => type.id === id);
-    if (chosen) setBillable(chosen.defaultBillable);
+    if (chosen && billableEnabled) setBillable(chosen.defaultBillable);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -144,7 +147,7 @@ export function ManualEntryForm({
         durationSeconds: durationMinutes * 60,
         ...(sendsStart ? { startTime: fromText } : {}),
         activityTypeId: activityId ? Number(activityId) : undefined,
-        billable,
+        billable: billableEnabled && billable,
         note: note.trim() || undefined,
         title: workItem.title,
         workItemType: workItem.workItemType,
@@ -301,7 +304,7 @@ export function ManualEntryForm({
         />
       </div>
 
-      <Switch label="Horas faturáveis" checked={billable} onChange={setBillable} />
+      {billableEnabled && <Switch label="Horas faturáveis" checked={billable} onChange={setBillable} />}
 
       <div className="actions">
         {onCancel && (

@@ -15,6 +15,8 @@ export interface CurrentSession {
   displayName: string;
   hoursRegime?: "clt" | "pj" | "none";
   policy?: PolicyRules;
+  /** Projetos (id do Azure DevOps) que cobram o cliente por hora: só neles aparece "faturável". */
+  billableProjectIds?: string[];
   /** `requireTimeOfDay`: o lançamento manual precisa de De/Até. */
   overtime?: {
     enabled: boolean;

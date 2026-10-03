@@ -31,10 +31,12 @@ function Breakdown({ title, groups, total }: { title: string; groups: GroupTotal
 interface ReportResultsProps {
   report: ReportDto;
   onPage: (page: number) => void;
+  /** Algum projeto usa "faturável". */
+  showBillable?: boolean;
 }
 
 /** Cartões de totais, quebras por pessoa/projeto/atividade e a tabela paginada. */
-export function ReportResults({ report, onPage }: ReportResultsProps): JSX.Element {
+export function ReportResults({ report, onPage, showBillable = false }: ReportResultsProps): JSX.Element {
   const { totals, pagination } = report;
 
   return (
@@ -44,14 +46,18 @@ export function ReportResults({ report, onPage }: ReportResultsProps): JSX.Eleme
           <span className="muted">Total</span>
           <strong>{formatHours(totals.totalSeconds)}</strong>
         </div>
-        <div className="stat">
-          <span className="muted">Faturável</span>
-          <strong>{formatHours(totals.billableSeconds)}</strong>
-        </div>
-        <div className="stat">
-          <span className="muted">Não faturável</span>
-          <strong>{formatHours(totals.nonBillableSeconds)}</strong>
-        </div>
+        {showBillable && (
+          <>
+            <div className="stat">
+              <span className="muted">Faturável</span>
+              <strong>{formatHours(totals.billableSeconds)}</strong>
+            </div>
+            <div className="stat">
+              <span className="muted">Não faturável</span>
+              <strong>{formatHours(totals.nonBillableSeconds)}</strong>
+            </div>
+          </>
+        )}
         <div className="stat">
           <span className="muted">Lançamentos</span>
           <strong>{totals.entryCount}</strong>
@@ -78,7 +84,7 @@ export function ReportResults({ report, onPage }: ReportResultsProps): JSX.Eleme
                 <th scope="col">Work item</th>
                 <th scope="col">Atividade</th>
                 <th scope="col">Duração</th>
-                <th scope="col">Faturável</th>
+                {showBillable && <th scope="col">Faturável</th>}
                 <th scope="col">Semana</th>
                 <th scope="col">Comentário</th>
               </tr>
@@ -101,7 +107,7 @@ export function ReportResults({ report, onPage }: ReportResultsProps): JSX.Eleme
                     </span>
                   </td>
                   <td>{formatHours(row.durationSeconds)}</td>
-                  <td>{row.billable ? "Sim" : "Não"}</td>
+                  {showBillable && <td>{row.billable ? "Sim" : "Não"}</td>}
                   <td>
                     <StatusBadge status={row.weekStatus} />
                   </td>

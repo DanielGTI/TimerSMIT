@@ -43,6 +43,14 @@ class TimeEntry extends Model
         static::creating(function (TimeEntry $entry) {
             $entry->week_start_date ??= WeekCalendar::startOf(substr((string) $entry->local_date, 0, 10));
         });
+
+        // Projeto que não cobra por hora: nenhuma hora dele é faturável, venha de
+        // onde vier (timer, lançamento manual, edição).
+        static::saving(function (TimeEntry $entry) {
+            if ($entry->billable && ! Project::query()->whereKey($entry->project_id)->value('uses_billable')) {
+                $entry->billable = false;
+            }
+        });
     }
 
     /**

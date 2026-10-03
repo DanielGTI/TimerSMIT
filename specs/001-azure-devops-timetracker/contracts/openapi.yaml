@@ -570,7 +570,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, properties: { enabled: { type: boolean }, countsAsIdle: { type: boolean, description: 'No relatório por projeto, as horas entram em Horas Ociosas.' } }, description: 'Ao menos um dos dois campos.' }
+            schema: { type: object, properties: { enabled: { type: boolean }, countsAsIdle: { type: boolean, description: 'No relatório por projeto, as horas entram em Horas Ociosas.' }, usesBillable: { type: boolean, description: 'O projeto cobra o cliente por hora; desligado (padrão), nenhuma hora dele é faturável e o campo some do lançamento.' } }, description: 'Ao menos um dos campos.' }
       responses:
         '200': { description: Visão atualizada }
         '404': { description: Projeto de outra organização ou inexistente }

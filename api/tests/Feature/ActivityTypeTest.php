@@ -31,7 +31,7 @@ class ActivityTypeTest extends TestCase
     private function setUpAuthorizedMember(): array
     {
         $tenant = Tenant::factory()->create(['default_timezone' => 'America/Sao_Paulo']);
-        $project = Project::factory()->for($tenant)->create();
+        $project = Project::factory()->for($tenant)->create(['uses_billable' => true]);
         $member = Member::factory()->for($tenant)->create();
         RoleAssignment::factory()->create([
             'tenant_id' => $tenant->id,

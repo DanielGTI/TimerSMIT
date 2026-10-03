@@ -18,7 +18,8 @@ final class TimeEntryPresenter
             'startTime' => $entry->localStartTime(),
             'endTime' => $entry->localEndTime(),
             'source' => $entry->source,
-            'billable' => $entry->billable,
+            // Lançamentos antigos de projeto que não usa faturável ficaram marcados: não valem.
+            'billable' => $entry->billable && (bool) $entry->project?->uses_billable,
             'activityTypeId' => $entry->activity_type_id !== null ? (string) $entry->activity_type_id : null,
             'note' => $entry->note,
             'revision' => $entry->revision,

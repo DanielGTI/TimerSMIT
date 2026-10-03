@@ -158,7 +158,7 @@ export function ReportsPage(): JSX.Element {
         </div>
 
         {view === "summary" &&
-          (report ? <ReportResults report={report} onPage={setPage} /> : !error && <p className="muted">Carregando…</p>)}
+          (report ? <ReportResults report={report} onPage={setPage} showBillable={options?.billableInUse ?? false} /> : !error && <p className="muted">Carregando…</p>)}
 
         {view === "detail" &&
           (detail ? (
@@ -169,7 +169,12 @@ export function ReportsPage(): JSX.Element {
                   período ou use os filtros acima.
                 </p>
               )}
-              <ReportGrid rows={detail.rows} showPerson={detail.scope.canFilterByMember} organization={organization} />
+              <ReportGrid
+                rows={detail.rows}
+                showPerson={detail.scope.canFilterByMember}
+                organization={organization}
+                showBillable={options?.billableInUse ?? false}
+              />
             </>
           ) : (
             !error && <p className="muted">Carregando…</p>

@@ -161,6 +161,8 @@ interface ReportGridProps {
   showPerson: boolean;
   /** Nome da organização no Azure DevOps, para o link do work item. */
   organization: string | null;
+  /** Algum projeto usa "faturável"; se não, a coluna nem aparece para escolher. */
+  showBillable?: boolean;
 }
 
 /**
@@ -169,8 +171,11 @@ interface ReportGridProps {
  * Trabalha sobre as linhas já trazidas pelo servidor (mesmo escopo e filtros
  * da tela de resumo e do CSV); os filtros daqui só refinam o que já veio.
  */
-export function ReportGrid({ rows, showPerson, organization }: ReportGridProps): JSX.Element {
-  const available = useMemo(() => COLUMNS.filter((column) => showPerson || column.key !== "person"), [showPerson]);
+export function ReportGrid({ rows, showPerson, organization, showBillable = false }: ReportGridProps): JSX.Element {
+  const available = useMemo(
+    () => COLUMNS.filter((column) => (showPerson || column.key !== "person") && (showBillable || column.key !== "billable")),
+    [showPerson, showBillable],
+  );
 
   const [visible, setVisible] = useState<Set<ColumnKey>>(() => new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)));
   const [groupBy, setGroupBy] = useState<ColumnKey[]>([]);
@@ -266,7 +271,7 @@ export function ReportGrid({ rows, showPerson, organization }: ReportGridProps):
           <label htmlFor="grid-group-1">Agrupar por</label>
           <select id="grid-group-1" className="input input--compact" value={groupBy[0] ?? ""} onChange={(e) => setGroup(0, e.target.value)}>
             <option value="">Sem agrupamento</option>
-            {GROUPABLE.filter((column) => showPerson || column.key !== "person").map((column) => (
+            {GROUPABLE.filter((column) => available.includes(column)).map((column) => (
               <option key={column.key} value={column.key}>
                 {column.label}
               </option>
@@ -283,7 +288,7 @@ export function ReportGrid({ rows, showPerson, organization }: ReportGridProps):
             onChange={(e) => setGroup(1, e.target.value)}
           >
             <option value="">Nenhum</option>
-            {GROUPABLE.filter((column) => column.key !== groupBy[0] && (showPerson || column.key !== "person")).map((column) => (
+            {GROUPABLE.filter((column) => column.key !== groupBy[0] && available.includes(column)).map((column) => (
               <option key={column.key} value={column.key}>
                 {column.label}
               </option>

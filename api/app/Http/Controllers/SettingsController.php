@@ -136,12 +136,16 @@ class SettingsController extends Controller
     public function updateProject(Request $request, int $projectId): JsonResponse
     {
         $data = $request->validate([
-            'enabled' => ['required_without:countsAsIdle', 'boolean'],
+            'enabled' => ['required_without_all:countsAsIdle,usesBillable', 'boolean'],
             'countsAsIdle' => ['sometimes', 'boolean'],
+            'usesBillable' => ['sometimes', 'boolean'],
         ]);
 
         if (array_key_exists('enabled', $data)) {
             $this->settings->setProjectEnabled($this->tenantContext->tenant(), $this->tenantContext->member(), $projectId, $data['enabled']);
+        }
+        if (array_key_exists('usesBillable', $data)) {
+            $this->settings->setProjectUsesBillable($this->tenantContext->tenant(), $this->tenantContext->member(), $projectId, $data['usesBillable']);
         }
         if (array_key_exists('countsAsIdle', $data)) {
             $this->settings->setProjectCountsAsIdle($this->tenantContext->tenant(), $this->tenantContext->member(), $projectId, $data['countsAsIdle']);

@@ -70,6 +70,7 @@ class OrganizationSettingsService
                 'name' => $project->devops_project_name,
                 'enabled' => $project->is_enabled,
                 'countsAsIdle' => (bool) $project->counts_as_idle,
+                'usesBillable' => (bool) $project->uses_billable,
             ])->all(),
             'activityTypes' => ActivityType::query()->where('tenant_id', $tenant->id)->orderBy('name')->get()
                 ->map(fn (ActivityType $type) => $this->presentActivityType($type))->all(),
@@ -159,6 +160,20 @@ class OrganizationSettingsService
         $project->update(['is_enabled' => $enabled]);
 
         $this->audit->record($tenant, $enabled ? 'settings.project_enabled' : 'settings.project_disabled', Project::class, $project->id, $actor, $project);
+    }
+
+    /** Projeto que cobra o cliente por hora: o lançamento ganha a marcação "faturável". */
+    public function setProjectUsesBillable(Tenant $tenant, Member $actor, int $projectId, bool $usesBillable): void
+    {
+        $project = Project::query()->where('tenant_id', $tenant->id)->findOrFail($projectId);
+
+        if ((bool) $project->uses_billable === $usesBillable) {
+            return;
+        }
+
+        $project->update(['uses_billable' => $usesBillable]);
+
+        $this->audit->record($tenant, 'settings.project_billable_changed', Project::class, $project->id, $actor, $project, ['usesBillable' => $usesBillable]);
     }
 
     /** No relatório mensal por projeto, as horas deste projeto entram em "Horas Ociosas". */

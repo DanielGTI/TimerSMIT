@@ -16,10 +16,11 @@ const activityTypes = [
   { id: "9", name: "Suporte ao Cliente", color: "#F87878", defaultBillable: true },
 ];
 
-function renderForm(requireTime = false) {
+function renderForm(requireTime = false, billableEnabled = true) {
   return render(
     <ManualEntryForm
       requireTime={requireTime}
+      billableEnabled={billableEnabled}
       client={client}
       project={{ id: "project-guid-1", name: "SMIT LEARN IA" }}
       workItem={{ id: 42, title: "Teste Tracker", workItemType: "Task", iterationPath: "SMIT LEARN IA\\Sprint 3" }}
@@ -183,6 +184,18 @@ describe("ManualEntryForm", () => {
     expect(createManualEntry.mock.calls[0][1]).toMatchObject({ durationSeconds: 2700, activityTypeId: undefined });
   });
 
+  it("projeto que não cobra por hora: sem a opção de faturável, e a hora vai como não faturável", async () => {
+    createManualEntry.mockResolvedValue({});
+    renderForm(false, false);
+
+    expect(screen.queryByRole("switch", { name: "Horas faturáveis" })).not.toBeInTheDocument();
+    fireEvent.change(durationInput(), { target: { value: "01:00" } });
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+    expect(createManualEntry.mock.calls[0][1]).toMatchObject({ billable: false });
+  });
+
   it("escolher atividade aplica o faturável padrão dela", () => {
     renderForm();
     const toggle = screen.getByRole("switch", { name: "Horas faturáveis" });
@@ -219,14 +232,21 @@ describe("ManualEntryForm", () => {
     });
 
     it("sem mexer em De/Até, envia o horário inicial (agora) em vez de omitir", async () => {
-      createManualEntry.mockResolvedValue({});
-      renderForm(true);
+      // Hora fixa: perto da meia-noite, "agora + 30 min" passaria do dia e o Salvar ficaria bloqueado.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 9, 2, 10, 0, 0));
+      try {
+        createManualEntry.mockResolvedValue({});
+        renderForm(true);
 
-      fireEvent.change(durationInput(), { target: { value: "00:30" } });
-      fireEvent.click(saveButton());
+        fireEvent.change(durationInput(), { target: { value: "00:30" } });
+        fireEvent.click(saveButton());
 
-      await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
-      expect(createManualEntry.mock.calls[0][1]).toHaveProperty("startTime");
+        await waitFor(() => expect(createManualEntry).toHaveBeenCalledTimes(1));
+        expect(createManualEntry.mock.calls[0][1]).toMatchObject({ startTime: "10:00" });
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("horário inválido impede salvar", () => {

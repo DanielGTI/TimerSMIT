@@ -120,6 +120,7 @@ export function TimesheetPage(): JSX.Element {
             displayName: session.displayName,
             activityTypes,
             requireTime: session.overtime?.requireTimeOfDay ?? false,
+            billableProjectIds: session.billableProjectIds ?? [],
           }),
       )
       .catch((failure: unknown) => !cancelled && setAddTimeError(errorText(failure)));

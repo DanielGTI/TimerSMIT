@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Models\Project;
 use App\Services\OrganizationSettingsService;
 use App\Services\OvertimeRuleService;
 use App\Support\TenantContext;
@@ -29,6 +30,13 @@ class MeController extends Controller
             'hoursRegime' => $tenantContext->member()->hours_regime ?? Member::REGIME_CLT,
             // Regras de lançamento em vigor (incremento, limite diário, janela retroativa, comentário).
             'policy' => $this->settings->currentPolicyFor($tenantContext->tenant()),
+            // Projetos (id do Azure DevOps) que cobram por hora: só neles o lançamento mostra "faturável".
+            'billableProjectIds' => Project::query()
+                ->where('tenant_id', $tenantContext->tenant()->id)
+                ->where('uses_billable', true)
+                ->pluck('devops_project_id')
+                ->values()
+                ->all(),
             // O formulário de lançamento exige De/Até quando isto vem verdadeiro.
             'overtime' => $this->overtimeFor($tenantContext),
         ]);

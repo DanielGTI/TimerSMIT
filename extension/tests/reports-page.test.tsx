@@ -73,6 +73,7 @@ function report(overrides: Partial<ReportDto> = {}): ReportDto {
 
 const options: ReportOptionsDto = {
   scope: { level: "all", canFilterByMember: true },
+  billableInUse: true,
   members: [
     { id: "3", name: "Alice" },
     { id: "4", name: "Bob" },
@@ -105,6 +106,16 @@ describe("ReportsPage", () => {
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+  });
+
+  it("sem projeto que cobre por hora, não mostra filtro, totais nem coluna de faturável", async () => {
+    fetchReportOptions.mockResolvedValue({ ...options, billableInUse: false });
+    render(<ReportsPage />);
+
+    const totals = await screen.findByRole("group", { name: "Totais" });
+    expect(within(totals).queryByText("Faturável")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Faturável")).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Faturável" })).not.toBeInTheDocument();
   });
 
   it("abre no mês atual e mostra totais, quebras e lançamentos", async () => {

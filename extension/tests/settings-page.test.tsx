@@ -10,6 +10,8 @@ const api = {
   updateTimezone: vi.fn(),
   updatePolicy: vi.fn(),
   setProjectEnabled: vi.fn(),
+  setProjectUsesBillable: vi.fn(),
+  setProjectCountsAsIdle: vi.fn(),
   createActivityType: vi.fn(),
   updateActivityType: vi.fn(),
   grantRole: vi.fn(),
@@ -30,6 +32,8 @@ vi.mock("../src/lib/api/settings", () => ({
   updateTimezone: (...args: unknown[]) => api.updateTimezone(...args),
   updatePolicy: (...args: unknown[]) => api.updatePolicy(...args),
   setProjectEnabled: (...args: unknown[]) => api.setProjectEnabled(...args),
+  setProjectUsesBillable: (...args: unknown[]) => api.setProjectUsesBillable(...args),
+  setProjectCountsAsIdle: (...args: unknown[]) => api.setProjectCountsAsIdle(...args),
   createActivityType: (...args: unknown[]) => api.createActivityType(...args),
   updateActivityType: (...args: unknown[]) => api.updateActivityType(...args),
   grantRole: (...args: unknown[]) => api.grantRole(...args),
@@ -76,7 +80,7 @@ function settings(overrides: Partial<SettingsDto> = {}): SettingsDto {
     },
     holidays: [],
     projects: [
-      { id: "1", name: "Projeto A", enabled: true },
+      { id: "1", name: "Projeto A", enabled: true, usesBillable: true },
       { id: "2", name: "Projeto B", enabled: false },
     ],
     activityTypes: [
@@ -363,6 +367,25 @@ describe("SettingsPage", () => {
 
     await waitFor(() => expect(api.removeDesignation).toHaveBeenCalledWith(expect.anything(), "200", true));
     expect(await screen.findByText(/Nenhuma designação/)).toBeInTheDocument();
+  });
+
+  it("Projetos: liga a marcação de faturável só no projeto que cobra por hora", async () => {
+    api.setProjectUsesBillable.mockResolvedValue(settings());
+    await openTab("Projetos");
+
+    expect(screen.getByRole("switch", { name: "Projeto A usa faturável" })).toBeChecked();
+    fireEvent.click(screen.getByRole("switch", { name: "Projeto B usa faturável" }));
+
+    await waitFor(() => expect(api.setProjectUsesBillable).toHaveBeenCalledWith(expect.anything(), "2", true));
+    expect(await screen.findByRole("status")).toHaveTextContent("Projeto B passa a marcar horas faturáveis.");
+  });
+
+  it("sem projeto que cobre por hora, as atividades não mostram o faturável padrão", async () => {
+    api.fetchSettings.mockResolvedValue(settings({ projects: [{ id: "1", name: "Projeto A", enabled: true, usesBillable: false }] }));
+    await openTab("Atividades");
+
+    expect(screen.queryByRole("switch", { name: "Desenvolvimento: faturável por padrão" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Faturável por padrão" })).not.toBeInTheDocument();
   });
 
   it("limpa os avisos ao trocar de aba", async () => {

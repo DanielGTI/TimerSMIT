@@ -1,5 +1,5 @@
 import { Switch } from "../../components/Switch";
-import { setProjectCountsAsIdle, setProjectEnabled } from "../../lib/api/settings";
+import { setProjectCountsAsIdle, setProjectEnabled, setProjectUsesBillable } from "../../lib/api/settings";
 import type { SectionProps } from "./sections";
 
 export function ProjectsSection({ settings, client, busy, run }: SectionProps): JSX.Element {
@@ -8,7 +8,8 @@ export function ProjectsSection({ settings, client, busy, run }: SectionProps): 
       <h2>Projetos</h2>
       <p className="muted">
         Os projetos aparecem aqui quando alguém abre um work item deles. Desabilitado, o projeto não aceita novos
-        lançamentos nem timers; o que já foi lançado continua nos relatórios. “Conta como hora ociosa”: no relatório
+        lançamentos nem timers; o que já foi lançado continua nos relatórios. “Usa faturável”: só para projetos que
+        cobram o cliente por hora; desligado, o lançamento não pergunta se a hora é faturável. “Conta como hora ociosa”: no relatório
         Horas por projeto, as horas do projeto (ex.: estudo interno) não contam como produtivas e entram em Horas
         Ociosas.
       </p>
@@ -20,6 +21,20 @@ export function ProjectsSection({ settings, client, busy, run }: SectionProps): 
           {settings.projects.map((project) => (
             <li key={project.id}>
               <span className="settings-list__grow">{project.name}</span>
+              <Switch
+                label={`${project.name} usa faturável`}
+                text="Usa faturável"
+                checked={project.usesBillable ?? false}
+                disabled={busy}
+                onChange={(usesBillable) =>
+                  void run(
+                    () => setProjectUsesBillable(client, project.id, usesBillable),
+                    usesBillable
+                      ? `${project.name} passa a marcar horas faturáveis.`
+                      : `${project.name} não marca mais horas faturáveis.`,
+                  )
+                }
+              />
               <Switch
                 label={`${project.name} conta como hora ociosa`}
                 text="Conta como hora ociosa"

@@ -61,9 +61,9 @@ class ReportTest extends TestCase
         parent::setUp();
 
         $this->tenant = Tenant::factory()->create();
-        $this->a = Project::factory()->for($this->tenant)->create(['devops_project_name' => 'Projeto A']);
-        $this->b = Project::factory()->for($this->tenant)->create(['devops_project_name' => 'Projeto B']);
-        $this->c = Project::factory()->for($this->tenant)->create(['devops_project_name' => 'Projeto C']);
+        $this->a = Project::factory()->for($this->tenant)->create(['devops_project_name' => 'Projeto A', 'uses_billable' => true]);
+        $this->b = Project::factory()->for($this->tenant)->create(['devops_project_name' => 'Projeto B', 'uses_billable' => true]);
+        $this->c = Project::factory()->for($this->tenant)->create(['devops_project_name' => 'Projeto C', 'uses_billable' => true]);
 
         $this->admin = $this->member('Ana Admin');
         $this->manager = $this->member('Gil Gerente');

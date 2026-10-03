@@ -81,7 +81,8 @@ export interface SettingsDto {
   overtime: OvertimeRulesDto;
   holidays: HolidayDto[];
   /** `countsAsIdle`: no relatório por projeto, as horas entram em "Horas Ociosas". */
-  projects: Array<{ id: string; name: string; enabled: boolean; countsAsIdle?: boolean }>;
+  /** `usesBillable`: o projeto cobra o cliente por hora; só nele o lançamento tem "faturável". */
+  projects: Array<{ id: string; name: string; enabled: boolean; countsAsIdle?: boolean; usesBillable?: boolean }>;
   activityTypes: SettingsActivityDto[];
   members: SettingsMemberDto[];
   /** Quando a lista de pessoas foi atualizada com o Azure DevOps pela última vez. */
@@ -123,6 +124,9 @@ export const setHoursRegime = (client: ApiClient, memberId: string, regime: Hour
 
 export const setProjectEnabled = (client: ApiClient, projectId: string, enabled: boolean) =>
   send(client, "PATCH", `/projects/${projectId}`, { enabled });
+
+export const setProjectUsesBillable = (client: ApiClient, projectId: string, usesBillable: boolean) =>
+  send(client, "PATCH", `/projects/${projectId}`, { usesBillable });
 
 export const setProjectCountsAsIdle = (client: ApiClient, projectId: string, countsAsIdle: boolean) =>
   send(client, "PATCH", `/projects/${projectId}`, { countsAsIdle });

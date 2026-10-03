@@ -16,6 +16,7 @@ class Project extends Model
         'devops_project_name',
         'is_enabled',
         'counts_as_idle',
+        'uses_billable',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class Project extends Model
         return [
             'is_enabled' => 'boolean',
             'counts_as_idle' => 'boolean',
+            'uses_billable' => 'boolean',
         ];
     }
 

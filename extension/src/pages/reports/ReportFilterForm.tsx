@@ -101,14 +101,16 @@ export function ReportFilterForm({ draft, options, today, busy, onChange, onAppl
           </select>
         </div>
 
-        <div className="field">
-          <label htmlFor={`${ids}-billable`}>Faturável</label>
-          <select id={`${ids}-billable`} className="input" value={draft.billable ?? ""} onChange={(e) => set("billable")(e.target.value)}>
-            <option value="">Todos</option>
-            <option value="true">Sim</option>
-            <option value="false">Não</option>
-          </select>
-        </div>
+        {options?.billableInUse && (
+          <div className="field">
+            <label htmlFor={`${ids}-billable`}>Faturável</label>
+            <select id={`${ids}-billable`} className="input" value={draft.billable ?? ""} onChange={(e) => set("billable")(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </select>
+          </div>
+        )}
 
         <div className="field">
           <label htmlFor={`${ids}-status`}>Estado da semana</label>
