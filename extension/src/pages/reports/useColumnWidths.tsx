@@ -21,6 +21,34 @@ function load(storageKey: string, defaults: Record<string, number>): Record<stri
   }
 }
 
+/** Colunas escolhidas pela pessoa (só uma conveniência: sem storage, valem as colunas padrão). */
+export function useColumnVisibility<K extends string>(storageKey: string, all: K[], defaults: K[]) {
+  const [visible, setVisible] = useState<Set<K>>(() => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem(storageKey) ?? "null");
+      if (Array.isArray(parsed)) return new Set(all.filter((key) => parsed.includes(key)));
+    } catch {
+      // Sem storage ou valor inválido: vale o padrão.
+    }
+    return new Set(defaults);
+  });
+
+  const toggle = (key: K) =>
+    setVisible((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify([...next]));
+      } catch {
+        // As colunas só valem nesta sessão.
+      }
+      return next;
+    });
+
+  return { visible, toggle };
+}
+
 /**
  * Larguras de coluna ajustáveis (arrastando a borda do título ou pelo teclado),
  * guardadas por tabela no navegador. A tabela usa `table-layout: fixed`, então

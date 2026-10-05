@@ -157,16 +157,37 @@ describe("ReportsPage", () => {
     expect(JSON.parse(localStorage.getItem("timersmit.report.summaryColumnWidths") ?? "{}")).toMatchObject({ workItem: 460 });
   });
 
+  it("no Resumo, o menu Colunas oculta e mostra colunas, e a escolha fica guardada", async () => {
+    localStorage.removeItem("timersmit.report.summaryVisibleColumns");
+    render(<ReportsPage />);
+
+    const table = await screen.findByRole("table", { name: "Lançamentos do relatório" });
+    expect(within(table).getByRole("columnheader", { name: /Comentário/ })).toBeInTheDocument();
+
+    const menu = screen.getByRole("group", { name: "Colunas visíveis" });
+    fireEvent.click(within(menu).getByRole("checkbox", { name: "Comentário" }));
+    fireEvent.click(within(menu).getByRole("checkbox", { name: "Semana" }));
+
+    expect(within(table).queryByRole("columnheader", { name: /Comentário/ })).not.toBeInTheDocument();
+    expect(within(table).queryByRole("columnheader", { name: /Semana/ })).not.toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: /Work item/ })).toBeInTheDocument();
+    expect(within(table).queryByText("Aprovada")).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("timersmit.report.summaryVisibleColumns") ?? "[]")).not.toContain("note");
+
+    fireEvent.click(within(menu).getByRole("checkbox", { name: "Semana" }));
+    expect(within(table).getByRole("columnheader", { name: /Semana/ })).toBeInTheDocument();
+  });
+
   it("aplica os filtros escolhidos e volta para a primeira página", async () => {
     render(<ReportsPage />);
     await screen.findByRole("group", { name: "Totais" });
 
-    fireEvent.change(screen.getByLabelText("Pessoa"), { target: { value: "4" } });
-    fireEvent.change(screen.getByLabelText("Projeto"), { target: { value: "2" } });
-    fireEvent.change(screen.getByLabelText("Atividade"), { target: { value: "9" } });
-    fireEvent.change(screen.getByLabelText("Faturável"), { target: { value: "true" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Pessoa" }), { target: { value: "4" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Projeto" }), { target: { value: "2" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Atividade" }), { target: { value: "9" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Faturável" }), { target: { value: "true" } });
     fireEvent.change(screen.getByLabelText("Estado da semana"), { target: { value: "approved" } });
-    fireEvent.change(screen.getByLabelText("Work item"), { target: { value: "15a8b3" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Work item" }), { target: { value: "15a8b3" } });
     fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
 
     await waitFor(() =>
@@ -189,10 +210,10 @@ describe("ReportsPage", () => {
     await screen.findByRole("group", { name: "Totais" });
     const calls = fetchReport.mock.calls.length;
 
-    fireEvent.change(screen.getByLabelText("Projeto"), { target: { value: "2" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Projeto" }), { target: { value: "2" } });
     expect(fetchReport.mock.calls.length).toBe(calls);
 
-    fireEvent.change(screen.getByLabelText("Projeto"), { target: { value: "" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Projeto" }), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
 
     await waitFor(() => expect(fetchReport.mock.calls.length).toBeGreaterThan(calls));
@@ -250,7 +271,7 @@ describe("ReportsPage", () => {
     render(<ReportsPage />);
     await screen.findByRole("group", { name: "Totais" });
 
-    fireEvent.change(screen.getByLabelText("Projeto"), { target: { value: "2" } }); // rascunho, não aplicado
+    fireEvent.change(screen.getByRole("combobox", { name: "Projeto" }), { target: { value: "2" } }); // rascunho, não aplicado
     fireEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
 
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));

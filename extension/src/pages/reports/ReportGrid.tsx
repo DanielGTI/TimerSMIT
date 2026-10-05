@@ -2,7 +2,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { StatusBadge, WEEK_STATUS_LABELS } from "../../components/StatusBadge";
 import type { ReportRowDto } from "../../lib/api/reports";
 import { formatHours } from "../../lib/time/format";
-import { useColumnWidths } from "./useColumnWidths";
+import { ColumnsMenu } from "./ColumnsMenu";
+import { useColumnVisibility, useColumnWidths } from "./useColumnWidths";
 
 type ColumnKey =
   | "hours"
@@ -123,6 +124,7 @@ const DEFAULT_WIDTH: Record<ColumnKey, number> = {
 };
 const EDIT_COLUMN_WIDTH = 44;
 const WIDTHS_STORAGE = "timersmit.report.columnWidths";
+const VISIBLE_STORAGE = "timersmit.report.visibleColumns";
 
 const COLUMN_BY_KEY = new Map(COLUMNS.map((column) => [column.key, column]));
 const GROUPABLE = COLUMNS.filter((column) => column.groupable);
@@ -224,7 +226,11 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
     [showPerson, showBillable],
   );
 
-  const [visible, setVisible] = useState<Set<ColumnKey>>(() => new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)));
+  const { visible, toggle: toggleColumn } = useColumnVisibility<ColumnKey>(
+    VISIBLE_STORAGE,
+    COLUMNS.map((c) => c.key),
+    COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key),
+  );
   const [groupBy, setGroupBy] = useState<ColumnKey[]>([]);
   const [filters, setFilters] = useState<Partial<Record<ColumnKey, string>>>({});
   const [sort, setSort] = useState<{ key: ColumnKey; direction: 1 | -1 }>({ key: "date", direction: 1 });
@@ -284,14 +290,6 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
   };
   walk(tree);
 
-  const toggleColumn = (key: ColumnKey) =>
-    setVisible((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
   const setGroup = (level: 0 | 1, key: string) => {
     const next = [...groupBy];
     if (key === "") next.splice(level);
@@ -346,16 +344,7 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
           </select>
         </div>
 
-        <details className="columns-menu">
-          <summary className="btn btn--small">Colunas</summary>
-          <div className="columns-menu__list" role="group" aria-label="Colunas visíveis">
-            {available.map((column) => (
-              <label key={column.key} className="checkbox">
-                <input type="checkbox" checked={visible.has(column.key)} onChange={() => toggleColumn(column.key)} /> {column.label}
-              </label>
-            ))}
-          </div>
-        </details>
+        <ColumnsMenu columns={available} visible={visible} onToggle={toggleColumn} />
 
         {groupBy.length > 0 && (
           <>

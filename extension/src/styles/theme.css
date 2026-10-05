@@ -575,7 +575,7 @@ textarea.input {
   font-weight: 600;
 }
 
-.entry-table td:nth-child(4) {
+.entry-table:not(.grid-table--report) td:nth-child(4) {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -1125,6 +1125,12 @@ textarea.input {
 }
 
 .grid-table--report td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.grid-table--report td a {
   white-space: normal;
   overflow-wrap: anywhere;
 }

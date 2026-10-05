@@ -2,7 +2,8 @@ import { StatusBadge } from "../../components/StatusBadge";
 import type { GroupTotalDto, ReportDto } from "../../lib/api/reports";
 import { formatHours } from "../../lib/time/format";
 import { dayMonth, weekdayShort } from "../../lib/time/weeks";
-import { useColumnWidths } from "./useColumnWidths";
+import { ColumnsMenu } from "./ColumnsMenu";
+import { useColumnVisibility, useColumnWidths } from "./useColumnWidths";
 
 function Breakdown({ title, groups, total }: { title: string; groups: GroupTotalDto[]; total: number }): JSX.Element {
   return (
@@ -56,8 +57,13 @@ interface ReportResultsProps {
 export function ReportResults({ report, onPage, showBillable = false, organization = null }: ReportResultsProps): JSX.Element {
   const { totals, pagination } = report;
   const { resizer, layout } = useColumnWidths("timersmit.report.summaryColumnWidths", RESULT_WIDTH);
+  const { visible, toggle } = useColumnVisibility<ResultColumn>(
+    "timersmit.report.summaryVisibleColumns",
+    Object.keys(RESULT_WIDTH) as ResultColumn[],
+    Object.keys(RESULT_WIDTH) as ResultColumn[],
+  );
   const showPerson = report.scope.canFilterByMember;
-  const columns: Array<{ key: ResultColumn; label: string }> = [
+  const available: Array<{ key: ResultColumn; label: string }> = [
     { key: "date", label: "Data" },
     ...(showPerson ? [{ key: "person" as const, label: "Pessoa" }] : []),
     { key: "project", label: "Projeto" },
@@ -68,6 +74,8 @@ export function ReportResults({ report, onPage, showBillable = false, organizati
     { key: "week", label: "Semana" },
     { key: "note", label: "Comentário" },
   ];
+  const columns = available.filter((column) => visible.has(column.key));
+  const show = (key: ResultColumn) => visible.has(key);
   const { tableWidth, colgroup } = layout(columns.map((column) => column.key));
 
   return (
@@ -104,61 +112,74 @@ export function ReportResults({ report, onPage, showBillable = false, organizati
       {report.rows.length === 0 ? (
         <p className="muted">Nenhum lançamento para esses filtros.</p>
       ) : (
-        <div className="table-scroll">
-          <table className="entry-table grid-table--report" style={{ width: tableWidth }}>
-            <caption className="sr-only">Lançamentos do relatório</caption>
-            {colgroup}
-            <thead>
-              <tr>
-                {columns.map((column) => (
-                  <th key={column.key} scope="col">
-                    {column.label}
-                    {resizer(column.key, column.label)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {report.rows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    {weekdayShort(row.localDate)} {dayMonth(row.localDate)}
-                  </td>
-                  {report.scope.canFilterByMember && <td>{row.memberName}</td>}
-                  <td>{row.projectName}</td>
-                  <td>
-                    {organization ? (
-                      <a
-                        href={`https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(row.projectName)}/_workitems/edit/${row.workItemId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`Abrir o work item ${row.workItemId} no Azure DevOps`}
-                      >
-                        #{row.workItemId} {row.workItemTitle ?? ""}
-                      </a>
-                    ) : (
-                      <>
-                        #{row.workItemId} {row.workItemTitle ?? ""}
-                      </>
-                    )}
-                  </td>
-                  <td>
-                    <span className="activity">
-                      <span className="swatch" style={{ background: row.activityTypeColor ?? "transparent" }} />
-                      {row.activityTypeName ?? "Não definido"}
-                    </span>
-                  </td>
-                  <td>{formatHours(row.durationSeconds)}</td>
-                  {showBillable && <td>{row.billable ? "Sim" : "Não"}</td>}
-                  <td>
-                    <StatusBadge status={row.weekStatus} />
-                  </td>
-                  <td>{row.note ?? <span className="muted">–</span>}</td>
+        <>
+          <div className="grid-report__bar">
+            <ColumnsMenu columns={available} visible={visible} onToggle={toggle} />
+          </div>
+          <div className="table-scroll">
+            <table className="entry-table grid-table--report" style={{ width: tableWidth }}>
+              <caption className="sr-only">Lançamentos do relatório</caption>
+              {colgroup}
+              <thead>
+                <tr>
+                  {columns.map((column) => (
+                    <th key={column.key} scope="col">
+                      {column.label}
+                      {resizer(column.key, column.label)}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {report.rows.map((row) => (
+                  <tr key={row.id}>
+                    {show("date") && (
+                      <td>
+                        {weekdayShort(row.localDate)} {dayMonth(row.localDate)}
+                      </td>
+                    )}
+                    {showPerson && show("person") && <td>{row.memberName}</td>}
+                    {show("project") && <td>{row.projectName}</td>}
+                    {show("workItem") && (
+                      <td>
+                        {organization ? (
+                          <a
+                            href={`https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(row.projectName)}/_workitems/edit/${row.workItemId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Abrir o work item ${row.workItemId} no Azure DevOps`}
+                          >
+                            #{row.workItemId} {row.workItemTitle ?? ""}
+                          </a>
+                        ) : (
+                          <>
+                            #{row.workItemId} {row.workItemTitle ?? ""}
+                          </>
+                        )}
+                      </td>
+                    )}
+                    {show("activity") && (
+                      <td>
+                        <span className="activity">
+                          <span className="swatch" style={{ background: row.activityTypeColor ?? "transparent" }} />
+                          {row.activityTypeName ?? "Não definido"}
+                        </span>
+                      </td>
+                    )}
+                    {show("duration") && <td>{formatHours(row.durationSeconds)}</td>}
+                    {showBillable && show("billable") && <td>{row.billable ? "Sim" : "Não"}</td>}
+                    {show("week") && (
+                      <td>
+                        <StatusBadge status={row.weekStatus} />
+                      </td>
+                    )}
+                    {show("note") && <td>{row.note ?? <span className="muted">–</span>}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <nav className="pager" aria-label="Paginação">
