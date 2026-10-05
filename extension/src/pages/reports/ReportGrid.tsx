@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { StatusBadge, WEEK_STATUS_LABELS } from "../../components/StatusBadge";
 import type { ReportRowDto } from "../../lib/api/reports";
 import { formatHours } from "../../lib/time/format";
@@ -55,20 +55,20 @@ const COLUMNS: Column[] = [
     text: (row) => `#${row.workItemId} ${row.workItemTitle ?? ""}`.trim(),
     sortValue: (row) => row.workItemId,
     render: (row, organization) => (
-      <>
-        {organization ? (
-          <a
-            href={`https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(row.projectName)}/_workitems/edit/${row.workItemId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {row.workItemId}
-          </a>
-        ) : (
-          row.workItemId
-        )}{" "}
-        {row.workItemTitle ?? ""}
-      </>
+      organization ? (
+        <a
+          href={`https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(row.projectName)}/_workitems/edit/${row.workItemId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Abrir o work item ${row.workItemId} no Azure DevOps`}
+        >
+          #{row.workItemId} {row.workItemTitle ?? ""}
+        </a>
+      ) : (
+        <>
+          #{row.workItemId} {row.workItemTitle ?? ""}
+        </>
+      )
     ),
     defaultVisible: true,
     groupable: true,
@@ -103,6 +103,45 @@ const COLUMNS: Column[] = [
   },
   { key: "note", label: "Comentário", text: (row) => row.note ?? "", defaultVisible: false, groupable: false },
 ];
+
+/** Largura inicial de cada coluna, em pixels; o usuário ajusta arrastando a borda do título. */
+const DEFAULT_WIDTH: Record<ColumnKey, number> = {
+  hours: 80,
+  person: 140,
+  workItem: 380,
+  date: 100,
+  start: 80,
+  end: 80,
+  project: 160,
+  activity: 160,
+  type: 130,
+  iteration: 200,
+  billable: 90,
+  week: 120,
+  note: 260,
+};
+const MIN_WIDTH = 50;
+const MAX_WIDTH = 900;
+const EDIT_COLUMN_WIDTH = 44;
+const KEY_STEP = 20;
+const WIDTHS_STORAGE = "timersmit.report.columnWidths";
+
+const clampWidth = (value: number): number => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)));
+
+/** Larguras que o usuário já ajustou (só uma conveniência: sem storage, valem as iniciais). */
+function loadWidths(): Partial<Record<ColumnKey, number>> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(WIDTHS_STORAGE) ?? "{}") as Record<string, unknown>;
+    const widths: Partial<Record<ColumnKey, number>> = {};
+    for (const key of Object.keys(DEFAULT_WIDTH) as ColumnKey[]) {
+      const value = parsed[key];
+      if (typeof value === "number" && Number.isFinite(value)) widths[key] = clampWidth(value);
+    }
+    return widths;
+  } catch {
+    return {};
+  }
+}
 
 const COLUMN_BY_KEY = new Map(COLUMNS.map((column) => [column.key, column]));
 const GROUPABLE = COLUMNS.filter((column) => column.groupable);
@@ -210,9 +249,56 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
   const [sort, setSort] = useState<{ key: ColumnKey; direction: 1 | -1 }>({ key: "date", direction: 1 });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [limit, setLimit] = useState(PAGE_OF_ROWS);
+  const [widths, setWidths] = useState<Partial<Record<ColumnKey, number>>>(loadWidths);
+  const widthsRef = useRef(widths);
+  widthsRef.current = widths;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WIDTHS_STORAGE, JSON.stringify(widths));
+    } catch {
+      // Sem storage (janela privada, bloqueio): as larguras só valem nesta sessão.
+    }
+  }, [widths]);
+
+  const widthOf = (key: ColumnKey): number => widths[key] ?? DEFAULT_WIDTH[key];
+  const setWidth = (key: ColumnKey, value: number) => setWidths((current) => ({ ...current, [key]: clampWidth(value) }));
+  const resetWidth = (key: ColumnKey) =>
+    setWidths((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+
+  const startResize = (key: ColumnKey, event: ReactPointerEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = widthsRef.current[key] ?? DEFAULT_WIDTH[key];
+    const move = (moveEvent: PointerEvent) => setWidth(key, startWidth + moveEvent.clientX - startX);
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+      document.body.classList.remove("is-resizing-column");
+    };
+    document.body.classList.add("is-resizing-column");
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+  };
+
+  const resizeByKey = (key: ColumnKey, event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "ArrowRight") setWidth(key, widthOf(key) + KEY_STEP);
+    else if (event.key === "ArrowLeft") setWidth(key, widthOf(key) - KEY_STEP);
+    else if (event.key === "Home" || event.key === "Enter") resetWidth(key);
+    else return;
+    event.preventDefault();
+  };
 
   const columns = available.filter((column) => visible.has(column.key));
   const span = Math.max(1, columns.length + (onEdit ? 1 : 0));
+  const tableWidth = columns.reduce((sum, column) => sum + widthOf(column.key), onEdit ? EDIT_COLUMN_WIDTH : 0);
 
   const filtered = useMemo(() => {
     const active = Object.entries(filters).filter(([, text]) => text && text.trim() !== "");
@@ -357,8 +443,14 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
       </div>
 
       <div className="table-scroll">
-        <table className="entry-table grid-table--report">
+        <table className="entry-table grid-table--report" style={{ width: tableWidth }}>
           <caption className="sr-only">Lançamentos detalhados</caption>
+          <colgroup>
+            {onEdit && <col style={{ width: EDIT_COLUMN_WIDTH }} />}
+            {columns.map((column) => (
+              <col key={column.key} style={{ width: widthOf(column.key) }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               {onEdit && (
@@ -376,6 +468,20 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
                     {column.label}
                     {sort.key === column.key && <span aria-hidden="true">{sort.direction === 1 ? " ↑" : " ↓"}</span>}
                   </button>
+                  <span
+                    className="col-resizer"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={`Largura da coluna ${column.label}`}
+                    aria-valuemin={MIN_WIDTH}
+                    aria-valuemax={MAX_WIDTH}
+                    aria-valuenow={widthOf(column.key)}
+                    tabIndex={0}
+                    title="Arraste para ajustar a largura (duplo clique restaura)"
+                    onPointerDown={(event) => startResize(column.key, event)}
+                    onDoubleClick={() => resetWidth(column.key)}
+                    onKeyDown={(event) => resizeByKey(column.key, event)}
+                  />
                 </th>
               ))}
             </tr>

@@ -288,7 +288,7 @@ describe("ReportsPage", () => {
     expect(fetchReportDetail).toHaveBeenCalledTimes(1);
     expect(fetchReportDetail.mock.calls[0][1]).toEqual({ from: "2026-10-01", to: "2026-10-31" });
     expect(screen.getByText(/Linhas filtradas:/)).toHaveTextContent("Linhas filtradas: 2 (02:30 h)");
-    expect((await screen.findAllByRole("link", { name: "15835" }))[0]).toHaveAttribute("href", expect.stringContaining("/smitbr/Projeto%20A/_workitems/edit/15835"));
+    expect((await screen.findAllByRole("link", { name: /^#15835/ }))[0]).toHaveAttribute("href", expect.stringContaining("/smitbr/Projeto%20A/_workitems/edit/15835"));
   });
 
   it("avisa quando o período tem mais linhas do que a grade traz", async () => {

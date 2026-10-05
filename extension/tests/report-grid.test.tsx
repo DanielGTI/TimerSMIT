@@ -78,7 +78,7 @@ describe("ReportGrid", () => {
     }
     expect(screen.getByRole("status")).toHaveTextContent("Linhas filtradas: 4 (10:58 h)"); // 1080+1920+16320+20160 = 39480 s
 
-    const link = screen.getByRole("link", { name: "15703" });
+    const link = screen.getByRole("link", { name: /^#15703 / });
     expect(link).toHaveAttribute("href", "https://dev.azure.com/smitbr/Reuni%C3%B5es%20SMIT/_workitems/edit/15703");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
     expect(screen.getAllByText("09:10").length).toBeGreaterThan(0);
@@ -101,11 +101,11 @@ describe("ReportGrid", () => {
       "▸ Projeto: Reuniões SMIT (00:50 h em 2 linhas)",
       "▸ Projeto: SARC (10:08 h em 2 linhas)",
     ]);
-    expect(screen.queryByText("Implementação do PIX em lote")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Implementação do PIX em lote/)).not.toBeInTheDocument();
 
     fireEvent.click(toggles[1]);
-    expect(screen.getByText("Implementação do PIX em lote")).toBeInTheDocument();
-    expect(screen.queryByText("Daily 01/09/2026")).not.toBeInTheDocument();
+    expect(screen.getByText(/Implementação do PIX em lote/)).toBeInTheDocument();
+    expect(screen.queryByText(/Daily 01.09.2026/)).not.toBeInTheDocument();
   });
 
   it("agrupa em dois níveis e expande/recolhe tudo", () => {
@@ -116,10 +116,10 @@ describe("ReportGrid", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expandir tudo" }));
 
     expect(screen.getAllByRole("button", { expanded: true }).length).toBe(4); // 2 projetos + 2 pessoas
-    expect(screen.getByText("Implementação do PIX em lote")).toBeInTheDocument();
+    expect(screen.getByText(/Implementação do PIX em lote/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Recolher tudo" }));
-    expect(screen.queryByText("Implementação do PIX em lote")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Implementação do PIX em lote/)).not.toBeInTheDocument();
   });
 
   it("filtro por coluna refina as linhas e o total, e dá para limpar", () => {
@@ -176,5 +176,55 @@ describe("ReportGrid", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Mostrar mais 120" }));
     expect(bodyRows()).toHaveLength(620);
+  });
+
+  it("o número e o título do work item formam um único link para o Azure DevOps", () => {
+    renderGrid();
+
+    const link = screen.getByRole("link", { name: /^#15703 / });
+    expect(link).toHaveTextContent(/^#15703 \S/);
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("sem o nome da organização, o work item aparece como texto", () => {
+    render(<ReportGrid rows={ROWS} showPerson organization={null} />);
+
+    expect(screen.queryByRole("link", { name: /^#15703/ })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/#15703/).length).toBeGreaterThan(0);
+  });
+
+  it("a largura da coluna muda pelo teclado, volta ao padrão e fica guardada", () => {
+    localStorage.removeItem("timersmit.report.columnWidths");
+    renderGrid();
+
+    const handle = screen.getByRole("separator", { name: "Largura da coluna Work item" });
+    expect(handle).toHaveAttribute("aria-valuenow", "380");
+
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(handle).toHaveAttribute("aria-valuenow", "400");
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(handle).toHaveAttribute("aria-valuenow", "360");
+    expect(JSON.parse(localStorage.getItem("timersmit.report.columnWidths") ?? "{}")).toMatchObject({ workItem: 360 });
+
+    fireEvent.doubleClick(handle);
+    expect(handle).toHaveAttribute("aria-valuenow", "380");
+  });
+
+  it("arrastar a borda do título ajusta a coluna, dentro de um mínimo", () => {
+    localStorage.removeItem("timersmit.report.columnWidths");
+    renderGrid();
+
+    const handle = screen.getByRole("separator", { name: "Largura da coluna Projeto" });
+    expect(handle).toHaveAttribute("aria-valuenow", "160");
+
+    fireEvent(handle, new MouseEvent("pointerdown", { bubbles: true, cancelable: true, clientX: 500 }));
+    fireEvent(window, new MouseEvent("pointermove", { clientX: 560 }));
+    expect(handle).toHaveAttribute("aria-valuenow", "220");
+    fireEvent(window, new MouseEvent("pointermove", { clientX: 0 }));
+    expect(handle).toHaveAttribute("aria-valuenow", "50");
+    fireEvent(window, new MouseEvent("pointerup"));
+    fireEvent(window, new MouseEvent("pointermove", { clientX: 900 }));
+    expect(handle).toHaveAttribute("aria-valuenow", "50");
   });
 });

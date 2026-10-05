@@ -1118,14 +1118,63 @@ textarea.input {
   margin: 2px 0;
 }
 
-.grid-table--report th,
-.grid-table--report td {
-  white-space: nowrap;
+/* Larguras definidas por <colgroup> (colunas redimensionáveis): o texto quebra dentro da coluna. */
+.grid-table--report {
+  table-layout: fixed;
+  max-width: none;
 }
 
-.grid-table--report td:nth-child(3) {
+.grid-table--report td {
   white-space: normal;
-  min-width: 220px;
+  overflow-wrap: anywhere;
+}
+
+.grid-table--report thead th {
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grid-table--report .group-row th {
+  white-space: normal;
+  overflow: visible;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.col-resizer::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  right: 3px;
+  width: 2px;
+  background: var(--ts-border);
+}
+
+.col-resizer:hover::after,
+.col-resizer:focus-visible::after {
+  background: var(--ts-primary);
+}
+
+.col-resizer:focus-visible {
+  outline: 2px solid var(--ts-primary);
+  outline-offset: -2px;
+}
+
+body.is-resizing-column {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .grid-table--report td.num {
