@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AdditionalTag } from "../../components/AdditionalTag";
+import { WorkItemLink } from "../../components/WorkItemLink";
 import type { ApiClient } from "../../lib/api/client";
 import { deleteEntry, updateEntry, type WeekEntryDto } from "../../lib/api/timesheet";
 import { formatDuration, formatHours, parseDuration } from "../../lib/time/format";
@@ -92,7 +93,9 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                     {weekdayShort(entry.localDate)} {dayMonth(entry.localDate)}
                   </td>
                   <td>
-                    #{entry.workItemId} {entry.workItemTitle ?? ""}
+                    <WorkItemLink workItemId={entry.workItemId} projectName={entry.projectName}>
+                      #{entry.workItemId} {entry.workItemTitle ?? ""}
+                    </WorkItemLink>
                     <span className="muted block">{entry.projectName}</span>
                   </td>
                   <td>

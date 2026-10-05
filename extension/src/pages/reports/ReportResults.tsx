@@ -1,4 +1,5 @@
 import { StatusBadge } from "../../components/StatusBadge";
+import { WorkItemLink } from "../../components/WorkItemLink";
 import type { GroupTotalDto, ReportDto } from "../../lib/api/reports";
 import { formatHours } from "../../lib/time/format";
 import { dayMonth, weekdayShort } from "../../lib/time/weeks";
@@ -49,12 +50,10 @@ interface ReportResultsProps {
   onPage: (page: number) => void;
   /** Algum projeto usa "faturável". */
   showBillable?: boolean;
-  /** Nome da organização no Azure DevOps, para o link do work item. */
-  organization?: string | null;
 }
 
 /** Cartões de totais, quebras por pessoa/projeto/atividade e a tabela paginada. */
-export function ReportResults({ report, onPage, showBillable = false, organization = null }: ReportResultsProps): JSX.Element {
+export function ReportResults({ report, onPage, showBillable = false }: ReportResultsProps): JSX.Element {
   const { totals, pagination } = report;
   const { resizer, layout } = useColumnWidths("timersmit.report.summaryColumnWidths", RESULT_WIDTH);
   const { visible, toggle } = useColumnVisibility<ResultColumn>(
@@ -142,20 +141,9 @@ export function ReportResults({ report, onPage, showBillable = false, organizati
                     {show("project") && <td>{row.projectName}</td>}
                     {show("workItem") && (
                       <td>
-                        {organization ? (
-                          <a
-                            href={`https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(row.projectName)}/_workitems/edit/${row.workItemId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={`Abrir o work item ${row.workItemId} no Azure DevOps`}
-                          >
-                            #{row.workItemId} {row.workItemTitle ?? ""}
-                          </a>
-                        ) : (
-                          <>
-                            #{row.workItemId} {row.workItemTitle ?? ""}
-                          </>
-                        )}
+                        <WorkItemLink workItemId={row.workItemId} projectName={row.projectName}>
+                          #{row.workItemId} {row.workItemTitle ?? ""}
+                        </WorkItemLink>
                       </td>
                     )}
                     {show("activity") && (

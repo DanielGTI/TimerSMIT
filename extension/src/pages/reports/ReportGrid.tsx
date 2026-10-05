@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { StatusBadge, WEEK_STATUS_LABELS } from "../../components/StatusBadge";
+import { WorkItemLink } from "../../components/WorkItemLink";
 import type { ReportRowDto } from "../../lib/api/reports";
 import { formatHours } from "../../lib/time/format";
 import { ColumnsMenu } from "./ColumnsMenu";
@@ -27,7 +28,7 @@ interface Column {
   text: (row: ReportRowDto) => string;
   /** Valor de ordenação (padrão: o texto). */
   sortValue?: (row: ReportRowDto) => string | number;
-  render?: (row: ReportRowDto, organization: string | null) => ReactNode;
+  render?: (row: ReportRowDto) => ReactNode;
   defaultVisible: boolean;
   groupable: boolean;
   numeric?: boolean;
@@ -56,21 +57,10 @@ const COLUMNS: Column[] = [
     label: "Work item",
     text: (row) => `#${row.workItemId} ${row.workItemTitle ?? ""}`.trim(),
     sortValue: (row) => row.workItemId,
-    render: (row, organization) => (
-      organization ? (
-        <a
-          href={`https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(row.projectName)}/_workitems/edit/${row.workItemId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Abrir o work item ${row.workItemId} no Azure DevOps`}
-        >
-          #{row.workItemId} {row.workItemTitle ?? ""}
-        </a>
-      ) : (
-        <>
-          #{row.workItemId} {row.workItemTitle ?? ""}
-        </>
-      )
+    render: (row) => (
+      <WorkItemLink workItemId={row.workItemId} projectName={row.projectName}>
+        #{row.workItemId} {row.workItemTitle ?? ""}
+      </WorkItemLink>
     ),
     defaultVisible: true,
     groupable: true,
@@ -181,8 +171,6 @@ interface ReportGridProps {
   rows: ReportRowDto[];
   /** Mostrar a coluna Pessoa (quem só enxerga os próprios lançamentos não precisa dela). */
   showPerson: boolean;
-  /** Nome da organização no Azure DevOps, para o link do work item. */
-  organization: string | null;
   /** Algum projeto usa "faturável"; se não, a coluna nem aparece para escolher. */
   showBillable?: boolean;
   /** Administrador: lápis no começo de cada linha para corrigir o lançamento. */
@@ -220,7 +208,7 @@ function LockIcon(): JSX.Element {
  * Trabalha sobre as linhas já trazidas pelo servidor (mesmo escopo e filtros
  * da tela de resumo e do CSV); os filtros daqui só refinam o que já veio.
  */
-export function ReportGrid({ rows, showPerson, organization, showBillable = false, onEdit }: ReportGridProps): JSX.Element {
+export function ReportGrid({ rows, showPerson, showBillable = false, onEdit }: ReportGridProps): JSX.Element {
   const available = useMemo(
     () => COLUMNS.filter((column) => (showPerson || column.key !== "person") && (showBillable || column.key !== "billable")),
     [showPerson, showBillable],
@@ -462,7 +450,7 @@ export function ReportGrid({ rows, showPerson, organization, showBillable = fals
                   )}
                   {columns.map((column) => (
                     <td key={column.key} className={column.numeric ? "num" : undefined}>
-                      {column.render ? column.render(node.row, organization) : column.text(node.row) || <span className="muted">–</span>}
+                      {column.render ? column.render(node.row) : column.text(node.row) || <span className="muted">–</span>}
                     </td>
                   ))}
                 </tr>

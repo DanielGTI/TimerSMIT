@@ -13,7 +13,6 @@ import {
   type ReportOptionsDto,
   type ReportRowDto,
 } from "../../lib/api/reports";
-import { getHostContext } from "../../lib/devops/sdk";
 import { saveBlob } from "../../lib/download";
 import { todayLocalIso } from "../../lib/time/format";
 import { EntryEditPanel } from "./EntryEditPanel";
@@ -51,7 +50,6 @@ export function ReportsPage(): JSX.Element {
   const [view, setView] = useState<View>("summary");
   const [detail, setDetail] = useState<ReportDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [organization, setOrganization] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,14 +101,6 @@ export function ReportsPage(): JSX.Element {
       cancelled = true;
     };
   }, [client, applied, view, reloadKey]);
-
-  // Nome da organização, só para montar o link do work item (Resumo e Detalhada).
-  useEffect(() => {
-    if (organization) return;
-    getHostContext()
-      .then((host) => setOrganization(host.name))
-      .catch(() => undefined);
-  }, [organization]);
 
   function apply() {
     if (draft.from === "" || draft.to === "" || draft.from > draft.to) {
@@ -165,7 +155,7 @@ export function ReportsPage(): JSX.Element {
         </div>
 
         {view === "summary" &&
-          (report ? <ReportResults report={report} onPage={setPage} showBillable={options?.billableInUse ?? false} organization={organization} /> : !error && <p className="muted">Carregando…</p>)}
+          (report ? <ReportResults report={report} onPage={setPage} showBillable={options?.billableInUse ?? false} /> : !error && <p className="muted">Carregando…</p>)}
 
         {view === "detail" &&
           (detail ? (
@@ -184,7 +174,6 @@ export function ReportsPage(): JSX.Element {
               <ReportGrid
                 rows={detail.rows}
                 showPerson={detail.scope.canFilterByMember}
-                organization={organization}
                 showBillable={options?.billableInUse ?? false}
                 onEdit={
                   detail.canEditEntries

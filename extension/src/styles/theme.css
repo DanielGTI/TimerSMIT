@@ -1130,9 +1130,23 @@ textarea.input {
   word-break: break-word;
 }
 
-.grid-table--report td a {
+/* Link de work item: mesma cor do texto (escuro no tema claro, claro no escuro), sublinhado. */
+.wi-link,
+.wi-link:visited {
+  color: var(--ts-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.wi-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.wi-link:focus-visible {
+  outline: 2px solid var(--ts-primary);
+  outline-offset: 2px;
 }
 
 .grid-table--report thead th {

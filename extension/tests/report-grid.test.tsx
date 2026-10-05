@@ -1,5 +1,10 @@
+
+vi.mock("../src/lib/devops/sdk", () => ({
+  getHostContext: async () => ({ name: "smitbr" }),
+}));
+
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReportRowDto } from "../src/lib/api/reports";
 import { ReportGrid } from "../src/pages/reports/ReportGrid";
 
@@ -63,15 +68,16 @@ const ROWS: ReportRowDto[] = [
   }),
 ];
 
-const renderGrid = (rows = ROWS, showPerson = true) => render(<ReportGrid rows={rows} showPerson={showPerson} organization="smitbr" />);
+const renderGrid = (rows = ROWS, showPerson = true) => render(<ReportGrid rows={rows} showPerson={showPerson} />);
 
 const bodyRows = () => within(screen.getAllByRole("rowgroup").find((group) => group.tagName === "TBODY")!).getAllByRole("row");
 
 describe("ReportGrid", () => {
   afterEach(cleanup);
 
-  it("mostra as colunas do relatório, o total filtrado e o link do work item", () => {
+  it("mostra as colunas do relatório, o total filtrado e o link do work item", async () => {
     renderGrid();
+    await screen.findAllByRole("link", { name: /^#15703 / });
 
     for (const label of ["Horas", "Pessoa", "Work item", "Data", "Início", "Fim", "Projeto", "Atividade", "Tipo do work item", "Iteração"]) {
       expect(screen.getByRole("columnheader", { name: new RegExp(label) })).toBeInTheDocument();
@@ -178,19 +184,12 @@ describe("ReportGrid", () => {
     expect(bodyRows()).toHaveLength(620);
   });
 
-  it("o número e o título do work item formam um único link para o Azure DevOps", () => {
+  it("o número e o título do work item formam um único link para o Azure DevOps", async () => {
     renderGrid();
 
-    const link = screen.getByRole("link", { name: /^#15703 / });
+    const link = await screen.findByRole("link", { name: /^#15703 / });
     expect(link).toHaveTextContent(/^#15703 \S/);
     expect(link).toHaveAttribute("target", "_blank");
-  });
-
-  it("sem o nome da organização, o work item aparece como texto", () => {
-    render(<ReportGrid rows={ROWS} showPerson organization={null} />);
-
-    expect(screen.queryByRole("link", { name: /^#15703/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText(/#15703/).length).toBeGreaterThan(0);
   });
 
   it("a largura da coluna muda pelo teclado, volta ao padrão e fica guardada", () => {

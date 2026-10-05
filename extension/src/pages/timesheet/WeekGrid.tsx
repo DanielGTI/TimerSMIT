@@ -1,4 +1,5 @@
 import type { WeekDto, WeekEntryDto } from "../../lib/api/timesheet";
+import { WorkItemLink } from "../../components/WorkItemLink";
 import { formatHours } from "../../lib/time/format";
 import { dayMonth, weekdayShort } from "../../lib/time/weeks";
 
@@ -64,7 +65,9 @@ export function WeekGrid({ week, today }: { week: WeekDto; today: string }): JSX
             <tr key={row.key}>
               <th scope="row">
                 <span>
-                  #{row.workItemId} {row.title ?? ""}
+                  <WorkItemLink workItemId={row.workItemId} projectName={row.projectName}>
+                    #{row.workItemId} {row.title ?? ""}
+                  </WorkItemLink>
                 </span>
                 <span className="muted">{row.projectName}</span>
               </th>
