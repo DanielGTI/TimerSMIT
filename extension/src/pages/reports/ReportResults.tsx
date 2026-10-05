@@ -2,6 +2,7 @@ import { StatusBadge } from "../../components/StatusBadge";
 import type { GroupTotalDto, ReportDto } from "../../lib/api/reports";
 import { formatHours } from "../../lib/time/format";
 import { dayMonth, weekdayShort } from "../../lib/time/weeks";
+import { useColumnWidths } from "./useColumnWidths";
 
 function Breakdown({ title, groups, total }: { title: string; groups: GroupTotalDto[]; total: number }): JSX.Element {
   return (
@@ -28,16 +29,46 @@ function Breakdown({ title, groups, total }: { title: string; groups: GroupTotal
   );
 }
 
+type ResultColumn = "date" | "person" | "project" | "workItem" | "activity" | "duration" | "billable" | "week" | "note";
+
+const RESULT_WIDTH: Record<ResultColumn, number> = {
+  date: 100,
+  person: 150,
+  project: 160,
+  workItem: 380,
+  activity: 160,
+  duration: 90,
+  billable: 90,
+  week: 120,
+  note: 260,
+};
+
 interface ReportResultsProps {
   report: ReportDto;
   onPage: (page: number) => void;
   /** Algum projeto usa "faturável". */
   showBillable?: boolean;
+  /** Nome da organização no Azure DevOps, para o link do work item. */
+  organization?: string | null;
 }
 
 /** Cartões de totais, quebras por pessoa/projeto/atividade e a tabela paginada. */
-export function ReportResults({ report, onPage, showBillable = false }: ReportResultsProps): JSX.Element {
+export function ReportResults({ report, onPage, showBillable = false, organization = null }: ReportResultsProps): JSX.Element {
   const { totals, pagination } = report;
+  const { resizer, layout } = useColumnWidths("timersmit.report.summaryColumnWidths", RESULT_WIDTH);
+  const showPerson = report.scope.canFilterByMember;
+  const columns: Array<{ key: ResultColumn; label: string }> = [
+    { key: "date", label: "Data" },
+    ...(showPerson ? [{ key: "person" as const, label: "Pessoa" }] : []),
+    { key: "project", label: "Projeto" },
+    { key: "workItem", label: "Work item" },
+    { key: "activity", label: "Atividade" },
+    { key: "duration", label: "Duração" },
+    ...(showBillable ? [{ key: "billable" as const, label: "Faturável" }] : []),
+    { key: "week", label: "Semana" },
+    { key: "note", label: "Comentário" },
+  ];
+  const { tableWidth, colgroup } = layout(columns.map((column) => column.key));
 
   return (
     <>
@@ -74,19 +105,17 @@ export function ReportResults({ report, onPage, showBillable = false }: ReportRe
         <p className="muted">Nenhum lançamento para esses filtros.</p>
       ) : (
         <div className="table-scroll">
-          <table className="entry-table">
+          <table className="entry-table grid-table--report" style={{ width: tableWidth }}>
             <caption className="sr-only">Lançamentos do relatório</caption>
+            {colgroup}
             <thead>
               <tr>
-                <th scope="col">Data</th>
-                {report.scope.canFilterByMember && <th scope="col">Pessoa</th>}
-                <th scope="col">Projeto</th>
-                <th scope="col">Work item</th>
-                <th scope="col">Atividade</th>
-                <th scope="col">Duração</th>
-                {showBillable && <th scope="col">Faturável</th>}
-                <th scope="col">Semana</th>
-                <th scope="col">Comentário</th>
+                {columns.map((column) => (
+                  <th key={column.key} scope="col">
+                    {column.label}
+                    {resizer(column.key, column.label)}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -98,7 +127,20 @@ export function ReportResults({ report, onPage, showBillable = false }: ReportRe
                   {report.scope.canFilterByMember && <td>{row.memberName}</td>}
                   <td>{row.projectName}</td>
                   <td>
-                    #{row.workItemId} {row.workItemTitle ?? ""}
+                    {organization ? (
+                      <a
+                        href={`https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(row.projectName)}/_workitems/edit/${row.workItemId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Abrir o work item ${row.workItemId} no Azure DevOps`}
+                      >
+                        #{row.workItemId} {row.workItemTitle ?? ""}
+                      </a>
+                    ) : (
+                      <>
+                        #{row.workItemId} {row.workItemTitle ?? ""}
+                      </>
+                    )}
                   </td>
                   <td>
                     <span className="activity">

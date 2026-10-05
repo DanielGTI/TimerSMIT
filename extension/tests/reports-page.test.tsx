@@ -139,6 +139,24 @@ describe("ReportsPage", () => {
     expect(within(table).getByText("Aberta")).toBeInTheDocument();
   });
 
+  it("no Resumo, o work item inteiro é um link e as colunas têm largura ajustável", async () => {
+    localStorage.removeItem("timersmit.report.summaryColumnWidths");
+    render(<ReportsPage />);
+
+    const table = await screen.findByRole("table", { name: "Lançamentos do relatório" });
+    const link = (await within(table).findAllByRole("link", { name: /^#15835/ }))[0];
+    expect(link).toHaveAttribute("href", expect.stringContaining("/smitbr/Projeto%20A/_workitems/edit/15835"));
+    expect(link).toHaveAttribute("target", "_blank");
+
+    const handle = within(table).getByRole("separator", { name: "Largura da coluna Work item" });
+    expect(handle).toHaveAttribute("aria-valuenow", "380");
+    fireEvent(handle, new MouseEvent("pointerdown", { bubbles: true, cancelable: true, clientX: 300 }));
+    fireEvent(window, new MouseEvent("pointermove", { clientX: 380 }));
+    expect(handle).toHaveAttribute("aria-valuenow", "460");
+    fireEvent(window, new MouseEvent("pointerup"));
+    expect(JSON.parse(localStorage.getItem("timersmit.report.summaryColumnWidths") ?? "{}")).toMatchObject({ workItem: 460 });
+  });
+
   it("aplica os filtros escolhidos e volta para a primeira página", async () => {
     render(<ReportsPage />);
     await screen.findByRole("group", { name: "Totais" });

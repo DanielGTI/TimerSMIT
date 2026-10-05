@@ -104,13 +104,13 @@ export function ReportsPage(): JSX.Element {
     };
   }, [client, applied, view, reloadKey]);
 
-  // Nome da organização, só para montar o link do work item na grade.
+  // Nome da organização, só para montar o link do work item (Resumo e Detalhada).
   useEffect(() => {
-    if (view !== "detail" || organization) return;
+    if (organization) return;
     getHostContext()
       .then((host) => setOrganization(host.name))
       .catch(() => undefined);
-  }, [view, organization]);
+  }, [organization]);
 
   function apply() {
     if (draft.from === "" || draft.to === "" || draft.from > draft.to) {
@@ -165,7 +165,7 @@ export function ReportsPage(): JSX.Element {
         </div>
 
         {view === "summary" &&
-          (report ? <ReportResults report={report} onPage={setPage} showBillable={options?.billableInUse ?? false} /> : !error && <p className="muted">Carregando…</p>)}
+          (report ? <ReportResults report={report} onPage={setPage} showBillable={options?.billableInUse ?? false} organization={organization} /> : !error && <p className="muted">Carregando…</p>)}
 
         {view === "detail" &&
           (detail ? (
