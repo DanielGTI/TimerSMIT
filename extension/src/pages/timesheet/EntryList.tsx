@@ -71,7 +71,7 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
   return (
     <>
       <div className="table-scroll">
-        <table className="entry-table">
+        <table className="entry-table entry-table--list">
           <caption className="sr-only">Lançamentos da semana</caption>
           <thead>
             <tr>
@@ -107,21 +107,32 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                   </td>
                   <td>
                     {editing ? (
-                      <>
-                        <input
-                          className={minutes === null ? "input input--compact input--invalid" : "input input--compact"}
-                          aria-label="Duração (HH:MM)"
-                          value={durationText}
-                          onChange={(event) => setDurationText(event.target.value)}
-                        />
-                        <input
-                          className="input input--compact"
-                          type="time"
-                          aria-label="Início (opcional)"
-                          value={startText}
-                          onChange={(event) => setStartText(event.target.value)}
-                        />
-                      </>
+                      <div className="edit-stack">
+                        <div className="edit-field">
+                          <span className="edit-field__label" aria-hidden="true">
+                            Duração
+                          </span>
+                          <input
+                            className={minutes === null ? "input input--compact input--invalid" : "input input--compact"}
+                            aria-label="Duração (HH:MM)"
+                            placeholder="HH:MM"
+                            value={durationText}
+                            onChange={(event) => setDurationText(event.target.value)}
+                          />
+                        </div>
+                        <div className="edit-field">
+                          <span className="edit-field__label" aria-hidden="true">
+                            Início (opcional)
+                          </span>
+                          <input
+                            className="input input--compact"
+                            type="time"
+                            aria-label="Início (opcional)"
+                            value={startText}
+                            onChange={(event) => setStartText(event.target.value)}
+                          />
+                        </div>
+                      </div>
                     ) : (
                       <>
                         {formatHours(entry.durationSeconds)}
@@ -138,7 +149,7 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                   <td>
                     {editing ? (
                       <input
-                        className="input input--compact"
+                        className="input input--compact input--note"
                         aria-label="Comentário"
                         maxLength={2000}
                         value={note}
@@ -149,26 +160,28 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                     )}
                   </td>
                   {editable && (
-                    <td className="row-actions">
-                      {editing ? (
-                        <>
-                          <button type="button" className="btn btn--primary btn--small" disabled={busy} onClick={() => void save(entry)}>
-                            Salvar
-                          </button>
-                          <button type="button" className="btn btn--small" disabled={busy} onClick={() => setEditingId(null)}>
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button type="button" className="btn btn--small" disabled={busy} onClick={() => startEditing(entry)}>
-                            Editar
-                          </button>
-                          <button type="button" className="btn btn--small" disabled={busy} onClick={() => void remove(entry)}>
-                            Excluir
-                          </button>
-                        </>
-                      )}
+                    <td>
+                      <div className="row-actions">
+                        {editing ? (
+                          <>
+                            <button type="button" className="btn btn--primary btn--small" disabled={busy} onClick={() => void save(entry)}>
+                              Salvar
+                            </button>
+                            <button type="button" className="btn btn--small" disabled={busy} onClick={() => setEditingId(null)}>
+                              Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button type="button" className="btn btn--small" disabled={busy} onClick={() => startEditing(entry)}>
+                              Editar
+                            </button>
+                            <button type="button" className="btn btn--small" disabled={busy} onClick={() => void remove(entry)}>
+                              Excluir
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>

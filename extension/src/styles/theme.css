@@ -597,6 +597,38 @@ textarea.input {
   white-space: nowrap;
 }
 
+/* Lista de lançamentos da folha: células alinhadas ao centro (texto, campos e botões na mesma linha). */
+.entry-table--list td {
+  vertical-align: middle;
+}
+
+.entry-table--list .edit-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.entry-table--list .edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.entry-table--list .edit-field__label {
+  font-size: 11px;
+  color: var(--ts-muted);
+}
+
+.entry-table--list .edit-stack .input {
+  width: 100%;
+  min-width: 0;
+}
+
+.entry-table--list .input--note {
+  min-width: 200px;
+}
+
 .btn--small {
   min-height: 28px;
   padding: 2px 10px;
