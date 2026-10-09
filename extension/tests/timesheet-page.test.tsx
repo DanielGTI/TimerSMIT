@@ -384,6 +384,58 @@ describe("TimesheetPage", () => {
     );
   });
 
+  it("na edição, início e fim calculam a duração e início com duração calculam o fim", async () => {
+    updateEntry.mockResolvedValue({});
+    fetchWeek.mockResolvedValue(week({ entries: [entry({ id: "7", durationSeconds: 1800, startTime: "10:00", endTime: "10:30" })] }));
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    expect(screen.getByLabelText("Fim")).toHaveValue("10:30");
+
+    fireEvent.change(screen.getByLabelText("Fim"), { target: { value: "11:15" } });
+    expect(screen.getByLabelText("Duração (HH:MM)")).toHaveValue("01:15");
+
+    fireEvent.change(screen.getByLabelText("Duração (HH:MM)"), { target: { value: "00:20" } });
+    expect(screen.getByLabelText("Fim")).toHaveValue("10:20");
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(updateEntry).toHaveBeenCalledWith(expect.anything(), "7", 1, { durationSeconds: 1200, note: "" }),
+    );
+  });
+
+  it("na edição, fim antes do início mostra o erro e bloqueia o Salvar", async () => {
+    fetchWeek.mockResolvedValue(week({ entries: [entry({ id: "7", durationSeconds: 1800, startTime: "10:00", endTime: "10:30" })] }));
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.change(screen.getByLabelText("Fim"), { target: { value: "09:00" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("O fim precisa ser depois do início.");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+  });
+
+  it("na edição, troca a atividade e só envia o que mudou", async () => {
+    updateEntry.mockResolvedValue({});
+    fetchWeek.mockResolvedValue(week({ entries: [entry({ id: "7", durationSeconds: 1800 })] }));
+    render(<TimesheetPage />);
+    await screen.findByText("28 set – 04 out 2026");
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    const select = screen.getByRole("combobox", { name: "Atividade" });
+    expect(select).toHaveTextContent("Desenvolvimento");
+
+    fireEvent.click(select);
+    fireEvent.click(await screen.findByRole("option", { name: "Não definido" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() =>
+      expect(updateEntry).toHaveBeenCalledWith(expect.anything(), "7", 1, { durationSeconds: 1800, note: "", activityTypeId: null }),
+    );
+  });
+
   it("não envia o início quando ele não mudou", async () => {
     updateEntry.mockResolvedValue({});
     render(<TimesheetPage />);

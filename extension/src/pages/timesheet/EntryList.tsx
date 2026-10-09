@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { ActivitySelect } from "../../components/ActivitySelect";
 import { AdditionalTag } from "../../components/AdditionalTag";
 import { WorkItemLink } from "../../components/WorkItemLink";
+import { fetchActivityTypes, type ActivityTypeDto } from "../../lib/api/activityTypes";
 import type { ApiClient } from "../../lib/api/client";
 import { deleteEntry, updateEntry, type WeekEntryDto } from "../../lib/api/timesheet";
 import { formatDuration, formatHours, parseDuration } from "../../lib/time/format";
+import { changeRange, rangeError, type RangeField, type RangeText } from "../../lib/time/range";
 import { dayMonth, weekdayShort } from "../../lib/time/weeks";
 
 interface EntryListProps {
@@ -20,8 +23,9 @@ interface EntryListProps {
  */
 export function EntryList({ client, entries, editable, onChanged }: EntryListProps): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [durationText, setDurationText] = useState("");
-  const [startText, setStartText] = useState("");
+  const [range, setRange] = useState<RangeText>({ start: "", end: "", duration: "" });
+  const [activityId, setActivityId] = useState<string | null>(null);
+  const [activityTypes, setActivityTypes] = useState<ActivityTypeDto[] | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +34,38 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
     return <p className="muted">Nenhum lançamento nesta semana.</p>;
   }
 
-  const minutes = parseDuration(durationText);
+  const minutes = parseDuration(range.duration);
+  const timeError = rangeError(range);
+
+  const change = (field: RangeField, value: string) => setRange((current) => changeRange(current, field, value));
 
   function startEditing(entry: WeekEntryDto) {
     setEditingId(entry.id);
-    setDurationText(formatDuration(Math.round(entry.durationSeconds / 60)));
-    setStartText(entry.startTime ?? "");
+    setRange({
+      start: entry.startTime ?? "",
+      end: entry.endTime ?? "",
+      duration: formatDuration(Math.round(entry.durationSeconds / 60)),
+    });
+    setActivityId(entry.activityTypeId);
     setNote(entry.note ?? "");
     setError(null);
+
+    // As atividades só são lidas na primeira vez que alguém edita.
+    if (activityTypes === null) {
+      fetchActivityTypes(client)
+        .then(setActivityTypes)
+        .catch((failure: unknown) => setError(failure instanceof Error ? failure.message : String(failure)));
+    }
+  }
+
+  /** Atividades para escolher; a atual entra mesmo se já foi desabilitada (só não é reenviada se não mudar). */
+  function activityOptions(entry: WeekEntryDto): ActivityTypeDto[] {
+    const options = activityTypes ?? [];
+    if (entry.activityTypeId === null || options.some((option) => option.id === entry.activityTypeId)) return options;
+    return [
+      { id: entry.activityTypeId, name: entry.activityTypeName ?? "Atividade desabilitada", color: entry.activityTypeColor, defaultBillable: false },
+      ...options,
+    ];
   }
 
   async function run(action: () => Promise<void>) {
@@ -57,12 +85,15 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
   const save = (entry: WeekEntryDto) =>
     run(async () => {
       if (minutes === null || minutes <= 0) throw new Error("Use a duração no formato HH:MM (ex.: 01:30).");
-      const start = startText === "" ? null : startText;
+      if (timeError) throw new Error(timeError);
+      const start = range.start === "" ? null : range.start;
       await updateEntry(client, entry.id, entry.revision, {
         durationSeconds: minutes * 60,
         note,
         // Só envia o início se mudou (null apaga o horário).
         ...(start !== entry.startTime ? { startTime: start } : {}),
+        // Só envia a atividade se mudou.
+        ...(activityId !== entry.activityTypeId ? { activityTypeId: activityId } : {}),
       });
     });
 
@@ -99,39 +130,70 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                     <span className="muted block">{entry.projectName}</span>
                   </td>
                   <td>
-                    <span className="activity">
-                      <span className="swatch" style={{ background: entry.activityTypeColor ?? "transparent" }} />
-                      {entry.activityTypeName ?? "Não definido"}
-                    </span>
-                    {entry.billable && <span className="muted block">Faturável</span>}
+                    {editing ? (
+                      <ActivitySelect
+                        options={activityOptions(entry)}
+                        value={activityId}
+                        onChange={setActivityId}
+                        label="Atividade"
+                        disabled={busy}
+                      />
+                    ) : (
+                      <>
+                        <span className="activity">
+                          <span className="swatch" style={{ background: entry.activityTypeColor ?? "transparent" }} />
+                          {entry.activityTypeName ?? "Não definido"}
+                        </span>
+                        {entry.billable && <span className="muted block">Faturável</span>}
+                      </>
+                    )}
                   </td>
                   <td>
                     {editing ? (
-                      <div className="edit-stack">
+                      <div className="edit-times">
+                        <div className="edit-field">
+                          <span className="edit-field__label" aria-hidden="true">
+                            Início
+                          </span>
+                          <input
+                            className="input input--compact input--time"
+                            type="time"
+                            aria-label="Início (opcional)"
+                            value={range.start}
+                            onChange={(event) => change("start", event.target.value)}
+                          />
+                        </div>
+                        <div className="edit-field">
+                          <span className="edit-field__label" aria-hidden="true">
+                            Fim
+                          </span>
+                          <input
+                            className="input input--compact input--time"
+                            type="time"
+                            aria-label="Fim"
+                            value={range.end}
+                            onChange={(event) => change("end", event.target.value)}
+                          />
+                        </div>
                         <div className="edit-field">
                           <span className="edit-field__label" aria-hidden="true">
                             Duração
                           </span>
                           <input
-                            className={minutes === null ? "input input--compact input--invalid" : "input input--compact"}
+                            className={
+                              minutes === null ? "input input--compact input--hours input--invalid" : "input input--compact input--hours"
+                            }
                             aria-label="Duração (HH:MM)"
                             placeholder="HH:MM"
-                            value={durationText}
-                            onChange={(event) => setDurationText(event.target.value)}
+                            value={range.duration}
+                            onChange={(event) => change("duration", event.target.value)}
                           />
                         </div>
-                        <div className="edit-field">
-                          <span className="edit-field__label" aria-hidden="true">
-                            Início (opcional)
-                          </span>
-                          <input
-                            className="input input--compact"
-                            type="time"
-                            aria-label="Início (opcional)"
-                            value={startText}
-                            onChange={(event) => setStartText(event.target.value)}
-                          />
-                        </div>
+                        {timeError && (
+                          <p className="field__error edit-times__error" role="alert">
+                            {timeError}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -164,7 +226,12 @@ export function EntryList({ client, entries, editable, onChanged }: EntryListPro
                       <div className="row-actions">
                         {editing ? (
                           <>
-                            <button type="button" className="btn btn--primary btn--small" disabled={busy} onClick={() => void save(entry)}>
+                            <button
+                              type="button"
+                              className="btn btn--primary btn--small"
+                              disabled={busy || timeError !== null}
+                              onClick={() => void save(entry)}
+                            >
                               Salvar
                             </button>
                             <button type="button" className="btn btn--small" disabled={busy} onClick={() => setEditingId(null)}>

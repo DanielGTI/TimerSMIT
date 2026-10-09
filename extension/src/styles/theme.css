@@ -602,11 +602,11 @@ textarea.input {
   vertical-align: middle;
 }
 
-.entry-table--list .edit-stack {
+.entry-table--list .edit-times {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 6px;
-  min-width: 120px;
+  min-width: 108px;
 }
 
 .entry-table--list .edit-field {
@@ -620,9 +620,25 @@ textarea.input {
   color: var(--ts-muted);
 }
 
-.entry-table--list .edit-stack .input {
-  width: 100%;
+/* Campos de horário e duração: só o tamanho do valor (HH:MM), não a largura da coluna. */
+.entry-table--list .input--time {
+  width: 104px;
   min-width: 0;
+}
+
+.entry-table--list .input--hours {
+  width: 72px;
+  min-width: 0;
+  text-align: center;
+}
+
+.entry-table--list .edit-times__error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.entry-table--list .select {
+  min-width: 170px;
 }
 
 .entry-table--list .input--note {

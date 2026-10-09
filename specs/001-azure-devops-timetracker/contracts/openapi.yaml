@@ -280,6 +280,7 @@ paths:
                 startTime: { type: [string, 'null'], description: 'HH:MM define o início (o fim acompanha a duração); null apaga o horário. Mudar só a duração de um lançamento com horário move o fim.' }
                 note: { type: string, maxLength: 2000 }
                 billable: { type: boolean }
+                activityTypeId: { type: [integer, 'null'], description: 'Corrige a atividade (tipo habilitado da organização); null volta para "Não definido".' }
       responses:
         '200':
           description: Entrada atualizada.

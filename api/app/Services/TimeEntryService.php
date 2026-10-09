@@ -164,7 +164,7 @@ class TimeEntryService
     }
 
     /**
-     * @param  array{durationSeconds?: int, note?: string, billable?: bool, startTime?: ?string}  $changes
+     * @param  array{durationSeconds?: int, note?: string, billable?: bool, startTime?: ?string, activityTypeId?: ?int}  $changes
      */
     public function update(Tenant $tenant, Member $member, int $entryId, int $expectedRevision, array $changes): TimeEntry
     {
@@ -245,6 +245,7 @@ class TimeEntryService
                 'duration_seconds' => $changes['durationSeconds'] ?? $entry->duration_seconds,
                 'note' => $changes['note'] ?? $entry->note,
                 'billable' => $changes['billable'] ?? $entry->billable,
+                'activity_type_id' => array_key_exists('activityTypeId', $changes) ? $changes['activityTypeId'] : $entry->activity_type_id,
                 'revision' => $entry->revision + 1,
             ]);
 

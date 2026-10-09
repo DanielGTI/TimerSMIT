@@ -130,6 +130,8 @@ export interface EntryChanges {
   startTime?: string | null;
   note?: string;
   billable?: boolean;
+  /** Corrige a atividade; `null` volta para "Não definido". */
+  activityTypeId?: string | null;
 }
 
 export function updateEntry(

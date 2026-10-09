@@ -104,6 +104,8 @@ class TimeEntryController extends Controller
             'startTime' => ['sometimes', 'nullable', 'date_format:H:i'],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'billable' => ['sometimes', 'boolean'],
+            // Corrigir a atividade; null volta para "Não definido".
+            'activityTypeId' => ['sometimes', 'nullable', 'integer', ActivityTypeService::validIdRule($tenantContext->tenant())],
         ]);
 
         $entry = $this->entries->update(
