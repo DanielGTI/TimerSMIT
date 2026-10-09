@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\WeekCalendar;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,6 +69,21 @@ class TimeEntry extends Model
     }
 
     /** Hora local 'HH:MM' do início (no fuso em que o lançamento foi feito); nulo se não houver horário. */
+    /**
+     * Ordem de leitura da folha: por dia e, no dia, pelo horário de início (quem
+     * lançou depois um intervalo mais cedo não fica fora de ordem). Sem horário
+     * vai para o fim do dia; o id só desempata.
+     *
+     * @param  Builder<TimeEntry>  $query
+     */
+    public function scopeChronological(Builder $query): void
+    {
+        $query->orderBy('local_date')
+            ->orderByRaw('started_at_utc is null')
+            ->orderBy('started_at_utc')
+            ->orderBy('id');
+    }
+
     public function localStartTime(): ?string
     {
         return $this->started_at_utc?->copy()->setTimezone($this->timezone ?: 'UTC')->format('H:i');

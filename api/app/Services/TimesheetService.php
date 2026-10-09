@@ -49,8 +49,7 @@ class TimesheetService
             ->where('tenant_id', $tenant->id)
             ->where('member_id', $member->id)
             ->whereBetween('local_date', [$weekStart, WeekCalendar::endOf($weekStart)])
-            ->orderBy('local_date')
-            ->orderBy('id')
+            ->chronological()
             ->get();
 
         $submission = $this->submissionFor($tenant, $member, $weekStart);
@@ -200,8 +199,7 @@ class TimesheetService
                 ->where('tenant_id', $tenant->id)
                 ->where('member_id', $member->id)
                 ->whereBetween('local_date', [$weekStart, $weekEnd])
-                ->orderBy('local_date')
-                ->orderBy('id')
+                ->chronological()
                 ->get();
 
             if ($entries->isEmpty()) {
